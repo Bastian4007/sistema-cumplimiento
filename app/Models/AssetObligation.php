@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+    Use App\Enums\ObligationStatus;
 
 
 class AssetObligation extends Model
@@ -22,6 +23,11 @@ class AssetObligation extends Model
     protected $dates = [
         'issue_date',
         'due_date'
+    ];
+
+    protected $casts = [
+        'status' => ObligationStatus::class,
+        'due_date' => 'date',
     ];
 
     public function company()

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Enums\RequirementStatus;
 
 
 class AssetRequirement extends Model
@@ -23,6 +24,11 @@ class AssetRequirement extends Model
     protected $dates = [
         'due_date',
         'completed_at'
+    ];
+
+    protected $casts = [
+        'status' => RequirementStatus::class,
+        'due_date' => 'date',
     ];
 
     public function company()
