@@ -38,6 +38,21 @@ class User extends Authenticatable
      *
      * @return array<string, string>
      */
+    public function company()
+    {
+        return $this->belongsTo(Company::class);
+    }
+
+    public function role()
+    {
+        return $this->belongsTo(Role::class);
+    }
+
+    public function tasks()
+    {
+        return $this->belongsToMany(Task::class);
+    }
+
     protected function casts(): array
     {
         return [
