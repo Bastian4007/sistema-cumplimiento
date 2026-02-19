@@ -19,6 +19,12 @@ class Asset extends Model
         'responsible_user_id'
     ];
 
+    public function assetType()
+    {
+        return $this->belongsTo(AssetType::class);
+    }
+
+
     public function company()
     {
         return $this->belongsTo(Company::class);

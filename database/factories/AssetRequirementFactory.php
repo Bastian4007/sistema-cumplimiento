@@ -23,10 +23,12 @@ class AssetRequirementFactory extends Factory
     public function definition(): array
     {
         return [
+            'company_id' => Company::factory(),
             'asset_id' => Asset::factory(),
             'requirement_template_id' => RequirementTemplate::factory(),
+            'type' => $this->faker->randomElement(['inspection','audit','maintenance','certification',]),
             'status' => RequirementStatus::PENDING,
-            'due_date' => now()->addDays(rand(5, 30)),
+            'due_date' => now()->addDays(rand(5, 120)),
         ];
     }
     
@@ -36,6 +38,44 @@ class AssetRequirementFactory extends Factory
             'company_id' => $company->id,
             'asset_id' => Asset::factory()->for($company),
             'requirement_template_id' => RequirementTemplate::factory()->for($company),
+        ]);
+    }
+
+
+    public function expired()
+    {
+        return $this->state(fn () => [
+            'due_date' => now()->subDays(rand(1, 15)),
+            'status' => RequirementStatus::PENDING,
+        ]);
+    }
+
+    public function danger()
+    {
+        return $this->state(fn () => [
+            'due_date' => now()->addDays(rand(1, 30)),
+        ]);
+    }
+
+    public function warning()
+    {
+        return $this->state(fn () => [
+            'due_date' => now()->addDays(rand(31, 60)),
+        ]);
+    }
+
+    public function normal()
+    {
+        return $this->state(fn () => [
+            'due_date' => now()->addDays(rand(61, 120)),
+        ]);
+    }
+
+    public function completed()
+    {
+        return $this->state(fn () => [
+            'status' => RequirementStatus::COMPLETED,
+            'completed_at' => now(),
         ]);
     }
 }
