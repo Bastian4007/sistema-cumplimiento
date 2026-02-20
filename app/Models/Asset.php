@@ -30,11 +30,6 @@ class Asset extends Model
         return $this->belongsTo(Company::class);
     }
 
-    public function type()
-    {
-        return $this->belongsTo(AssetType::class, 'asset_type_id');
-    }
-
     public function responsible()
     {
         return $this->belongsTo(User::class, 'responsible_user_id');

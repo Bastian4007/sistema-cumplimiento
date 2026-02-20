@@ -11,7 +11,6 @@ class AssetType extends Model
     use HasFactory;
 
     protected $fillable = [
-        'company_id',
         'name',
         'priority_level',
         'warning_days',
