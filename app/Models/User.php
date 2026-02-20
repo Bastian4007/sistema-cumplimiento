@@ -21,6 +21,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'company_id',
+        'role_id',
     ];
 
     /**
@@ -32,6 +34,8 @@ class User extends Authenticatable
         'password',
         'remember_token',
     ];
+
+    protected $with = ['role', 'company'];
 
     /**
      * Get the attributes that should be cast.
@@ -51,6 +55,16 @@ class User extends Authenticatable
     public function tasks()
     {
         return $this->belongsToMany(Task::class);
+    }
+
+    public function isOperative(): bool
+    {
+        return $this->role?->slug === 'operative';
+    }
+
+    public function isReadOnly(): bool
+    {
+        return $this->role?->slug === 'readonly';
     }
 
     protected function casts(): array
