@@ -21,13 +21,11 @@ class Task extends Model
         'requires_document'
     ];
 
-    protected $dates = [
-        'due_date',
-        'completed_at'
-    ];
-
     protected $casts = [
-        'status' => TaskStatus::class,
+        'status' => \App\Enums\TaskStatus::class,
+        'due_date' => 'date',
+        'completed_at' => 'datetime',
+        'requires_document' => 'boolean',
     ];
 
     public function requirement()

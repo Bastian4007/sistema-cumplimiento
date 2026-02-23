@@ -55,7 +55,22 @@ class AssetController extends Controller
 
     public function show(Asset $asset)
     {
-        $asset->load(['assetType', 'responsible']);
+        $this->authorize('view', $asset);
+
+        $asset->load([
+            'assetType',
+            'responsible',
+            'requirements' => function ($q) {
+                $q->with('template')
+                ->withCount([
+                    'tasks as tasks_total',
+                    'tasks as tasks_done' => fn ($t) => $t->whereNotNull('completed_at'),
+                ])
+                ->orderByRaw("CASE WHEN due_date IS NULL THEN 1 ELSE 0 END")
+                ->orderBy('due_date');
+            },
+        ]);
+
         return view('assets.show', compact('asset'));
     }
 

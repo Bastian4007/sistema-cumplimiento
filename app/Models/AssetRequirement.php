@@ -29,13 +29,6 @@ class AssetRequirement extends Model
         'completed_at' => 'datetime',
     ];
 
-    protected static function booted()
-    {
-        static::retrieved(function ($requirement) {
-            $requirement->refreshExpirationStatus();
-        });
-    }
-
     public function company()
     {
         return $this->belongsTo(Company::class);
@@ -146,4 +139,32 @@ class AssetRequirement extends Model
         return $query->where('company_id', $companyId);
     }
 
+    public function getProgressAttribute(): int
+    {
+        $total = (int) ($this->tasks_total ?? 0);
+        $done  = (int) ($this->tasks_done ?? 0);
+
+        if ($total === 0) return 0;
+
+        return (int) round(($done / $total) * 100);
+    }
+
+    public function getComputedStatusAttribute(): string
+    {
+        // Si ya está completado por fecha
+        if ($this->completed_at) return 'completed';
+
+        // Respeta tu enum
+        if ($this->status === RequirementStatus::COMPLETED) return 'completed';
+        if ($this->status === RequirementStatus::CANCELLED) return 'cancelled';
+        if ($this->status === RequirementStatus::EXPIRED) return 'expired';
+
+        // Estado visual expirado aunque no se haya persistido
+        if ($this->due_date && $this->due_date->lt(now())) return 'expired';
+
+        // Inferencia ligera por tareas
+        if (($this->tasks_done ?? 0) > 0) return 'in_progress';
+
+        return 'pending';
+    }
 }

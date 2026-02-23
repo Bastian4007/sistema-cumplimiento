@@ -33,4 +33,92 @@
 
         </div>
     </div>
+    
+    <div class="mt-8">
+        <div class="flex items-center justify-between">
+            <h3 class="text-lg font-semibold text-gray-800">Obligaciones / Requerimientos</h3>
+
+            @if(auth()->user()->isOperative())
+                <a href="#"
+                class="px-3 py-2 rounded bg-gray-900 text-white text-sm hover:bg-gray-800">
+                    + Nueva carpeta
+                </a>
+            @endif
+        </div>
+
+        <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            @forelse($asset->requirements as $req)
+                @php
+                    $status = $req->computed_status;
+                    $risk = $req->risk_level;
+                    $progress = $req->progress;
+                @endphp
+
+                <div class="rounded-xl border bg-white p-4 shadow-sm">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <div class="font-medium text-gray-900">
+                                {{ $req->template?->name ?? $req->type }}
+                            </div>
+                            <div class="text-sm text-gray-500">
+                                Vence: {{ $req->due_date?->format('Y-m-d') ?? 'Sin fecha' }}
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col items-end gap-2">
+                            {{-- Status --}}
+                            <span class="text-xs px-2 py-1 rounded-full border
+                                @if($status === 'completed') bg-green-50 border-green-200 text-green-700
+                                @elseif($status === 'expired') bg-red-50 border-red-200 text-red-700
+                                @elseif($status === 'in_progress') bg-blue-50 border-blue-200 text-blue-700
+                                @else bg-gray-50 border-gray-200 text-gray-700
+                                @endif
+                            ">
+                                {{ strtoupper($status) }}
+                            </span>
+
+                            {{-- Risk --}}
+                            <span class="text-xs px-2 py-1 rounded-full border
+                                @if($risk === 'danger' || $risk === 'expired') bg-red-50 border-red-200 text-red-700
+                                @elseif($risk === 'warning') bg-yellow-50 border-yellow-200 text-yellow-700
+                                @else bg-gray-50 border-gray-200 text-gray-700
+                                @endif
+                            ">
+                                RIESGO: {{ strtoupper($risk) }}
+                            </span>
+                        </div>
+                    </div>
+
+                    {{-- Progreso --}}
+                    <div class="mt-4">
+                        <div class="flex justify-between text-xs text-gray-500">
+                            <span>Progreso</span>
+                            <span>{{ $progress }}%</span>
+                        </div>
+                        <div class="mt-1 h-2 w-full rounded bg-gray-100">
+                            <div class="h-2 rounded bg-gray-900" style="width: {{ $progress }}%"></div>
+                        </div>
+
+                        <div class="mt-2 text-xs text-gray-500">
+                            Tareas: {{ $req->tasks_done ?? 0 }}/{{ $req->tasks_total ?? 0 }}
+                        </div>
+                    </div>
+
+                    <div class="mt-4 flex items-center justify-between">
+                        <span class="text-sm text-gray-400">
+                            Ver tareas (próximamente)
+                        </span>
+
+                        <span class="text-sm text-gray-400">
+                            Abrir carpeta (próximamente)
+                        </span>
+                    </div>
+                </div>
+            @empty
+                <div class="text-sm text-gray-500">
+                    Este activo aún no tiene requerimientos.
+                </div>
+            @endforelse
+        </div>
+    </div>
 </x-app-layout>
