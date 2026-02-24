@@ -105,13 +105,16 @@
                     </div>
 
                     <div class="mt-4 flex items-center justify-between">
-                        <span class="text-sm text-gray-400">
-                            Ver tareas (próximamente)
-                        </span>
+                        <a class="text-sm text-gray-900 underline"
+                        href="{{ route('assets.requirements.show', [$asset, $req]) }}">
+                            Abrir carpeta →
+                        </a>
 
-                        <span class="text-sm text-gray-400">
-                            Abrir carpeta (próximamente)
-                        </span>
+                        {{-- Opcional: puedes ocultar "ver tareas" porque carpeta ya lista tareas --}}
+                        <a class="text-sm text-gray-700 underline"
+                        href="{{ route('requirements.tasks.create', $req) }}">
+                            + Nueva tarea
+                        </a>
                     </div>
                 </div>
             @empty

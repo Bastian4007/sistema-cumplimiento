@@ -48,6 +48,9 @@ class AssetController extends Controller
             ...$request->validated(),
         ]);
 
+        app(\App\Application\Compliance\AssignDefaultRequirementsToAsset::class)
+            ->handle($asset);
+
         return redirect()
             ->route('assets.show', $asset)
             ->with('status', 'Activo creado.');
