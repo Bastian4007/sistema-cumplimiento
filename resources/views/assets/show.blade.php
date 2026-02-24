@@ -5,123 +5,161 @@
         </h2>
     </x-slot>
 
-    <div class="py-6 max-w-4xl mx-auto">
-        <div class="bg-white shadow sm:rounded-lg p-6 space-y-3">
+    <div class="py-6 max-w-6xl mx-auto space-y-6">
 
-            <p><strong>Tipo:</strong> {{ $asset->assetType->name }}</p>
-            <p><strong>Código:</strong> {{ $asset->code ?? '-' }}</p>
-            <p><strong>Ubicación:</strong> {{ $asset->location ?? '-' }}</p>
-            <p><strong>Responsable:</strong> {{ $asset->responsible->name ?? '-' }}</p>
+        {{-- Información del activo --}}
+        <div class="bg-white shadow sm:rounded-lg p-6">
+            <div class="grid grid-cols-2 gap-6 text-sm text-gray-700">
 
-            @if(auth()->user()->isOperative())
-                <div class="mt-4 flex gap-4">
-                    <a href="{{ route('assets.edit', $asset) }}"
-                       class="px-4 py-2 bg-yellow-500 text-white rounded">
-                        Editar
-                    </a>
-
-                    <form method="POST"
-                          action="{{ route('assets.destroy', $asset) }}">
-                        @csrf
-                        @method('DELETE')
-                        <button class="px-4 py-2 bg-red-600 text-white rounded">
-                            Eliminar
-                        </button>
-                    </form>
+                <div>
+                    <div><strong>Tipo:</strong> {{ $asset->assetType->name }}</div>
+                    <div><strong>Código:</strong> {{ $asset->code ?? '-' }}</div>
+                    <div><strong>Ubicación:</strong> {{ $asset->location ?? '-' }}</div>
+                    <div><strong>Responsable:</strong> {{ $asset->responsible->name ?? '-' }}</div>
                 </div>
-            @endif
 
-        </div>
-    </div>
-    
-    <div class="mt-8">
-        <div class="flex items-center justify-between">
-            <h3 class="text-lg font-semibold text-gray-800">Obligaciones / Requerimientos</h3>
-
-            @if(auth()->user()->isOperative())
-                <a href="#"
-                class="px-3 py-2 rounded bg-gray-900 text-white text-sm hover:bg-gray-800">
-                    + Nueva carpeta
-                </a>
-            @endif
-        </div>
-
-        <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            @forelse($asset->requirements as $req)
-                @php
-                    $status = $req->computed_status;
-                    $risk = $req->risk_level;
-                    $progress = $req->progress;
-                @endphp
-
-                <div class="rounded-xl border bg-white p-4 shadow-sm">
-                    <div class="flex items-start justify-between gap-3">
-                        <div>
-                            <div class="font-medium text-gray-900">
-                                {{ $req->template?->name ?? $req->type }}
-                            </div>
-                            <div class="text-sm text-gray-500">
-                                Vence: {{ $req->due_date?->format('Y-m-d') ?? 'Sin fecha' }}
-                            </div>
-                        </div>
-
-                        <div class="flex flex-col items-end gap-2">
-                            {{-- Status --}}
-                            <span class="text-xs px-2 py-1 rounded-full border
-                                @if($status === 'completed') bg-green-50 border-green-200 text-green-700
-                                @elseif($status === 'expired') bg-red-50 border-red-200 text-red-700
-                                @elseif($status === 'in_progress') bg-blue-50 border-blue-200 text-blue-700
-                                @else bg-gray-50 border-gray-200 text-gray-700
-                                @endif
-                            ">
-                                {{ strtoupper($status) }}
-                            </span>
-
-                            {{-- Risk --}}
-                            <span class="text-xs px-2 py-1 rounded-full border
-                                @if($risk === 'danger' || $risk === 'expired') bg-red-50 border-red-200 text-red-700
-                                @elseif($risk === 'warning') bg-yellow-50 border-yellow-200 text-yellow-700
-                                @else bg-gray-50 border-gray-200 text-gray-700
-                                @endif
-                            ">
-                                RIESGO: {{ strtoupper($risk) }}
-                            </span>
-                        </div>
-                    </div>
-
-                    {{-- Progreso --}}
-                    <div class="mt-4">
-                        <div class="flex justify-between text-xs text-gray-500">
-                            <span>Progreso</span>
-                            <span>{{ $progress }}%</span>
-                        </div>
-                        <div class="mt-1 h-2 w-full rounded bg-gray-100">
-                            <div class="h-2 rounded bg-gray-900" style="width: {{ $progress }}%"></div>
-                        </div>
-
-                        <div class="mt-2 text-xs text-gray-500">
-                            Tareas: {{ $req->tasks_done ?? 0 }}/{{ $req->tasks_total ?? 0 }}
-                        </div>
-                    </div>
-
-                    <div class="mt-4 flex items-center justify-between">
-                        <a class="text-sm text-gray-900 underline"
-                        href="{{ route('assets.requirements.show', [$asset, $req]) }}">
-                            Abrir carpeta →
+                @if(auth()->user()->isOperative())
+                    <div class="flex items-start justify-end gap-4">
+                        <a href="{{ route('assets.edit', $asset) }}"
+                           class="px-4 py-2 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600">
+                            Editar
                         </a>
 
-                        {{-- Opcional: puedes ocultar "ver tareas" porque carpeta ya lista tareas --}}
-                        <a class="text-sm text-gray-700 underline"
-                        href="{{ route('requirements.tasks.create', $req) }}">
-                            + Nueva tarea
-                        </a>
+                        <form method="POST"
+                              action="{{ route('assets.destroy', $asset) }}"
+                              onsubmit="return confirm('¿Eliminar este activo?')">
+                            @csrf
+                            @method('DELETE')
+                            <button class="px-4 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700">
+                                Eliminar
+                            </button>
+                        </form>
                     </div>
-                </div>
-            @empty
-                <div class="text-sm text-gray-500">
-                    Este activo aún no tiene requerimientos.
-                </div>
-            @endforelse
+                @endif
+
+            </div>
         </div>
+
+
+        {{-- Obligaciones / Requerimientos --}}
+        <div class="bg-white shadow sm:rounded-lg p-6">
+
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-semibold text-gray-800">
+                    Obligaciones / Requerimientos
+                </h3>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                    <thead class="text-left text-gray-600 border-b">
+                        <tr>
+                            <th class="py-3 pr-4">Carpeta</th>
+                            <th class="py-3 pr-4">Vence</th>
+                            <th class="py-3 pr-4">Riesgo</th>
+                            <th class="py-3 pr-4">Estatus</th>
+                            <th class="py-3 pr-4">Progreso</th>
+                            <th class="py-3 pr-4">Tareas</th>
+                            <th class="py-3 pr-4 text-right">Acciones</th>
+                        </tr>
+                    </thead>
+
+                    <tbody class="divide-y">
+                        @forelse($asset->requirements as $req)
+                            <tr class="hover:bg-gray-50">
+
+                                {{-- Nombre --}}
+                                <td class="py-3 pr-4">
+                                    <div class="font-medium text-gray-900">
+                                        {{ $req->template?->name ?? $req->type }}
+                                    </div>
+
+                                    @if($req->isRecurrent())
+                                        <div class="text-xs text-gray-500">
+                                            Recurrencia: {{ $req->recurrenceLabel() }}
+                                        </div>
+                                    @endif
+                                </td>
+
+                                {{-- Due Date --}}
+                                <td class="py-3 pr-4">
+                                    {{ $req->due_date?->format('Y-m-d') ?? '-' }}
+                                </td>
+
+                                {{-- Riesgo --}}
+                                <td class="py-3 pr-4">
+                                    <span class="px-2 py-0.5 rounded border text-xs
+                                        @if($req->risk_level === 'danger')
+                                            bg-red-50 text-red-700 border-red-200
+                                        @elseif($req->risk_level === 'warning')
+                                            bg-yellow-50 text-yellow-700 border-yellow-200
+                                        @elseif($req->risk_level === 'expired')
+                                            bg-gray-100 text-gray-700 border-gray-200
+                                        @else
+                                            bg-green-50 text-green-700 border-green-200
+                                        @endif
+                                    ">
+                                        {{ strtoupper($req->risk_level) }}
+                                    </span>
+                                </td>
+
+                                {{-- Status --}}
+                                <td class="py-3 pr-4">
+                                    <span class="px-2 py-0.5 rounded border text-xs bg-gray-50">
+                                        {{ strtoupper($req->computed_status) }}
+                                    </span>
+                                </td>
+
+                                {{-- Progreso --}}
+                                <td class="py-3 pr-4 w-40">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-full bg-gray-200 rounded h-2">
+                                            <div class="bg-gray-900 h-2 rounded"
+                                                 style="width: {{ $req->progress }}%">
+                                            </div>
+                                        </div>
+                                        <span class="text-xs text-gray-600 w-10 text-right">
+                                            {{ $req->progress }}%
+                                        </span>
+                                    </div>
+                                </td>
+
+                                {{-- Tareas --}}
+                                <td class="py-3 pr-4">
+                                    {{ $req->tasks_done ?? 0 }}/{{ $req->tasks_total ?? 0 }}
+                                </td>
+
+                                {{-- Acciones --}}
+                                <td class="py-3 pr-4 text-right">
+                                    <div class="flex items-center justify-end gap-4">
+
+                                        <a href="{{ route('assets.requirements.show', [$asset, $req]) }}"
+                                           class="text-sm underline text-gray-700 hover:text-gray-900">
+                                            Abrir
+                                        </a>
+
+                                        {{-- Aquí después conectamos RequirementDocuments --}}
+                                        <a href="#"
+                                           class="text-sm underline text-gray-700 hover:text-gray-900">
+                                            Documentos
+                                        </a>
+
+                                    </div>
+                                </td>
+
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="7" class="py-6 text-gray-500 text-center">
+                                    No hay requerimientos todavía.
+                                </td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+
     </div>
 </x-app-layout>

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use App\Enums\RequirementStatus;
 use Carbon\Carbon;
+use Carbon\CarbonImmutable;
 
 class AssetRequirement extends Model
 {
@@ -20,13 +21,17 @@ class AssetRequirement extends Model
         'type',
         'status',
         'due_date',
-        'completed_at'
+        'completed_at',
+        'recurrence_interval',
+        'recurrence_unit',
+        'recurrence_anchor',
     ];
 
     protected $casts = [
         'status' => RequirementStatus::class,
         'due_date' => 'date',
         'completed_at' => 'datetime',
+        'recurrence_anchor' => 'date',
     ];
 
     public function company()
@@ -166,5 +171,68 @@ class AssetRequirement extends Model
         if (($this->tasks_done ?? 0) > 0) return 'in_progress';
 
         return 'pending';
+    }
+
+    public function isRecurrent(): bool
+    {
+        return !is_null($this->recurrence_interval) && !is_null($this->recurrence_unit);
+    }
+
+    public function recurrenceLabel(): ?string
+    {
+        if (!$this->isRecurrent()) {
+            return null;
+        }
+
+        return "{$this->recurrence_interval} {$this->recurrence_unit}";
+    }
+
+    public function nextDueDate(): ?CarbonImmutable
+    {
+        if (!$this->isRecurrent()) {
+            return null;
+        }
+
+        $base = CarbonImmutable::parse($this->due_date);
+
+        // Si quieres usar anchor cuando exista (opcional)
+        if ($this->recurrence_anchor) {
+            $base = CarbonImmutable::parse($this->recurrence_anchor);
+        }
+
+        return match ($this->recurrence_unit) {
+            'day' => $base->addDays($this->recurrence_interval),
+            'week' => $base->addWeeks($this->recurrence_interval),
+            'month' => $base->addMonthsNoOverflow($this->recurrence_interval),
+            'year' => $base->addYearsNoOverflow($this->recurrence_interval),
+            default => null,
+        };
+    }
+
+    public function canBeCompleted(): bool
+    {
+        // Si no tiene tareas, NO debería poder completarse (ajustable si tú quieres permitirlo)
+        if (!$this->tasks()->exists()) {
+            return false;
+        }
+
+        // Si hay tareas pendientes (no completed_at), no se puede completar
+        $hasPendingTasks = $this->tasks()->whereNull('completed_at')->exists();
+        if ($hasPendingTasks) {
+            return false;
+        }
+
+        // Defensa extra: si alguna tarea requiere documento, debe tener al menos 1 documento
+        // (aunque ya lo bloqueas al completar task, esto evita inconsistencias)
+        $hasMissingDocs = $this->tasks()
+            ->where('requires_document', true)
+            ->whereDoesntHave('documents')
+            ->exists();
+
+        if ($hasMissingDocs) {
+            return false;
+        }
+
+        return true;
     }
 }

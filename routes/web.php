@@ -7,14 +7,15 @@ use App\Http\Controllers\AssetRequirementController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\RequirementTaskController;
 use App\Http\Controllers\TaskDocumentController;
+use App\Http\Controllers\ComplianceDashboardController;
 
 Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', [ComplianceDashboardController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -26,6 +27,9 @@ Route::middleware('auth')->group(function () {
     // 🚧 RUTAS FUTURAS (déjalas comentadas hasta crear los controladores)
     Route::get('/assets/{asset}/requirements/{requirement}', [AssetRequirementController::class, 'show'])
         ->name('assets.requirements.show');
+
+    Route::patch('assets/{asset}/requirements/{requirement}/complete', [AssetRequirementController::class, 'complete'])
+        ->name('assets.requirements.complete');
 
     Route::get('/requirements/{requirement}/tasks/create', [RequirementTaskController::class, 'create'])
         ->name('requirements.tasks.create');

@@ -1,22 +1,89 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Carpeta: {{ $requirement->template?->name ?? $requirement->type }}
-        </h2>
+        <div class="flex items-center justify-between">
+            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                Carpeta: {{ $requirement->template?->name ?? $requirement->type }}
+            </h2>
+
+            {{-- Acciones --}}
+            @if(auth()->user()->isOperative())
+                @if($requirement->status !== \App\Enums\RequirementStatus::COMPLETED)
+                    @if($requirement->canBeCompleted())
+                        <form method="POST" action="{{ route('assets.requirements.complete', [$asset, $requirement]) }}">
+                            @csrf
+                            @method('PATCH')
+                            <button type="submit"
+                                class="px-3 py-2 rounded bg-green-600 text-white text-sm hover:bg-green-700">
+                                Completar requirement
+                            </button>
+                        </form>
+                    @else
+                        <button type="button" disabled
+                            class="px-3 py-2 rounded bg-gray-200 text-gray-500 text-sm cursor-not-allowed">
+                            Completar requirement
+                        </button>
+                        <div class="text-xs text-gray-500 mt-1">
+                            Completa todas las tareas y sube las evidencias requeridas.
+                        </div>
+                    @endif
+                @else
+                    <span class="text-sm px-3 py-2 rounded bg-gray-100 text-gray-700 border">
+                        Completado
+                    </span>
+                @endif
+            @endif
     </x-slot>
 
     <div class="py-6 max-w-5xl mx-auto space-y-6">
 
         {{-- Resumen --}}
         <div class="bg-white shadow sm:rounded-lg p-6">
-            <div class="text-sm text-gray-700 space-y-1">
-                <div><strong>Activo:</strong> {{ $asset->name }}</div>
-                <div><strong>Vence:</strong> {{ $requirement->due_date?->format('Y-m-d') ?? 'Sin fecha' }}</div>
-                <div><strong>Riesgo:</strong> {{ $requirement->risk_level }}</div>
-                <div><strong>Estatus:</strong> {{ $requirement->computed_status }}</div>
-                <div><strong>Progreso:</strong> {{ $requirement->progress }}%</div>
-                <div><strong>Tareas:</strong> {{ $requirement->tasks_done }}/{{ $requirement->tasks_total }}</div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
+                <div class="space-y-1">
+                    <div><strong>Activo:</strong> {{ $asset->name }}</div>
+                    <div><strong>Vence:</strong> {{ $requirement->due_date?->format('Y-m-d') ?? 'Sin fecha' }}</div>
+                    <div><strong>Riesgo:</strong> {{ $requirement->risk_level }}</div>
+                    <div><strong>Estatus:</strong> {{ $requirement->computed_status }}</div>
+                </div>
+
+                <div class="space-y-1">
+                    <div><strong>Progreso:</strong> {{ $requirement->progress }}%</div>
+                    <div><strong>Tareas:</strong> {{ $requirement->tasks_done }}/{{ $requirement->tasks_total }}</div>
+
+                    {{-- Recurrencia --}}
+                    <div>
+                        <strong>Recurrencia:</strong>
+                        @if($requirement->isRecurrent())
+                            <span class="inline-flex items-center px-2 py-0.5 rounded border text-xs bg-gray-50">
+                                {{ $requirement->recurrenceLabel() }}
+                            </span>
+                            <span class="text-gray-500 ml-2">
+                                Próximo: {{ $requirement->nextDueDate()?->toDateString() ?? '-' }}
+                            </span>
+                        @else
+                            <span class="text-gray-500">No recurrente</span>
+                        @endif
+                    </div>
+                </div>
             </div>
+
+            {{-- Mensajes flash --}}
+            @if (session('success'))
+                <div class="mt-4 text-sm px-3 py-2 rounded border bg-green-50 text-green-800">
+                    {{ session('success') }}
+                </div>
+            @endif
+
+            @if ($errors->any())
+                <div class="mt-4 text-sm px-3 py-2 rounded border bg-red-50 text-red-800">
+                    <div class="font-medium">Hubo errores:</div>
+                    <ul class="list-disc ml-5">
+                        @foreach($errors->all() as $err)
+                            <li>{{ $err }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
         </div>
 
         {{-- Tareas --}}
@@ -38,6 +105,7 @@
                         <div class="flex items-start justify-between gap-4">
                             <div>
                                 <div class="font-medium text-gray-900">{{ $task->title }}</div>
+
                                 <div class="text-sm text-gray-600 mt-1">
                                     Status:
                                     <span class="px-2 py-0.5 rounded border text-xs">
@@ -58,9 +126,10 @@
                                         </span>
                                     @endif
                                 </div>
-                                 <a class="text-sm underline text-gray-700"
-                                href="{{ route('tasks.documents.index', $task) }}">
-                                Evidencias ({{ $task->documents_count ?? 0 }})
+
+                                <a class="text-sm underline text-gray-700"
+                                   href="{{ route('tasks.documents.index', $task) }}">
+                                    Evidencias ({{ $task->documents_count ?? 0 }})
                                 </a>
                             </div>
 
@@ -72,7 +141,7 @@
                                         Editar
                                     </a>
 
-                                    {{-- Completar / Reabrir (opción 2) --}}
+                                    {{-- Completar / Reabrir --}}
                                     @if($task->completed_at)
                                         <form method="POST" action="{{ route('requirements.tasks.reopen', [$requirement, $task]) }}">
                                             @csrf
