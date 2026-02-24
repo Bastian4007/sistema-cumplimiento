@@ -6,6 +6,7 @@ use App\Models\Task;
 use App\Models\TaskDocument;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\Response;
 
 class TaskDocumentController extends Controller
 {
@@ -68,5 +69,42 @@ class TaskDocumentController extends Controller
         $document->delete();
 
         return back()->with('status', 'Documento eliminado.');
+    }
+
+   public function preview(Task $task, TaskDocument $document)
+    {
+        // ✅ el documento debe pertenecer a la task
+        abort_unless($document->task_id === $task->id, 404);
+
+        // ✅ validar company por requirement (porque task no tiene company_id)
+        $companyId = $task->requirement?->company_id;
+        abort_unless($companyId && $companyId === auth()->user()->company_id, 403);
+
+        $path = $document->file_path;
+
+        abort_unless(Storage::disk('public')->exists($path), 404);
+
+        $mime = Storage::disk('public')->mimeType($path) ?? 'application/octet-stream';
+
+        $allowed = [
+            'application/pdf',
+            'image/png',
+            'image/jpeg',
+            'image/jpg',
+            'image/webp',
+            'image/gif',
+        ];
+
+        if (!in_array($mime, $allowed, true)) {
+            return back()->withErrors([
+                'preview' => 'Este tipo de archivo no se puede previsualizar. Descárgalo en su lugar.',
+            ]);
+        }
+
+        return response()->file(Storage::disk('public')->path($path), [
+            'Content-Type' => $mime,
+            'Content-Disposition' => 'inline; filename="' . basename($path) . '"',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 }

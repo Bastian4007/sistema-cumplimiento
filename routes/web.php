@@ -47,7 +47,7 @@ Route::middleware('auth')->group(function () {
         ->name('requirements.tasks.destroy');
 
     Route::patch('/requirements/{requirement}/tasks/{task}/complete', [RequirementTaskController::class, 'complete'])
-    ->name('requirements.tasks.complete');
+        ->name('requirements.tasks.complete');
 
     Route::patch('/requirements/{requirement}/tasks/{task}/reopen', [RequirementTaskController::class, 'reopen'])
         ->name('requirements.tasks.reopen');
@@ -63,6 +63,9 @@ Route::middleware('auth')->group(function () {
 
     Route::delete('/documents/{document}', [TaskDocumentController::class, 'destroy'])
         ->name('documents.destroy');
+    
+    Route::get('tasks/{task}/documents/{document}/preview', [TaskDocumentController::class, 'preview'])
+        ->name('tasks.documents.preview');
 });
 
 require __DIR__ . '/auth.php';

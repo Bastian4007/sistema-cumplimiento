@@ -56,6 +56,12 @@
                         </div>
 
                         <div class="flex items-center gap-2">
+                            <a href="{{ route('tasks.documents.preview', [$task, $doc])}}"
+                            target="_blank"
+                            class="px-3 py-1.5 text-sm border rounded hover:bg-gray-50">
+                                Ver
+                            </a>
+
                             <a href="{{ route('documents.download', $doc) }}"
                                class="px-3 py-1.5 text-sm border rounded hover:bg-gray-50">
                                 Descargar

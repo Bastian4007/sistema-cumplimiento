@@ -44,19 +44,9 @@
                     @error('due_date') <div class="text-sm text-red-600 mt-1">{{ $message }}</div> @enderror
                 </div>
 
-                <div class="flex items-center gap-2">
-                    <input type="hidden" name="requires_document" value="0">
-                    <input
-                        type="checkbox"
-                        name="requires_document"
-                        value="1"
-                        class="rounded"
-                        {{ old('requires_document') ? 'checked' : '' }}
-                    >
-                    <label class="text-sm text-gray-700">Requiere evidencia (documento)</label>
-                    @error('requires_document') <div class="text-sm text-red-600">{{ $message }}</div> @enderror
+                <div class="text-sm text-gray-600 bg-gray-50 border rounded p-3">
+                    Todas las tareas requieren evidencia obligatoria.
                 </div>
-
                 <div class="flex gap-3 pt-2">
                     <button class="px-4 py-2 bg-gray-900 text-white rounded hover:bg-gray-800">
                         Guardar

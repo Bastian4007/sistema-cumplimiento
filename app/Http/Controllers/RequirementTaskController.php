@@ -38,7 +38,7 @@ class RequirementTaskController extends Controller
             'title' => $request->title,
             'description' => $request->description,
             'due_date' => $request->due_date,
-            'requires_document' => (bool) $request->requires_document,
+            'requires_document' => TRUE,
 
             // Opción 2: el sistema define status
             'status' => TaskStatus::PENDING,
@@ -67,7 +67,7 @@ class RequirementTaskController extends Controller
             'title' => $request->title,
             'description' => $request->description,
             'due_date' => $request->due_date,
-            'requires_document' => (bool) $request->requires_document,
+            'requires_document' => TRUE,
         ]);
 
         return redirect()
@@ -91,6 +91,12 @@ class RequirementTaskController extends Controller
     {
         $this->guardRequirement($requirement);
         $this->guardTaskScope($requirement, $task);
+
+        if ($task->documents()->count() === 0) {
+            return back()->withErrors([
+                'task' => 'Debes subir al menos una evidencia para completar esta tarea.',
+            ]);
+        }
 
         // (Más adelante) aquí validaremos evidencias si requires_document = true
         $task->update([

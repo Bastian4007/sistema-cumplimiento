@@ -18,12 +18,14 @@
                             </button>
                         </form>
                     @else
-                        <button type="button" disabled
-                            class="px-3 py-2 rounded bg-gray-200 text-gray-500 text-sm cursor-not-allowed">
-                            Completar requirement
-                        </button>
-                        <div class="text-xs text-gray-500 mt-1">
-                            Completa todas las tareas y sube las evidencias requeridas.
+                        <div class="text-right">
+                            <button type="button" disabled
+                                class="px-3 py-2 rounded bg-gray-200 text-gray-500 text-sm cursor-not-allowed">
+                                Completar requirement
+                            </button>
+                            <div class="text-xs text-gray-500 mt-1">
+                                Completa todas las tareas y sube las evidencias.
+                            </div>
                         </div>
                     @endif
                 @else
@@ -32,6 +34,7 @@
                     </span>
                 @endif
             @endif
+        </div>
     </x-slot>
 
     <div class="py-6 max-w-5xl mx-auto space-y-6">
@@ -67,13 +70,14 @@
                 </div>
             </div>
 
-            {{-- Mensajes flash --}}
+            {{-- Flash success --}}
             @if (session('success'))
                 <div class="mt-4 text-sm px-3 py-2 rounded border bg-green-50 text-green-800">
                     {{ session('success') }}
                 </div>
             @endif
 
+            {{-- Errores --}}
             @if ($errors->any())
                 <div class="mt-4 text-sm px-3 py-2 rounded border bg-red-50 text-red-800">
                     <div class="font-medium">Hubo errores:</div>
@@ -102,55 +106,65 @@
             <div class="space-y-3">
                 @forelse($requirement->tasks as $task)
                     <div class="border rounded-lg p-4">
-                        <div class="flex items-start justify-between gap-4">
-                            <div>
-                                <div class="font-medium text-gray-900">{{ $task->title }}</div>
-
-                                <div class="text-sm text-gray-600 mt-1">
-                                    Status:
-                                    <span class="px-2 py-0.5 rounded border text-xs">
-                                        {{ $task->status->value }}
-                                    </span>
-
-                                    <span class="mx-2">|</span>
-
-                                    Vence: {{ $task->due_date?->format('Y-m-d') ?? '-' }}
-
-                                    <span class="mx-2">|</span>
-
-                                    Evidencias: {{ $task->documents_count ?? 0 }}
-
-                                    @if($task->requires_document)
-                                        <span class="ml-2 text-xs px-2 py-0.5 rounded border bg-yellow-50">
-                                            Requiere evidencia
-                                        </span>
-                                    @endif
-                                </div>
-
-                                <a class="text-sm underline text-gray-700"
-                                   href="{{ route('tasks.documents.index', $task) }}">
-                                    Evidencias ({{ $task->documents_count ?? 0 }})
-                                </a>
+                        
+                        {{-- Parte superior: información --}}
+                        <div>
+                            <div class="font-medium text-gray-900">
+                                {{ $task->title }}
                             </div>
 
-                            @if(auth()->user()->isOperative())
-                                <div class="flex items-center gap-2">
-                                    {{-- Editar --}}
-                                    <a href="{{ route('requirements.tasks.edit', [$requirement, $task]) }}"
-                                       class="px-3 py-1.5 text-sm border rounded hover:bg-gray-50">
-                                        Editar
-                                    </a>
+                            <div class="text-sm text-gray-600 mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                                <span>
+                                    Status:
+                                    <span class="px-2 py-0.5 rounded border text-xs bg-gray-50">
+                                        {{ $task->status->value }}
+                                    </span>
+                                </span>
 
-                                    {{-- Completar / Reabrir --}}
-                                    @if($task->completed_at)
-                                        <form method="POST" action="{{ route('requirements.tasks.reopen', [$requirement, $task]) }}">
-                                            @csrf
-                                            @method('PATCH')
-                                            <button class="px-3 py-1.5 text-sm border rounded hover:bg-gray-50">
-                                                Reabrir
-                                            </button>
-                                        </form>
+                                <span class="text-gray-400">|</span>
+
+                                <span>Vence: {{ $task->due_date?->format('Y-m-d') ?? '-' }}</span>
+
+                                <span class="text-gray-400">|</span>
+
+                                <span>Evidencias: {{ $task->documents_count ?? 0 }}</span>
+
+                                <span class="ml-2 text-xs px-2 py-0.5 rounded border bg-yellow-50">
+                                    Requiere evidencia
+                                </span>
+
+                                @if(($task->documents_count ?? 0) > 0)
+                                    <span class="text-xs px-2 py-0.5 rounded border bg-green-50 text-green-700 border-green-200">
+                                        Evidencia OK
+                                    </span>
+                                @else
+                                    <span class="text-xs px-2 py-0.5 rounded border bg-red-50 text-red-700 border-red-200">
+                                        Falta evidencia
+                                    </span>
+                                @endif
+                            </div>
+                        </div>
+
+                        {{-- Parte inferior: botones --}}
+                        @if(auth()->user()->isOperative())
+                            <div class="mt-4 pt-3 border-t flex flex-wrap items-center justify-end gap-2">
+
+                                {{-- Evidencia --}}
+                                @if(!$task->completed_at)
+                                    @if(($task->documents_count ?? 0) === 0)
+                                        <a href="{{ route('tasks.documents.index', $task) }}"
+                                        class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700">
+                                            Subir evidencia
+                                        </a>
                                     @else
+                                        <a href="{{ route('tasks.documents.index', $task) }}"
+                                        class="px-3 py-1.5 text-sm border rounded hover:bg-gray-50">
+                                            Ver evidencias ({{ $task->documents_count }})
+                                        </a>
+                                    @endif
+
+                                    {{-- Completar --}}
+                                    @if(($task->documents_count ?? 0) > 0)
                                         <form method="POST" action="{{ route('requirements.tasks.complete', [$requirement, $task]) }}">
                                             @csrf
                                             @method('PATCH')
@@ -158,20 +172,45 @@
                                                 Completar
                                             </button>
                                         </form>
+                                    @else
+                                        <button disabled
+                                            class="px-3 py-1.5 text-sm bg-gray-200 text-gray-500 rounded cursor-not-allowed">
+                                            Completar
+                                        </button>
                                     @endif
-
-                                    {{-- Eliminar --}}
-                                    <form method="POST" action="{{ route('requirements.tasks.destroy', [$requirement, $task]) }}"
-                                          onsubmit="return confirm('¿Eliminar esta tarea?')">
+                                @else
+                                    <form method="POST" action="{{ route('requirements.tasks.reopen', [$requirement, $task]) }}">
                                         @csrf
-                                        @method('DELETE')
-                                        <button class="px-3 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700">
-                                            Eliminar
+                                        @method('PATCH')
+                                        <button class="px-3 py-1.5 text-sm border rounded hover:bg-gray-50">
+                                            Reabrir
                                         </button>
                                     </form>
-                                </div>
-                            @endif
-                        </div>
+
+                                    <a href="{{ route('tasks.documents.index', $task) }}"
+                                    class="px-3 py-1.5 text-sm border rounded hover:bg-gray-50">
+                                        Ver evidencias ({{ $task->documents_count ?? 0 }})
+                                    </a>
+                                @endif
+
+                                {{-- Editar --}}
+                                <a href="{{ route('requirements.tasks.edit', [$requirement, $task]) }}"
+                                class="px-3 py-1.5 text-sm border rounded hover:bg-gray-50">
+                                    Editar
+                                </a>
+
+                                {{-- Eliminar --}}
+                                <form method="POST" action="{{ route('requirements.tasks.destroy', [$requirement, $task]) }}"
+                                    onsubmit="return confirm('¿Eliminar esta tarea?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button class="px-3 py-1.5 text-sm bg-red-600 text-white rounded hover:bg-red-700">
+                                        Eliminar
+                                    </button>
+                                </form>
+
+                            </div>
+                        @endif
                     </div>
                 @empty
                     <div class="text-sm text-gray-500">No hay tareas todavía.</div>
