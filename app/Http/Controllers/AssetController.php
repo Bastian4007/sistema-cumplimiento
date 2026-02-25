@@ -18,13 +18,22 @@ class AssetController extends Controller
 
     public function index(Request $request)
     {
-        $assets = Asset::query()
+        $status = $request->query('status', 'active'); 
+
+        $query = Asset::query()
             ->where('company_id', $request->user()->company_id)
             ->with(['assetType', 'responsible'])
-            ->latest()
-            ->paginate(15);
+            ->latest();
 
-        return view('assets.index', compact('assets'));
+        if ($status === 'active') {
+            $query->where('status', Asset::STATUS_ACTIVE);
+        } elseif ($status === 'inactive') {
+            $query->where('status', Asset::STATUS_INACTIVE);
+        }
+
+        $assets = $query->paginate(15)->withQueryString();
+
+        return view('assets.index', compact('assets', 'status'));
     }
 
     public function create(Request $request)
@@ -44,7 +53,7 @@ class AssetController extends Controller
     public function store(StoreAssetRequest $request)
     {
         $asset = Asset::create([
-            'company_id' => $request->user()->company_id, // 🔒
+            'company_id' => $request->user()->company_id,
             ...$request->validated(),
         ]);
 
@@ -112,5 +121,23 @@ class AssetController extends Controller
         return redirect()
             ->route('assets.index')
             ->with('status', 'Activo eliminado.');
+    }
+
+    public function deactivate(Asset $asset)
+    {
+        abort_unless($asset->company_id === auth()->user()->company_id, 403);
+
+        $asset->update(['status' => Asset::STATUS_INACTIVE]);
+
+        return redirect()->route('assets.index')->with('success', 'Activo desactivado.');
+    }
+
+    public function activate(Asset $asset)
+    {
+        abort_unless($asset->company_id === auth()->user()->company_id, 403);
+
+        $asset->update(['status' => Asset::STATUS_ACTIVE]);
+
+        return back()->with('success', 'Activo reactivado.');
     }
 }

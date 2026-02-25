@@ -23,8 +23,6 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     Route::resource('assets', AssetController::class);
-
-    // 🚧 RUTAS FUTURAS (déjalas comentadas hasta crear los controladores)
     Route::get('/assets/{asset}/requirements/{requirement}', [AssetRequirementController::class, 'show'])
         ->name('assets.requirements.show');
 
@@ -66,6 +64,12 @@ Route::middleware('auth')->group(function () {
     
     Route::get('tasks/{task}/documents/{document}/preview', [TaskDocumentController::class, 'preview'])
         ->name('tasks.documents.preview');
+
+    Route::patch('assets/{asset}/deactivate', [AssetController::class, 'deactivate'])
+    ->name('assets.deactivate');
+
+    Route::patch('assets/{asset}/activate', [AssetController::class, 'activate'])
+        ->name('assets.activate');
 });
 
 require __DIR__ . '/auth.php';

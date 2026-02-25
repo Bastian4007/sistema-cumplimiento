@@ -1,17 +1,44 @@
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ $asset->name }}
-        </h2>
+        <div class="flex items-center justify-between">
+            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                {{ $asset->name }}
+            </h2>
+
+            {{-- Estado visual --}}
+            <span class="text-xs px-3 py-1 rounded border
+                {{ $asset->status === 'inactive'
+                    ? 'bg-gray-100 text-gray-700 border-gray-300'
+                    : 'bg-green-50 text-green-700 border-green-200' }}">
+                {{ strtoupper($asset->status) }}
+            </span>
+        </div>
     </x-slot>
 
     <div class="py-6 max-w-6xl mx-auto space-y-6">
 
+        {{-- Flash messages --}}
+        @if(session('success'))
+            <div class="text-sm px-4 py-3 rounded border bg-green-50 text-green-800">
+                {{ session('success') }}
+            </div>
+        @endif
+
+        @if($errors->any())
+            <div class="text-sm px-4 py-3 rounded border bg-red-50 text-red-800">
+                <ul class="list-disc ml-5">
+                    @foreach($errors->all() as $err)
+                        <li>{{ $err }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         {{-- Información del activo --}}
         <div class="bg-white shadow sm:rounded-lg p-6">
-            <div class="grid grid-cols-2 gap-6 text-sm text-gray-700">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-gray-700">
 
-                <div>
+                <div class="space-y-2">
                     <div><strong>Tipo:</strong> {{ $asset->assetType->name }}</div>
                     <div><strong>Código:</strong> {{ $asset->code ?? '-' }}</div>
                     <div><strong>Ubicación:</strong> {{ $asset->location ?? '-' }}</div>
@@ -20,25 +47,42 @@
 
                 @if(auth()->user()->isOperative())
                     <div class="flex items-start justify-end gap-4">
+
                         <a href="{{ route('assets.edit', $asset) }}"
                            class="px-4 py-2 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600">
                             Editar
                         </a>
 
-                        <form method="POST"
-                              action="{{ route('assets.destroy', $asset) }}"
-                              onsubmit="return confirm('¿Eliminar este activo?')">
-                            @csrf
-                            @method('DELETE')
-                            <button class="px-4 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700">
-                                Eliminar
-                            </button>
-                        </form>
+                        @if(!$asset->isInactive())
+                            <form method="POST" action="{{ route('assets.deactivate', $asset) }}">
+                                @csrf
+                                @method('PATCH')
+                                <button class="px-4 py-2 bg-gray-700 text-white rounded text-sm hover:bg-gray-800">
+                                    Desactivar
+                                </button>
+                            </form>
+                        @else
+                            <form method="POST" action="{{ route('assets.activate', $asset) }}">
+                                @csrf
+                                @method('PATCH')
+                                <button class="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700">
+                                    Reactivar
+                                </button>
+                            </form>
+                        @endif
+
                     </div>
                 @endif
-
             </div>
         </div>
+
+        {{-- Si el activo está inactivo --}}
+        @if($asset->isInactive())
+            <div class="bg-gray-100 border border-gray-300 text-gray-700 rounded p-4 text-sm">
+                Este activo está actualmente <strong>INACTIVO</strong>.
+                No se recomienda operar sobre él hasta reactivarlo.
+            </div>
+        @endif
 
 
         {{-- Obligaciones / Requerimientos --}}
@@ -68,7 +112,6 @@
                         @forelse($asset->requirements as $req)
                             <tr class="hover:bg-gray-50">
 
-                                {{-- Nombre --}}
                                 <td class="py-3 pr-4">
                                     <div class="font-medium text-gray-900">
                                         {{ $req->template?->name ?? $req->type }}
@@ -81,12 +124,10 @@
                                     @endif
                                 </td>
 
-                                {{-- Due Date --}}
                                 <td class="py-3 pr-4">
                                     {{ $req->due_date?->format('Y-m-d') ?? '-' }}
                                 </td>
 
-                                {{-- Riesgo --}}
                                 <td class="py-3 pr-4">
                                     <span class="px-2 py-0.5 rounded border text-xs
                                         @if($req->risk_level === 'danger')
@@ -103,14 +144,12 @@
                                     </span>
                                 </td>
 
-                                {{-- Status --}}
                                 <td class="py-3 pr-4">
                                     <span class="px-2 py-0.5 rounded border text-xs bg-gray-50">
                                         {{ strtoupper($req->computed_status) }}
                                     </span>
                                 </td>
 
-                                {{-- Progreso --}}
                                 <td class="py-3 pr-4 w-40">
                                     <div class="flex items-center gap-2">
                                         <div class="w-full bg-gray-200 rounded h-2">
@@ -124,27 +163,15 @@
                                     </div>
                                 </td>
 
-                                {{-- Tareas --}}
                                 <td class="py-3 pr-4">
                                     {{ $req->tasks_done ?? 0 }}/{{ $req->tasks_total ?? 0 }}
                                 </td>
 
-                                {{-- Acciones --}}
                                 <td class="py-3 pr-4 text-right">
-                                    <div class="flex items-center justify-end gap-4">
-
-                                        <a href="{{ route('assets.requirements.show', [$asset, $req]) }}"
-                                           class="text-sm underline text-gray-700 hover:text-gray-900">
-                                            Abrir
-                                        </a>
-
-                                        {{-- Aquí después conectamos RequirementDocuments --}}
-                                        <a href="#"
-                                           class="text-sm underline text-gray-700 hover:text-gray-900">
-                                            Documentos
-                                        </a>
-
-                                    </div>
+                                    <a href="{{ route('assets.requirements.show', [$asset, $req]) }}"
+                                       class="text-sm underline text-gray-700 hover:text-gray-900">
+                                        Abrir
+                                    </a>
                                 </td>
 
                             </tr>
