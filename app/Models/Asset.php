@@ -63,5 +63,12 @@ class Asset extends Model
     {
         return $this->status === self::STATUS_INACTIVE;
     }
+
+    public function ensureIsActive(): void
+    {
+        if ($this->isInactive()) {
+            abort(423, 'El activo está desactivado. No se permiten cambios.');
+        }
+}
 }
 

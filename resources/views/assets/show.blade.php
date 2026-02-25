@@ -1,19 +1,64 @@
 <x-app-layout>
     <x-slot name="header">
         <div class="flex items-center justify-between">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                {{ $asset->name }}
-            </h2>
+            <div class="flex items-center gap-3">
+                <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                    {{ $asset->name }}
+                </h2>
 
-            {{-- Estado visual --}}
-            <span class="text-xs px-3 py-1 rounded border
-                {{ $asset->status === 'inactive'
-                    ? 'bg-gray-100 text-gray-700 border-gray-300'
-                    : 'bg-green-50 text-green-700 border-green-200' }}">
-                {{ strtoupper($asset->status) }}
-            </span>
+                {{-- Estado visual --}}
+                <span class="text-xs px-3 py-1 rounded border
+                    {{ $asset->status === 'inactive'
+                        ? 'bg-gray-100 text-gray-700 border-gray-300'
+                        : 'bg-green-50 text-green-700 border-green-200' }}">
+                    {{ strtoupper($asset->status) }}
+                </span>
+            </div>
+
+            {{-- Acciones principales (header) --}}
+            @if(auth()->user()->isOperative())
+                @php $assetInactive = $asset->isInactive(); @endphp
+
+                <div class="flex items-center gap-3">
+                    {{-- Editar (opcional bloquear si inactive) --}}
+                    @if($assetInactive)
+                        <span
+                            class="px-4 py-2 bg-gray-200 text-gray-500 rounded text-sm cursor-not-allowed"
+                            title="Activo desactivado"
+                        >
+                            Editar
+                        </span>
+                    @else
+                        <a href="{{ route('assets.edit', $asset) }}"
+                           class="px-4 py-2 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600">
+                            Editar
+                        </a>
+                    @endif
+
+                    {{-- Activar / Desactivar --}}
+                    @if(!$assetInactive)
+                        <form method="POST" action="{{ route('assets.deactivate', $asset) }}">
+                            @csrf
+                            @method('PATCH')
+                            <button class="px-4 py-2 bg-gray-700 text-white rounded text-sm hover:bg-gray-800">
+                                Desactivar
+                            </button>
+                        </form>
+                    @else
+                        <form method="POST" action="{{ route('assets.activate', $asset) }}">
+                            @csrf
+                            @method('PATCH')
+                            <button class="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700">
+                                Reactivar
+                            </button>
+                        </form>
+                    @endif
+                </div>
+            @endif
         </div>
     </x-slot>
+
+    @php $assetInactive = $asset->isInactive(); @endphp
 
     <div class="py-6 max-w-6xl mx-auto space-y-6">
 
@@ -21,6 +66,12 @@
         @if(session('success'))
             <div class="text-sm px-4 py-3 rounded border bg-green-50 text-green-800">
                 {{ session('success') }}
+            </div>
+        @endif
+
+        @if(session('error'))
+            <div class="text-sm px-4 py-3 rounded border bg-red-50 text-red-800">
+                {{ session('error') }}
             </div>
         @endif
 
@@ -34,6 +85,9 @@
             </div>
         @endif
 
+        {{-- Banner si el activo está inactivo --}}
+        @include('assets._inactive_banner', ['asset' => $asset])
+
         {{-- Información del activo --}}
         <div class="bg-white shadow sm:rounded-lg p-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-gray-700">
@@ -45,53 +99,32 @@
                     <div><strong>Responsable:</strong> {{ $asset->responsible->name ?? '-' }}</div>
                 </div>
 
-                @if(auth()->user()->isOperative())
-                    <div class="flex items-start justify-end gap-4">
+                <div class="flex items-start justify-end gap-3">
+                    @if(\Illuminate\Support\Facades\Route::has('requirements.create'))
+                        <x-action-link
+                            :href="route('requirements.create', $asset)"
+                            :disabled="$assetInactive"
+                            disabledText="Activo desactivado"
+                        >
+                            + Crear requirement
+                        </x-action-link>
+                    @endif
+                </div>
 
-                        <a href="{{ route('assets.edit', $asset) }}"
-                           class="px-4 py-2 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600">
-                            Editar
-                        </a>
-
-                        @if(!$asset->isInactive())
-                            <form method="POST" action="{{ route('assets.deactivate', $asset) }}">
-                                @csrf
-                                @method('PATCH')
-                                <button class="px-4 py-2 bg-gray-700 text-white rounded text-sm hover:bg-gray-800">
-                                    Desactivar
-                                </button>
-                            </form>
-                        @else
-                            <form method="POST" action="{{ route('assets.activate', $asset) }}">
-                                @csrf
-                                @method('PATCH')
-                                <button class="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700">
-                                    Reactivar
-                                </button>
-                            </form>
-                        @endif
-
-                    </div>
-                @endif
             </div>
         </div>
 
-        {{-- Si el activo está inactivo --}}
-        @if($asset->isInactive())
-            <div class="bg-gray-100 border border-gray-300 text-gray-700 rounded p-4 text-sm">
-                Este activo está actualmente <strong>INACTIVO</strong>.
-                No se recomienda operar sobre él hasta reactivarlo.
-            </div>
-        @endif
-
-
         {{-- Obligaciones / Requerimientos --}}
         <div class="bg-white shadow sm:rounded-lg p-6">
-
             <div class="flex items-center justify-between mb-4">
-                <h3 class="font-semibold text-gray-800">
-                    Obligaciones / Requerimientos
-                </h3>
+                <div>
+                    <h3 class="font-semibold text-gray-800">
+                        Obligaciones / Requerimientos
+                    </h3>
+                    <p class="text-sm text-gray-500">
+                        Visualiza el avance, riesgo y estado de cada carpeta de cumplimiento.
+                    </p>
+                </div>
             </div>
 
             <div class="overflow-x-auto">
@@ -111,7 +144,6 @@
                     <tbody class="divide-y">
                         @forelse($asset->requirements as $req)
                             <tr class="hover:bg-gray-50">
-
                                 <td class="py-3 pr-4">
                                     <div class="font-medium text-gray-900">
                                         {{ $req->template?->name ?? $req->type }}
@@ -173,7 +205,6 @@
                                         Abrir
                                     </a>
                                 </td>
-
                             </tr>
                         @empty
                             <tr>
@@ -185,7 +216,6 @@
                     </tbody>
                 </table>
             </div>
-
         </div>
 
     </div>
