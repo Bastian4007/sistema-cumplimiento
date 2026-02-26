@@ -211,28 +211,46 @@ class AssetRequirement extends Model
 
     public function canBeCompleted(): bool
     {
-        // Si no tiene tareas, NO debería poder completarse (ajustable si tú quieres permitirlo)
+        // Si no tiene tareas, NO debería poder completarse
         if (!$this->tasks()->exists()) {
             return false;
         }
 
         // Si hay tareas pendientes (no completed_at), no se puede completar
-        $hasPendingTasks = $this->tasks()->whereNull('completed_at')->exists();
-        if ($hasPendingTasks) {
+        if ($this->tasks()->whereNull('completed_at')->exists()) {
             return false;
         }
 
-        // Defensa extra: si alguna tarea requiere documento, debe tener al menos 1 documento
-        // (aunque ya lo bloqueas al completar task, esto evita inconsistencias)
-        $hasMissingDocs = $this->tasks()
+        // Si alguna tarea requiere documento, debe tener al menos 1 documento
+        if ($this->tasks()
             ->where('requires_document', true)
             ->whereDoesntHave('documents')
-            ->exists();
+            ->exists()
+        ) {
+            return false;
+        }
 
-        if ($hasMissingDocs) {
+        // ✅ NUEVO: Documento oficial obligatorio
+        if (!$this->documents()->exists()) {
             return false;
         }
 
         return true;
+    }
+
+    public function documents()
+    {
+        return $this->hasMany(\App\Models\AssetRequirementDocument::class, 'asset_requirement_id');
+    }
+
+    public function latestDocument()
+    {
+        return $this->hasOne(AssetRequirementDocument::class)->latestOfMany();
+    }
+
+    public function hasOfficialDocument(): bool
+    {
+        // Si ya tienes relación documents() al modelo AssetRequirementDocument
+        return $this->documents()->exists();
     }
 }

@@ -51,14 +51,17 @@
                                 <th class="py-3">Nombre</th>
                                 <th>Tipo</th>
                                 <th>Responsable</th>
+                                <th>Creado</th>
                                 <th class="text-right">Acciones</th>
                             </tr>
                         </thead>
+
                         <tbody class="divide-y">
 
                             @foreach($assets as $asset)
                                 <tr class="{{ $asset->isInactive() ? 'bg-gray-50 opacity-60' : 'hover:bg-gray-50' }}">
 
+                                    {{-- Nombre --}}
                                     <td class="py-3">
                                         <div class="flex items-center gap-2">
                                             <span>{{ $asset->name }}</span>
@@ -71,14 +74,27 @@
                                         </div>
                                     </td>
 
+                                    {{-- Tipo --}}
                                     <td>
                                         {{ $asset->assetType->name ?? '-' }}
                                     </td>
 
+                                    {{-- Responsable --}}
                                     <td>
                                         {{ $asset->responsible->name ?? '-' }}
                                     </td>
 
+                                    {{-- Fecha de creación --}}
+                                    <td>
+                                        <div class="text-gray-900">
+                                            {{ $asset->created_at?->format('Y-m-d') }}
+                                        </div>
+                                        <div class="text-xs text-gray-500">
+                                            {{ $asset->created_at?->diffForHumans() }}
+                                        </div>
+                                    </td>
+
+                                    {{-- Acciones --}}
                                     <td class="text-right">
                                         <a href="{{ route('assets.show', $asset) }}"
                                            class="text-blue-600 hover:underline">

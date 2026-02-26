@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateAssetRequirementRequest;
 use App\Models\Asset;
 use App\Models\AssetRequirement;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
 
 class AssetRequirementController extends Controller
 {
@@ -132,28 +133,23 @@ class AssetRequirementController extends Controller
 
     public function complete(Asset $asset, AssetRequirement $requirement)
     {
-        abort_unless($requirement->asset_id === $asset->id, 404);
-        abort_unless($asset->company_id === auth()->user()->company_id, 403);
+        // (si ya tienes authorize, déjalo)
+        // $this->authorize('complete', $requirement);
 
-        if (!$requirement->canBeCompleted()) {
-            return back()->withErrors([
-                'complete' => 'No puedes completar esta carpeta: faltan tareas por completar o evidencias requeridas.',
-            ]);
+        // Asegura jerarquía correcta (opcional pero recomendado)
+        if ((int)$requirement->asset_id !== (int)$asset->id) {
+            abort(404);
         }
 
-        DB::transaction(function () use ($requirement) {
+        if (!$requirement->documents()->exists()) {
+            return back()->with('error', 'No puedes completar: falta subir la documentación oficial.');
+        }
 
-            if ($requirement->status === RequirementStatus::COMPLETED) {
-                return;
-            }
-
-            $requirement->update([
-                'status' => RequirementStatus::COMPLETED,
-                'completed_at' => now(),
-            ]);
-
-            $this->renewIfRecurrent($requirement);
-        });
+        $requirement->update([
+            'status' => \App\Enums\RequirementStatus::COMPLETED,
+            'completed_at' => now(),
+            // 'completed_by' => auth()->id(), // lo metemos en el paso de auditoría
+        ]);
 
         return back()->with('success', 'Requirement completado.');
     }
