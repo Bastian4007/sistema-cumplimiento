@@ -32,6 +32,14 @@
             </div>
 
             <div class="flex items-center gap-2">
+                <x-action-link
+                    :href="route('assets.requirements.history', [$asset, $requirement])"
+                    variant="outline"
+                    size="sm"
+                >
+                    Ver historial
+                </x-action-link>
+                
                 {{-- Documentación oficial --}}
                 <x-action-link
                     :href="route('assets.requirements.documents.index', [$asset, $requirement])"
@@ -307,6 +315,66 @@
                     </div>
                 @empty
                     <div class="text-sm text-gray-500">No hay tareas todavía.</div>
+                @endforelse
+            </div>
+        </div>
+
+        {{-- Historial --}}
+        <div class="bg-white shadow sm:rounded-lg p-6">
+            <h3 class="font-semibold text-gray-800 mb-4">Historial</h3>
+
+            <div class="space-y-3">
+                @forelse($auditLogs ?? [] as $log)
+                    <div class="border rounded-lg p-4 bg-gray-50">
+
+                        <div class="text-xs text-gray-500">
+                            {{ $log->created_at->format('Y-m-d H:i') }}
+                            —
+                            <strong>{{ optional($log->actor)->name ?? 'Sistema' }}</strong>
+                        </div>
+
+                        <div class="mt-1 font-medium text-gray-800">
+                            @switch($log->action)
+                                @case('task.created')
+                                    Creó una tarea
+                                    @break
+
+                                @case('task.updated')
+                                    Actualizó una tarea
+                                    @break
+
+                                @case('task.completed')
+                                    Completó una tarea
+                                    @break
+
+                                @case('task.reopened')
+                                    Reabrió una tarea
+                                    @break
+
+                                @case('task.deleted')
+                                    Eliminó una tarea
+                                    @break
+
+                                @default
+                                    {{ $log->action }}
+                            @endswitch
+                        </div>
+
+                        @if($log->meta)
+                            <details class="mt-2 text-sm">
+                                <summary class="cursor-pointer text-blue-600">
+                                    Ver detalle
+                                </summary>
+                                <pre class="mt-2 text-xs bg-white p-3 rounded border overflow-auto">
+        {{ json_encode($log->meta, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) }}
+                                </pre>
+                            </details>
+                        @endif
+                    </div>
+                @empty
+                    <div class="text-sm text-gray-500">
+                        Sin movimientos todavía.
+                    </div>
                 @endforelse
             </div>
         </div>

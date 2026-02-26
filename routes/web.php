@@ -9,6 +9,8 @@ use App\Http\Controllers\RequirementTaskController;
 use App\Http\Controllers\TaskDocumentController;
 use App\Http\Controllers\ComplianceDashboardController;
 use App\Http\Controllers\AssetRequirementDocumentController;
+use App\Http\Controllers\RequirementAuditLogController;
+use App\Http\Controllers\RequirementHistoryController;
 
 Route::get('/', fn () => view('welcome'));
 
@@ -91,6 +93,21 @@ Route::middleware('auth')->group(function () {
 
     Route::delete('documents/{document}', [TaskDocumentController::class, 'destroy'])
         ->name('documents.destroy');
+
+    Route::get(
+        'assets/{asset}/requirements/{requirement}/audit-logs',
+        [RequirementAuditLogController::class, 'index']
+    )->name('assets.requirements.audit-logs');
+
+    Route::get(
+        'assets/{asset}/requirements/{requirement}/history',
+        [RequirementHistoryController::class, 'index']
+    )->name('assets.requirements.history');
+
+    Route::get(
+        'assets/{asset}/requirements/{requirement}/tasks/{task}/history',
+        [RequirementHistoryController::class, 'task']
+    )->name('assets.requirements.tasks.history');
 });
 
 require __DIR__ . '/auth.php';
