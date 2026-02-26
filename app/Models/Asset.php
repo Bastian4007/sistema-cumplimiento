@@ -69,6 +69,21 @@ class Asset extends Model
         if ($this->isInactive()) {
             abort(423, 'El activo está desactivado. No se permiten cambios.');
         }
-}
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'created_by');
+    }
+
+    public function type()
+    {
+        return $this->belongsTo(\App\Models\AssetType::class, 'asset_type_id');
+    }
+
+    public function responsibleUser()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'responsible_user_id');
+    }
 }
 

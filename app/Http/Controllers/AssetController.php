@@ -16,22 +16,23 @@ class AssetController extends Controller
         $this->authorizeResource(Asset::class, 'asset');
     }
 
-    public function index(Request $request)
+    public function index()
     {
-        $status = $request->query('status', 'active'); 
+        $companyId = auth()->user()->company_id;
 
-        $query = Asset::query()
-            ->where('company_id', $request->user()->company_id)
-            ->with(['assetType', 'responsible'])
-            ->latest();
+        $status = request('status', 'all'); 
+
+        $query = \App\Models\Asset::query()
+            ->where('company_id', $companyId)
+            ->with(['type', 'responsibleUser', 'creator']);
 
         if ($status === 'active') {
-            $query->where('status', Asset::STATUS_ACTIVE);
+            $query->where('status', 'active');
         } elseif ($status === 'inactive') {
-            $query->where('status', Asset::STATUS_INACTIVE);
+            $query->where('status', 'inactive');
         }
 
-        $assets = $query->paginate(15)->withQueryString();
+        $assets = $query->latest()->paginate(15)->withQueryString();
 
         return view('assets.index', compact('assets', 'status'));
     }

@@ -1,214 +1,195 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                    {{ $asset->name }}
-                </h2>
-
-                {{-- Estado visual --}}
-                <span class="text-xs px-3 py-1 rounded border
-                    {{ $asset->status === 'inactive'
-                        ? 'bg-gray-100 text-gray-700 border-gray-300'
-                        : 'bg-green-50 text-green-700 border-green-200' }}">
-                    {{ strtoupper($asset->status) }}
-                </span>
-            </div>
-
-            {{-- Acciones principales (header) --}}
-            @if(auth()->user()->isOperative())
-                @php $assetInactive = $asset->isInactive(); @endphp
-
-                <div class="flex items-center gap-3">
-                    {{-- Editar (opcional bloquear si inactive) --}}
-                    @if($assetInactive)
-                        <span
-                            class="px-4 py-2 bg-gray-200 text-gray-500 rounded text-sm cursor-not-allowed"
-                            title="Activo desactivado"
-                        >
-                            Editar
-                        </span>
-                    @else
-                        <a href="{{ route('assets.edit', $asset) }}"
-                           class="px-4 py-2 bg-yellow-500 text-white rounded text-sm hover:bg-yellow-600">
-                            Editar
-                        </a>
-                    @endif
-
-                    {{-- Activar / Desactivar --}}
-                    @if(!$assetInactive)
-                        <form method="POST" action="{{ route('assets.deactivate', $asset) }}">
-                            @csrf
-                            @method('PATCH')
-                            <button class="px-4 py-2 bg-gray-700 text-white rounded text-sm hover:bg-gray-800">
-                                Desactivar
-                            </button>
-                        </form>
-                    @else
-                        <form method="POST" action="{{ route('assets.activate', $asset) }}">
-                            @csrf
-                            @method('PATCH')
-                            <button class="px-4 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700">
-                                Reactivar
-                            </button>
-                        </form>
-                    @endif
-                </div>
-            @endif
-        </div>
+{{-- resources/views/assets/show.blade.php --}}
+<x-layouts.vigia :title="$asset->name">
+    <x-slot name="breadcrumb">
+        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">Bóveda</a>
+        <span class="text-gray-400">›</span>
+        <span class="text-gray-700 font-medium">{{ $asset->name }}</span>
     </x-slot>
 
-    @php $assetInactive = $asset->isInactive(); @endphp
+    @php
+        $assetInactive = ($asset->status ?? null) === \App\Models\Asset::STATUS_INACTIVE
+            || (method_exists($asset, 'isInactive') && $asset->isInactive());
+    @endphp
 
-    <div class="py-6 max-w-6xl mx-auto space-y-6">
+    <div class="bg-white rounded-xl shadow p-6">
 
-        {{-- Flash messages --}}
-        @if(session('success'))
-            <div class="text-sm px-4 py-3 rounded border bg-green-50 text-green-800">
-                {{ session('success') }}
+        {{-- Header --}}
+        <div class="flex items-start justify-between gap-6">
+            <div>
+                <div class="flex items-center gap-3 flex-wrap">
+                    <h1 class="text-3xl font-bold text-[#1A428A]">{{ $asset->name }}</h1>
+
+                    <span class="text-xs px-3 py-1 rounded border
+                        {{ $assetInactive
+                            ? 'bg-gray-100 text-gray-700 border-gray-300'
+                            : 'bg-green-50 text-green-700 border-green-200' }}">
+                        {{ $assetInactive ? 'INACTIVO' : 'ACTIVO' }}
+                    </span>
+                </div>
+
+                @if(!empty($asset->code))
+                    <div class="text-sm text-gray-500 mt-1">Código: {{ $asset->code }}</div>
+                @endif
             </div>
-        @endif
 
-        @if(session('error'))
-            <div class="text-sm px-4 py-3 rounded border bg-red-50 text-red-800">
-                {{ session('error') }}
+            <div class="flex items-center gap-3">
+                <a href="{{ route('assets.edit', $asset) }}"
+                class="px-5 py-2 rounded-md border border-[#1A428A] text-[#1A428A] font-semibold hover:bg-blue-50 transition
+                {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
+                    Editar
+                </a>
+
+                @if($assetInactive)
+                    <form method="POST" action="{{ route('assets.activate', $asset) }}">
+                        @csrf
+                        @method('PATCH')
+                        <button type="submit"
+                                class="px-6 py-2 rounded-md font-semibold text-white bg-[#1A428A] hover:bg-[#15356d] transition">
+                            Activar
+                        </button>
+                    </form>
+                @else
+                    <form method="POST" action="{{ route('assets.deactivate', $asset) }}">
+                        @csrf
+                        @method('PATCH')
+                        <button type="submit"
+                                onclick="return confirm('¿Seguro que quieres desactivar este activo?');"
+                                class="px-6 py-2 rounded-md font-semibold text-white bg-[#DB0000] hover:bg-red-700 transition">
+                            Desactivar
+                        </button>
+                    </form>
+                @endif
             </div>
-        @endif
+        </div>
 
-        @if($errors->any())
-            <div class="text-sm px-4 py-3 rounded border bg-red-50 text-red-800">
-                <ul class="list-disc ml-5">
-                    @foreach($errors->all() as $err)
-                        <li>{{ $err }}</li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
-
-        {{-- Banner si el activo está inactivo --}}
-        @include('assets._inactive_banner', ['asset' => $asset])
-
-        {{-- Información del activo --}}
-        <div class="bg-white shadow sm:rounded-lg p-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-gray-700">
-
-                <div class="space-y-2">
-                    <div><strong>Tipo:</strong> {{ $asset->assetType->name }}</div>
+        {{-- Card info --}}
+        <div class="mt-6 bg-gray-50 border rounded-xl p-5">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
+                <div class="space-y-1">
+                    <div><strong>Tipo:</strong> {{ $asset->assetType->name ?? '-' }}</div>
                     <div><strong>Código:</strong> {{ $asset->code ?? '-' }}</div>
+                </div>
+
+                <div class="space-y-1">
                     <div><strong>Ubicación:</strong> {{ $asset->location ?? '-' }}</div>
                     <div><strong>Responsable:</strong> {{ $asset->responsible->name ?? '-' }}</div>
                 </div>
-
-                <div class="flex items-start justify-end gap-3">
-                    @if(\Illuminate\Support\Facades\Route::has('requirements.create'))
-                        <x-action-link
-                            :href="route('requirements.create', $asset)"
-                            :disabled="$assetInactive"
-                            disabledText="Activo desactivado"
-                        >
-                            + Crear requirement
-                        </x-action-link>
-                    @endif
-                </div>
-
             </div>
         </div>
 
-        {{-- Obligaciones / Requerimientos --}}
-        <div class="bg-white shadow sm:rounded-lg p-6">
-            <div class="flex items-center justify-between mb-4">
-                <div>
-                    <h3 class="font-semibold text-gray-800">
-                        Obligaciones / Requerimientos
-                    </h3>
-                    <p class="text-sm text-gray-500">
-                        Visualiza el avance, riesgo y estado de cada carpeta de cumplimiento.
-                    </p>
+        {{-- Tabla requirements --}}
+        <div class="mt-8 bg-white border rounded-xl overflow-hidden">
+            <div class="p-5 border-b">
+                <div class="font-semibold text-[#1A428A]">Obligaciones / Requerimientos</div>
+                <div class="text-sm text-gray-500">
+                    Visualiza el avance, riesgo y estado de cada carpeta de cumplimiento.
                 </div>
             </div>
 
             <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
-                    <thead class="text-left text-gray-600 border-b">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 text-gray-600">
                         <tr>
-                            <th class="py-3 pr-4">Carpeta</th>
-                            <th class="py-3 pr-4">Vence</th>
-                            <th class="py-3 pr-4">Riesgo</th>
-                            <th class="py-3 pr-4">Estatus</th>
-                            <th class="py-3 pr-4">Progreso</th>
-                            <th class="py-3 pr-4">Tareas</th>
-                            <th class="py-3 pr-4 text-right">Acciones</th>
+                            <th class="text-left px-6 py-3 font-semibold">Carpeta</th>
+                            <th class="text-left px-6 py-3 font-semibold">Vence</th>
+                            <th class="text-left px-6 py-3 font-semibold">Riesgo</th>
+                            <th class="text-left px-6 py-3 font-semibold">Estatus</th>
+                            <th class="text-left px-6 py-3 font-semibold">Progreso</th>
+                            <th class="text-left px-6 py-3 font-semibold">Tareas</th>
+                            <th class="text-right px-6 py-3 font-semibold">Acciones</th>
                         </tr>
                     </thead>
 
-                    <tbody class="divide-y">
+                    <tbody>
                         @forelse($asset->requirements as $req)
-                            <tr class="hover:bg-gray-50">
-                                <td class="py-3 pr-4">
-                                    <div class="font-medium text-gray-900">
-                                        {{ $req->template?->name ?? $req->type }}
-                                    </div>
+                            @php
+                                $title = $req->template?->name ?? $req->type;
+                                $due = $req->due_date?->format('Y-m-d') ?? '-';
 
-                                    @if($req->isRecurrent())
+                                $tasksTotal = (int) ($req->tasks_total ?? 0);
+                                $tasksDone  = (int) ($req->tasks_done ?? 0);
+                                $progress   = $tasksTotal > 0 ? (int) round(($tasksDone / $tasksTotal) * 100) : 0;
+
+                                // Si tu modelo ya tiene estos "computed", usa esos:
+                                $risk = $req->risk_level ?? null;        // ej: danger|normal|expired
+                                $status = $req->computed_status ?? null; // ej: completed|in_progress|pending
+                                $statusRaw = $req->status ?? null;       // fallback
+                            @endphp
+
+                            <tr class="border-t">
+                                <td class="px-6 py-3">
+                                    <div class="font-semibold text-gray-800">{{ $title }}</div>
+
+                                    @if(method_exists($req, 'isRecurrent') && $req->isRecurrent())
                                         <div class="text-xs text-gray-500">
                                             Recurrencia: {{ $req->recurrenceLabel() }}
                                         </div>
                                     @endif
                                 </td>
 
-                                <td class="py-3 pr-4">
-                                    {{ $req->due_date?->format('Y-m-d') ?? '-' }}
+                                <td class="px-6 py-3 text-gray-700">{{ $due }}</td>
+
+                                {{-- Riesgo --}}
+                                <td class="px-6 py-3">
+                                    @php
+                                        // Normaliza para pintar badges
+                                        $riskVal = $risk ?? (property_exists($req, 'risk_level') ? $req->risk_level : null);
+                                        $riskVal = $riskVal ? strtolower((string)$riskVal) : 'normal';
+                                    @endphp
+
+                                    @if($riskVal === 'danger')
+                                        <span class="text-xs px-3 py-1 rounded border bg-red-50 text-red-700 border-red-200">DANGER</span>
+                                    @elseif($riskVal === 'expired')
+                                        <span class="text-xs px-3 py-1 rounded border bg-gray-100 text-gray-700 border-gray-300">EXPIRED</span>
+                                    @else
+                                        <span class="text-xs px-3 py-1 rounded border bg-green-50 text-green-700 border-green-200">NORMAL</span>
+                                    @endif
                                 </td>
 
-                                <td class="py-3 pr-4">
-                                    <span class="px-2 py-0.5 rounded border text-xs
-                                        @if($req->risk_level === 'danger')
-                                            bg-red-50 text-red-700 border-red-200
-                                        @elseif($req->risk_level === 'warning')
-                                            bg-yellow-50 text-yellow-700 border-yellow-200
-                                        @elseif($req->risk_level === 'expired')
-                                            bg-gray-100 text-gray-700 border-gray-200
-                                        @else
-                                            bg-green-50 text-green-700 border-green-200
-                                        @endif
-                                    ">
-                                        {{ strtoupper($req->risk_level) }}
+                                {{-- Estatus --}}
+                                <td class="px-6 py-3">
+                                    @php
+                                        $statusVal = $status ?? $statusRaw ?? 'pending';
+                                        $statusLabel = strtoupper((string) $statusVal);
+                                    @endphp
+                                    <span class="text-xs px-3 py-1 rounded border bg-gray-50 text-gray-800">
+                                        {{ $statusLabel }}
                                     </span>
                                 </td>
 
-                                <td class="py-3 pr-4">
-                                    <span class="px-2 py-0.5 rounded border text-xs bg-gray-50">
-                                        {{ strtoupper($req->computed_status) }}
-                                    </span>
-                                </td>
-
-                                <td class="py-3 pr-4 w-40">
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-full bg-gray-200 rounded h-2">
-                                            <div class="bg-gray-900 h-2 rounded"
-                                                 style="width: {{ $req->progress }}%">
-                                            </div>
+                                {{-- Progreso --}}
+                                <td class="px-6 py-3">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-28 bg-gray-200 rounded-full h-2 overflow-hidden">
+                                            <div class="h-2 bg-gray-800" style="width: {{ $progress }}%"></div>
                                         </div>
-                                        <span class="text-xs text-gray-600 w-10 text-right">
-                                            {{ $req->progress }}%
-                                        </span>
+                                        <div class="text-xs text-gray-600">{{ $progress }}%</div>
                                     </div>
                                 </td>
 
-                                <td class="py-3 pr-4">
-                                    {{ $req->tasks_done ?? 0 }}/{{ $req->tasks_total ?? 0 }}
+                                {{-- Tareas --}}
+                                <td class="px-6 py-3 text-gray-700">
+                                    {{ $tasksDone }}/{{ $tasksTotal }}
                                 </td>
 
-                                <td class="py-3 pr-4 text-right">
+                                {{-- Acciones --}}
+                                <td class="px-6 py-3 text-right space-x-4">
                                     <a href="{{ route('assets.requirements.show', [$asset, $req]) }}"
-                                       class="text-sm underline text-gray-700 hover:text-gray-900">
+                                       class="text-blue-600 hover:underline font-semibold">
                                         Abrir
                                     </a>
+
+                                    @if(Route::has('assets.requirements.documents.index'))
+                                        <a href="{{ route('assets.requirements.documents.index', [$asset, $req]) }}"
+                                           class="text-blue-600 hover:underline font-semibold">
+                                            Documentos
+                                        </a>
+                                    @endif
                                 </td>
                             </tr>
                         @empty
-                            <tr>
-                                <td colspan="7" class="py-6 text-gray-500 text-center">
+                            <tr class="border-t">
+                                <td colspan="7" class="px-6 py-8 text-center text-gray-500">
                                     No hay requerimientos todavía.
                                 </td>
                             </tr>
@@ -219,4 +200,4 @@
         </div>
 
     </div>
-</x-app-layout>
+</x-layouts.vigia>

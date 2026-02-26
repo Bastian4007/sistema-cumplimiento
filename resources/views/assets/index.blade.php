@@ -1,122 +1,96 @@
-<x-app-layout>
-    <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                Activos
-            </h2>
-
-            @if(auth()->user()->isOperative())
-                <a href="{{ route('assets.create') }}"
-                   class="px-4 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
-                    Nuevo Activo
-                </a>
-            @endif
-        </div>
+<x-layouts.vigia :title="'Bóveda'">
+    <x-slot name="breadcrumb">
+        <span class="text-gray-700 font-medium">Bóveda</span>
     </x-slot>
 
-    <div class="py-6">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
+    <div class="flex items-center justify-between">
+    <h1 class="text-2xl font-semibold text-[#1A428A]">Lista de activos</h1>
 
-            {{-- Filtros --}}
-            <div class="flex items-center gap-3">
+    <a href="{{ route('assets.create') }}"
+        class="bg-[#1A428A] text-white px-4 py-2 rounded-md font-semibold hover:bg-[#15356d]">
+        + Nuevo activo
+    </a>
+    </div>
 
-                <a href="{{ route('assets.index', ['status' => 'active']) }}"
-                   class="px-3 py-1.5 text-sm rounded border
-                   {{ $status === 'active' ? 'bg-gray-900 text-white' : 'bg-white text-gray-700 hover:bg-gray-100' }}">
-                    Activos
-                </a>
+        <form method="GET" action="{{ route('assets.index') }}" class="mt-6">
+            <div class="bg-gray-50 border rounded-lg p-4 flex flex-col md:flex-row md:items-center gap-3">
+                <div class="font-semibold text-gray-700 w-28">Filtros</div>
 
-                <a href="{{ route('assets.index', ['status' => 'inactive']) }}"
-                   class="px-3 py-1.5 text-sm rounded border
-                   {{ $status === 'inactive' ? 'bg-gray-900 text-white' : 'bg-white text-gray-700 hover:bg-gray-100' }}">
-                    Inactivos
-                </a>
+                <div class="flex-1">
+                    <select name="status"
+                            class="w-full md:w-72 rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm">
+                        <option value="all" {{ ($status ?? 'all') === 'all' ? 'selected' : '' }}>Todos</option>
+                        <option value="active" {{ ($status ?? 'all') === 'active' ? 'selected' : '' }}>Activos</option>
+                        <option value="inactive" {{ ($status ?? 'all') === 'inactive' ? 'selected' : '' }}>Inactivos</option>
+                    </select>
+                </div>
 
-                <a href="{{ route('assets.index', ['status' => 'all']) }}"
-                   class="px-3 py-1.5 text-sm rounded border
-                   {{ $status === 'all' ? 'bg-gray-900 text-white' : 'bg-white text-gray-700 hover:bg-gray-100' }}">
-                    Todos
-                </a>
-
+                <button type="submit"
+                        class="w-full md:w-44 bg-[#1A428A] text-white rounded-md py-2 font-semibold hover:bg-[#15356d] transition">
+                    Filtrar
+                </button>
             </div>
+        </form>
 
-            {{-- Tabla --}}
-            <div class="bg-white shadow sm:rounded-lg p-6">
+        {{-- Tabla --}}
+        <div class="mt-6 bg-white border rounded-lg shadow-sm overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-gray-600">
+                    <tr>
+                        <th class="text-left px-6 py-3 font-semibold">Nombre</th>
+                        <th class="text-left px-6 py-3 font-semibold">Tipo</th>
+                        <th class="text-left px-6 py-3 font-semibold">Responsable</th>
+                        <th class="text-left px-6 py-3 font-semibold">Creado</th>
+                        <th class="text-left px-6 py-3 font-semibold">Fecha creación</th>
+                        <th class="text-right px-6 py-3 font-semibold"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($assets as $asset)
+                        <tr class="border-t">
+                            <td class="px-6 py-3">
+                                <div class="font-semibold text-gray-800">{{ $asset->name }}</div>
+                                <div class="text-xs text-gray-500">
+                                    {{ strtoupper($asset->status ?? '') }}
+                                </div>
+                            </td>
 
-                @if($assets->count())
+                            <td class="px-6 py-3 text-gray-700">
+                                {{ $asset->type->name ?? '-' }}
+                            </td>
 
-                    <table class="w-full text-left text-sm">
-                        <thead>
-                            <tr class="border-b text-gray-600">
-                                <th class="py-3">Nombre</th>
-                                <th>Tipo</th>
-                                <th>Responsable</th>
-                                <th>Creado</th>
-                                <th class="text-right">Acciones</th>
-                            </tr>
-                        </thead>
+                            <td class="px-6 py-3 text-gray-700">
+                                {{ $asset->responsibleUser->name ?? '-' }}
+                            </td>
 
-                        <tbody class="divide-y">
+                            <td class="px-6 py-3 text-gray-700">
+                                {{ $asset->creator->name ?? 'Sistema' }}
+                            </td>
 
-                            @foreach($assets as $asset)
-                                <tr class="{{ $asset->isInactive() ? 'bg-gray-50 opacity-60' : 'hover:bg-gray-50' }}">
+                            <td class="px-6 py-3 text-gray-600 text-sm">
+                                {{ $asset->created_at?->format('Y-m-d') }}
+                            </td>
 
-                                    {{-- Nombre --}}
-                                    <td class="py-3">
-                                        <div class="flex items-center gap-2">
-                                            <span>{{ $asset->name }}</span>
+                            <td class="px-6 py-3 text-right">
+                                <a href="{{ route('assets.show', $asset) }}"
+                                   class="text-blue-600 hover:underline font-semibold">
+                                    Ver
+                                </a>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr class="border-t">
+                            <td colspan="4" class="px-6 py-6 text-center text-gray-500">
+                                No hay activos para este filtro.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
 
-                                            @if($asset->isInactive())
-                                                <span class="text-xs px-2 py-0.5 rounded bg-gray-200 text-gray-700">
-                                                    INACTIVO
-                                                </span>
-                                            @endif
-                                        </div>
-                                    </td>
-
-                                    {{-- Tipo --}}
-                                    <td>
-                                        {{ $asset->assetType->name ?? '-' }}
-                                    </td>
-
-                                    {{-- Responsable --}}
-                                    <td>
-                                        {{ $asset->responsible->name ?? '-' }}
-                                    </td>
-
-                                    {{-- Fecha de creación --}}
-                                    <td>
-                                        <div class="text-gray-900">
-                                            {{ $asset->created_at?->format('Y-m-d') }}
-                                        </div>
-                                        <div class="text-xs text-gray-500">
-                                            {{ $asset->created_at?->diffForHumans() }}
-                                        </div>
-                                    </td>
-
-                                    {{-- Acciones --}}
-                                    <td class="text-right">
-                                        <a href="{{ route('assets.show', $asset) }}"
-                                           class="text-blue-600 hover:underline">
-                                            Ver
-                                        </a>
-                                    </td>
-
-                                </tr>
-                            @endforeach
-
-                        </tbody>
-                    </table>
-
-                    <div class="mt-6">
-                        {{ $assets->links() }}
-                    </div>
-
-                @else
-                    <p class="text-gray-500">No hay activos registrados.</p>
-                @endif
-
-            </div>
+        <div class="mt-6">
+            {{ $assets->links() }}
         </div>
     </div>
-</x-app-layout>
+</x-layouts.vigia>

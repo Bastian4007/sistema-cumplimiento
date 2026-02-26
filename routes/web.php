@@ -11,10 +11,15 @@ use App\Http\Controllers\ComplianceDashboardController;
 use App\Http\Controllers\AssetRequirementDocumentController;
 use App\Http\Controllers\RequirementAuditLogController;
 use App\Http\Controllers\RequirementHistoryController;
+use App\Http\Controllers\DashboardController;
 
-Route::get('/', fn () => view('welcome'));
+Route::get('/', function () {
+    return auth()->check()
+        ? redirect()->route('dashboard')
+        : redirect()->route('login');
+});
 
-Route::get('/dashboard', [ComplianceDashboardController::class, 'index'])
+Route::get('/dashboard', DashboardController::class)
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
 

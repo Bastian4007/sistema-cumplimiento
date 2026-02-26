@@ -1,90 +1,61 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            Dashboard de cumplimiento
-        </h2>
+<x-layouts.vigia :title="'Tablero'">
+    <x-slot name="breadcrumb">
+        <span class="text-gray-700 font-medium">Tablero</span>
     </x-slot>
 
-    <div class="py-6 max-w-6xl mx-auto space-y-6">
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="flex items-center justify-between gap-4">
+            <h1 class="text-2xl font-semibold text-[#1A428A]">Tablero de cumplimiento</h1>
 
-        {{-- KPIs --}}
-        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div class="bg-white p-4 rounded shadow">
-                <div class="text-sm text-gray-500">Total</div>
-                <div class="text-2xl font-semibold">{{ $metrics['kpis']['total'] }}</div>
-            </div>
-
-            <div class="bg-white p-4 rounded shadow">
-                <div class="text-sm text-gray-500">Expired</div>
-                <div class="text-2xl font-semibold">{{ $metrics['kpis']['expired'] }}</div>
-            </div>
-
-            <div class="bg-white p-4 rounded shadow">
-                <div class="text-sm text-gray-500">Danger</div>
-                <div class="text-2xl font-semibold">{{ $metrics['kpis']['danger'] }}</div>
-            </div>
-
-            <div class="bg-white p-4 rounded shadow">
-                <div class="text-sm text-gray-500">Warning</div>
-                <div class="text-2xl font-semibold">{{ $metrics['kpis']['warning'] }}</div>
+            <div class="w-64">
+                <select class="w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm">
+                    <option>Todas las empresas</option>
+                </select>
             </div>
         </div>
 
-        {{-- Próximos a vencer --}}
-        <div class="bg-white p-6 rounded shadow">
-            <h3 class="font-semibold mb-4">Próximos a vencer</h3>
+        {{-- Cards --}}
+        <div class="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="bg-white border rounded-lg shadow-sm p-4">
+                <div class="text-sm font-semibold text-[#1A428A]">Activos</div>
+                <div class="mt-2 text-2xl font-bold text-gray-800">{{ $stats['assets'] ?? 0 }}</div>
+            </div>
 
-            <div class="space-y-3">
-                @forelse($upcoming as $r)
-                    <div class="border rounded p-4 flex items-center justify-between">
-                        <div>
-                            <div class="font-medium">
-                                {{ $r->template?->name ?? $r->type }}
-                            </div>
-                            <div class="text-sm text-gray-500">
-                                Activo: {{ $r->asset?->name }}
-                                · Tipo: {{ $r->asset?->assetType?->name ?? '—' }}
-                            </div>
-                        </div>
+            <div class="bg-white border rounded-lg shadow-sm p-4">
+                <div class="text-sm font-semibold text-[#1A428A]">Tareas</div>
+                <div class="mt-2 text-2xl font-bold text-gray-800">{{ $stats['tasks'] ?? 0 }}</div>
+            </div>
 
-                        <div class="text-right text-sm">
-                            <div>Vence: {{ $r->due_date?->format('Y-m-d') }}</div>
-                            <div class="text-gray-500">Riesgo: {{ $r->risk_level }}</div>
-                        </div>
-                    </div>
-                @empty
-                    <div class="text-sm text-gray-500">No hay vencimientos próximos.</div>
-                @endforelse
+            <div class="bg-[#FFB529] rounded-lg shadow-sm p-4 text-white">
+                <div class="text-sm font-semibold">Próximas a vencer</div>
+                <div class="mt-2 text-2xl font-bold">{{ $stats['due_soon'] ?? 0 }}</div>
+            </div>
+
+            <div class="bg-[#DB0000] rounded-lg shadow-sm p-4 text-white">
+                <div class="text-sm font-semibold">Vencidas</div>
+                <div class="mt-2 text-2xl font-bold">{{ $stats['overdue'] ?? 0 }}</div>
             </div>
         </div>
 
-        {{-- Críticos --}}
-        <div class="bg-white p-6 rounded shadow">
-            <h3 class="font-semibold mb-4">Críticos (danger / expired)</h3>
+        {{-- Lista --}}
+        <div class="mt-8">
+            <div class="text-sm font-semibold text-[#FFB529] mb-3">Próximos a vencer</div>
 
-            <div class="space-y-3">
-                @forelse($critical as $r)
-                    <div class="border rounded p-4 flex items-center justify-between">
-                        <div>
-                            <div class="font-medium">
-                                {{ $r->template?->name ?? $r->type }}
-                            </div>
-                            <div class="text-sm text-gray-500">
-                                Activo: {{ $r->asset?->name }}
-                                · Tipo: {{ $r->asset?->assetType?->name ?? '—' }}
-                            </div>
-                        </div>
-
-                        <div class="text-right text-sm">
-                            <div>Vence: {{ $r->due_date?->format('Y-m-d') }}</div>
-                            <div class="font-semibold">Riesgo: {{ $r->risk_level }}</div>
-                        </div>
-                    </div>
-                @empty
-                    <div class="text-sm text-gray-500">No hay críticos.</div>
-                @endforelse
+            <div class="border rounded-lg overflow-hidden">
+                {{-- Aquí luego metemos el loop real --}}
+                <div class="p-4 border-b">
+                    <div class="font-semibold text-gray-800">Bitácora de mantenimiento</div>
+                    <div class="text-xs text-gray-500">Activo: TEST1 · Tipo: ATQ</div>
+                </div>
+                <div class="p-4 border-b">
+                    <div class="font-semibold text-gray-800">Licencia de operación</div>
+                    <div class="text-xs text-gray-500">Activo: TEST1 · Tipo: ATQ</div>
+                </div>
+                <div class="p-4">
+                    <div class="font-semibold text-gray-800">Permiso ambiental anual</div>
+                    <div class="text-xs text-gray-500">Activo: Registro ante el SAT · Tipo: Muelles</div>
+                </div>
             </div>
         </div>
-
     </div>
-</x-app-layout>
+</x-layouts.vigia>
