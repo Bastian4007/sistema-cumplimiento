@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(RoleSeeder::class);
         $this->call(AssetTypeSeeder::class);
+        $this->call([CompanySeeder::class]);
 
         $company = Company::factory()->create([
             'name' => 'Empresa Demo',
@@ -27,11 +28,11 @@ class DatabaseSeeder extends Seeder
         $operativeRole = Role::where('slug', 'operative')->firstOrFail();
 
         User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+            'name' => 'Test User2',
+            'email' => 'test2@example.com',
             'company_id' => $company->id,
             'role_id' => $operativeRole->id,
-            'password' => bcrypt('password'),
+            'password' => bcrypt('admin123'),
         ]);
     }
 }

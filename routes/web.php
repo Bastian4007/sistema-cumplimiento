@@ -19,7 +19,7 @@ Route::get('/', function () {
         : redirect()->route('login');
 });
 
-Route::get('/dashboard', DashboardController::class)
+Route::get('/dashboard', [ComplianceDashboardController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('dashboard');
 

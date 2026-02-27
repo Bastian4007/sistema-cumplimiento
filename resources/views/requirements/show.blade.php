@@ -210,12 +210,5 @@
                 @endforelse
             </div>
         </div>
-
-        <div class="mt-6">
-            <a href="{{ route('assets.show', $asset) }}" class="text-sm underline text-gray-700">
-                ← Volver al activo
-            </a>
-        </div>
-
     </div>
 </x-layouts.vigia>

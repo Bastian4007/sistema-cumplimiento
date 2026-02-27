@@ -1,3 +1,4 @@
+{{-- resources/views/dashboard.blade.php --}}
 <x-layouts.vigia :title="'Tablero'">
     <x-slot name="breadcrumb">
         <span class="text-gray-700 font-medium">Tablero</span>
@@ -8,7 +9,7 @@
             <h1 class="text-2xl font-semibold text-[#1A428A]">Tablero de cumplimiento</h1>
 
             <div class="w-64">
-                <select class="w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm">
+                <select class="w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm" disabled>
                     <option>Todas las empresas</option>
                 </select>
             </div>
@@ -37,23 +38,63 @@
             </div>
         </div>
 
-        {{-- Lista --}}
-        <div class="mt-8">
-            <div class="text-sm font-semibold text-[#FFB529] mb-3">Próximos a vencer</div>
+        <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {{-- Próximos a vencer --}}
+            <div>
+                <div class="text-sm font-semibold text-[#FFB529] mb-3">Próximos a vencer</div>
 
-            <div class="border rounded-lg overflow-hidden">
-                {{-- Aquí luego metemos el loop real --}}
-                <div class="p-4 border-b">
-                    <div class="font-semibold text-gray-800">Bitácora de mantenimiento</div>
-                    <div class="text-xs text-gray-500">Activo: TEST1 · Tipo: ATQ</div>
+                <div class="border rounded-lg overflow-hidden">
+                    @forelse($upcoming as $r)
+                        <div class="p-4 border-b last:border-b-0">
+                            <div class="font-semibold text-gray-800">
+                                {{ $r->template?->name ?? $r->type ?? 'Requerimiento' }}
+                            </div>
+
+                            <div class="text-xs text-gray-500">
+                                Activo: {{ $r->asset?->name ?? '—' }}
+                                · Tipo: {{ $r->asset?->assetType?->name ?? '—' }}
+                                · Vence: {{ $r->due_date?->format('Y-m-d') ?? '—' }}
+                            </div>
+                        </div>
+                    @empty
+                        <div class="p-4 text-sm text-gray-500">
+                            No hay requerimientos próximos a vencer.
+                        </div>
+                    @endforelse
                 </div>
-                <div class="p-4 border-b">
-                    <div class="font-semibold text-gray-800">Licencia de operación</div>
-                    <div class="text-xs text-gray-500">Activo: TEST1 · Tipo: ATQ</div>
-                </div>
-                <div class="p-4">
-                    <div class="font-semibold text-gray-800">Permiso ambiental anual</div>
-                    <div class="text-xs text-gray-500">Activo: Registro ante el SAT · Tipo: Muelles</div>
+            </div>
+
+            {{-- Críticos --}}
+            <div>
+                <div class="text-sm font-semibold text-[#DB0000] mb-3">Críticos (vencidos / en riesgo)</div>
+
+                <div class="border rounded-lg overflow-hidden">
+                    @forelse($critical as $r)
+                        <div class="p-4 border-b last:border-b-0">
+                            <div class="flex items-center justify-between gap-4">
+                                <div class="font-semibold text-gray-800">
+                                    {{ $r->template?->name ?? $r->type ?? 'Requerimiento' }}
+                                </div>
+
+                                <span class="text-xs font-semibold px-2 py-1 rounded-full
+                                    {{ $r->risk_level === 'expired'
+                                        ? 'bg-red-100 text-red-700'
+                                        : 'bg-yellow-100 text-yellow-700' }}">
+                                    {{ $r->risk_level === 'expired' ? 'Vencido' : 'En riesgo' }}
+                                </span>
+                            </div>
+
+                            <div class="text-xs text-gray-500 mt-1">
+                                Activo: {{ $r->asset?->name ?? '—' }}
+                                · Tipo: {{ $r->asset?->assetType?->name ?? '—' }}
+                                · Vence: {{ $r->due_date?->format('Y-m-d') ?? '—' }}
+                            </div>
+                        </div>
+                    @empty
+                        <div class="p-4 text-sm text-gray-500">
+                            No hay requerimientos críticos.
+                        </div>
+                    @endforelse
                 </div>
             </div>
         </div>
