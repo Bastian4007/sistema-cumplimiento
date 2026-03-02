@@ -116,98 +116,105 @@
                 @endif
             </div>
 
-            <div class="p-5 space-y-4">
-                @forelse($requirement->tasks as $task)
-                    @php
-                        $hasDocs = ($task->documents_count ?? 0) > 0;
-                        $isCompleted = (bool) $task->completed_at;
-                    @endphp
+            {{-- ✅ SCROLL INTERNO: solo el listado crece, no la página --}}
+            <div class="p-5">
+                <div class="max-h-[520px] overflow-y-auto pr-2 space-y-4
+                    {{-- Si quieres scroll bonito, crea la clase custom-scroll en tu CSS y descomenta esto:
+                    custom-scroll
+                    --}}
+                ">
+                    @forelse($requirement->tasks as $task)
+                        @php
+                            $hasDocs = ($task->documents_count ?? 0) > 0;
+                            $isCompleted = (bool) $task->completed_at;
+                        @endphp
 
-                    <div class="border rounded-xl p-4">
-                        <div class="font-semibold text-gray-900">{{ $task->title }}</div>
+                        <div class="border rounded-xl p-4 bg-white">
+                            <div class="font-semibold text-gray-900">{{ $task->title }}</div>
 
-                        <div class="text-sm text-gray-600 mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
-                            <span>Status:
-                                <span class="px-2 py-0.5 rounded border text-xs bg-gray-50">
-                                    {{ $task->status->value }}
+                            <div class="text-sm text-gray-600 mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+                                <span>Status:
+                                    <span class="px-2 py-0.5 rounded border text-xs bg-gray-50">
+                                        {{ $task->status->value }}
+                                    </span>
                                 </span>
-                            </span>
 
-                            <span class="text-gray-300">|</span>
-                            <span>Vence: {{ $task->due_date?->format('Y-m-d') ?? '-' }}</span>
+                                <span class="text-gray-300">|</span>
+                                <span>Vence: {{ $task->due_date?->format('Y-m-d') ?? '-' }}</span>
 
-                            <span class="text-gray-300">|</span>
-                            <span>Evidencias: {{ $task->documents_count ?? 0 }}</span>
+                                <span class="text-gray-300">|</span>
+                                <span>Evidencias: {{ $task->documents_count ?? 0 }}</span>
 
-                            <span class="text-xs px-2 py-0.5 rounded border bg-yellow-50">
-                                Requiere evidencia
-                            </span>
-
-                            @if($hasDocs)
-                                <span class="text-xs px-2 py-0.5 rounded border bg-green-50 text-green-700 border-green-200">
-                                    Evidencia OK
+                                <span class="text-xs px-2 py-0.5 rounded border bg-yellow-50">
+                                    Requiere evidencia
                                 </span>
-                            @else
-                                <span class="text-xs px-2 py-0.5 rounded border bg-red-50 text-red-700 border-red-200">
-                                    Falta evidencia
-                                </span>
+
+                                @if($hasDocs)
+                                    <span class="text-xs px-2 py-0.5 rounded border bg-green-50 text-green-700 border-green-200">
+                                        Evidencia OK
+                                    </span>
+                                @else
+                                    <span class="text-xs px-2 py-0.5 rounded border bg-red-50 text-red-700 border-red-200">
+                                        Falta evidencia
+                                    </span>
+                                @endif
+                            </div>
+
+                            {{-- Botones de la tarea --}}
+                            @if(auth()->user()->isOperative())
+                                <div class="mt-4 pt-3 border-t flex flex-wrap justify-end gap-2">
+                                    <a href="{{ route('tasks.documents.index', $task) }}"
+                                       class="px-4 py-2 rounded-md border font-semibold
+                                       {{ $assetInactive ? 'opacity-50 pointer-events-none bg-gray-100 text-gray-500 border-gray-300' : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
+                                        {{ $hasDocs ? 'Ver evidencias (' . ($task->documents_count ?? 0) . ')' : 'Subir evidencia' }}
+                                    </a>
+
+                                    @if(!$isCompleted)
+                                        <form method="POST" action="{{ route('requirements.tasks.complete', [$requirement, $task]) }}">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button type="submit"
+                                                class="px-4 py-2 rounded-md font-semibold
+                                                {{ ($assetInactive || !$hasDocs) ? 'bg-gray-100 text-gray-500 border border-gray-300 cursor-not-allowed' : 'bg-[#1A428A] text-white hover:bg-[#15356d]' }}"
+                                                {{ ($assetInactive || !$hasDocs) ? 'disabled' : '' }}>
+                                                Completar
+                                            </button>
+                                        </form>
+                                    @else
+                                        <form method="POST" action="{{ route('requirements.tasks.reopen', [$requirement, $task]) }}">
+                                            @csrf
+                                            @method('PATCH')
+                                            <button type="submit"
+                                                class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50
+                                                {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
+                                                Reabrir
+                                            </button>
+                                        </form>
+                                    @endif
+
+                                    <a href="{{ route('requirements.tasks.edit', [$requirement, $task]) }}"
+                                       class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50
+                                       {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
+                                        Editar
+                                    </a>
+
+                                    <form method="POST" action="{{ route('requirements.tasks.destroy', [$requirement, $task]) }}"
+                                          onsubmit="return confirm('¿Eliminar esta tarea?')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit"
+                                            class="px-4 py-2 rounded-md bg-[#DB0000] text-white font-semibold hover:bg-red-700
+                                            {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
+                                            Eliminar
+                                        </button>
+                                    </form>
+                                </div>
                             @endif
                         </div>
-
-                        {{-- Botones de la tarea --}}
-                        @if(auth()->user()->isOperative())
-                            <div class="mt-4 pt-3 border-t flex flex-wrap justify-end gap-2">
-                                <a href="{{ route('tasks.documents.index', $task) }}"
-                                   class="px-4 py-2 rounded-md border font-semibold
-                                   {{ $assetInactive ? 'opacity-50 pointer-events-none bg-gray-100 text-gray-500 border-gray-300' : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
-                                    {{ $hasDocs ? 'Ver evidencias (' . ($task->documents_count ?? 0) . ')' : 'Subir evidencia' }}
-                                </a>
-
-                                @if(!$isCompleted)
-                                    <form method="POST" action="{{ route('requirements.tasks.complete', [$requirement, $task]) }}">
-                                        @csrf
-                                        @method('PATCH')
-                                        <button type="submit"
-                                            class="px-4 py-2 rounded-md font-semibold
-                                            {{ ($assetInactive || !$hasDocs) ? 'bg-gray-100 text-gray-500 border border-gray-300 cursor-not-allowed' : 'bg-[#1A428A] text-white hover:bg-[#15356d]' }}"
-                                            {{ ($assetInactive || !$hasDocs) ? 'disabled' : '' }}>
-                                            Completar
-                                        </button>
-                                    </form>
-                                @else
-                                    <form method="POST" action="{{ route('requirements.tasks.reopen', [$requirement, $task]) }}">
-                                        @csrf
-                                        @method('PATCH')
-                                        <button type="submit"
-                                            class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50
-                                            {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
-                                            Reabrir
-                                        </button>
-                                    </form>
-                                @endif
-
-                                <a href="{{ route('requirements.tasks.edit', [$requirement, $task]) }}"
-                                   class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50
-                                   {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
-                                    Editar
-                                </a>
-
-                                <form method="POST" action="{{ route('requirements.tasks.destroy', [$requirement, $task]) }}"
-                                      onsubmit="return confirm('¿Eliminar esta tarea?')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit"
-                                        class="px-4 py-2 rounded-md bg-[#DB0000] text-white font-semibold hover:bg-red-700
-                                        {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
-                                        Eliminar
-                                    </button>
-                                </form>
-                            </div>
-                        @endif
-                    </div>
-                @empty
-                    <div class="text-sm text-gray-500">No hay tareas todavía.</div>
-                @endforelse
+                    @empty
+                        <div class="text-sm text-gray-500">No hay tareas todavía.</div>
+                    @endforelse
+                </div>
             </div>
         </div>
     </div>

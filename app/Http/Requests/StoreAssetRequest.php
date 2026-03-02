@@ -14,21 +14,38 @@ class StoreAssetRequest extends FormRequest
 
     public function rules(): array
     {
+        $companyId = (int) $this->user()->company_id;
+
         return [
             'asset_type_id' => [
                 'required',
                 'integer',
-                Rule::exists('asset_types', 'id'), // global
+                Rule::exists('asset_types', 'id'),
             ],
-            'name' => ['required', 'string', 'max:255'],
-            'code' => ['nullable', 'string', 'max:100'],
-            'location' => ['nullable', 'string', 'max:255'],
+
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+
+            'code' => [
+                'nullable',
+                'string',
+                'max:100',
+                Rule::unique('assets', 'code')->where(fn ($q) => $q->where('company_id', $companyId)),
+            ],
+
+            'location' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
 
             'responsible_user_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('users', 'id')
-                    ->where('company_id', $this->user()->company_id),
+                Rule::exists('users', 'id')->where(fn ($q) => $q->where('company_id', $companyId)),
             ],
         ];
     }

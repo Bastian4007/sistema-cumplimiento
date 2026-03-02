@@ -25,10 +25,9 @@ class UpdateAssetRequest extends FormRequest
             'location' => ['nullable', 'string', 'max:255'],
 
             'responsible_user_id' => [
-                'nullable',
-                'integer',
-                Rule::exists('users', 'id')
-                    ->where('company_id', $this->user()->company_id),
+            'nullable',
+            'integer',
+            Rule::exists('users', 'id')->where('company_id', $this->user()->company_id),
             ],
         ];
     }

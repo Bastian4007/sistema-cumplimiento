@@ -8,6 +8,7 @@ use App\Models\Asset;
 use App\Models\AssetType;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class AssetController extends Controller
 {
@@ -39,23 +40,53 @@ class AssetController extends Controller
 
     public function create(Request $request)
     {
+        $companyId = (int) $request->user()->company_id;
+
         $assetTypes = AssetType::query()
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        $responsibles = User::query()
-            ->where('company_id', $request->user()->company_id)
+        $responsibles = \App\Models\User::query()
+            ->where('company_id', $companyId)
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'email']);
 
         return view('assets.create', compact('assetTypes', 'responsibles'));
     }
 
     public function store(StoreAssetRequest $request)
     {
+        $data = $request->validated();
+        $companyId = (int) $request->user()->company_id;
+
+        if (empty($data['code'])) {
+            $namePart = Str::upper(Str::substr(Str::slug($data['name'], ''), 0, 10)); 
+
+            $type = \App\Models\AssetType::find($data['asset_type_id']);
+            $typePart = $type?->code
+                ? Str::upper(Str::slug($type->code, ''))         
+                : Str::upper(Str::substr(Str::slug($type?->name ?? 'TIPO', ''), 0, 6)); 
+
+            $prefix = "{$namePart}-{$typePart}-";
+
+            $last = Asset::query()
+                ->where('company_id', $companyId)
+                ->where('code', 'like', $prefix.'%')
+                ->orderBy('code', 'desc')
+                ->value('code');
+
+            $nextNumber = 1;
+            if ($last) {
+                $lastNumber = (int) Str::afterLast($last, '-');
+                $nextNumber = $lastNumber + 1;
+            }
+
+            $data['code'] = $prefix . str_pad((string)$nextNumber, 3, '0', STR_PAD_LEFT);
+        }
+
         $asset = Asset::create([
-            'company_id' => $request->user()->company_id,
-            ...$request->validated(),
+            'company_id' => $companyId,
+            ...$data,
         ]);
 
         app(\App\Application\Compliance\AssignDefaultRequirementsToAsset::class)
@@ -64,6 +95,19 @@ class AssetController extends Controller
         return redirect()
             ->route('assets.show', $asset)
             ->with('status', 'Activo creado.');
+    }
+
+    private function generateAssetCode(int $companyId): string
+    {
+        $lastNumeric = \App\Models\Asset::query()
+            ->where('company_id', $companyId)
+            ->whereNotNull('code')
+            ->orderByDesc('id')
+            ->value('code');
+
+        $n = is_numeric($lastNumeric) ? ((int)$lastNumeric + 1) : 1;
+
+        return str_pad((string)$n, 3, '0', STR_PAD_LEFT);
     }
 
     public function show(Asset $asset)
@@ -89,6 +133,10 @@ class AssetController extends Controller
 
     public function edit(Request $request, Asset $asset)
     {
+        abort_unless($asset->company_id === (int) $request->user()->company_id, 404);
+
+        $asset->load(['assetType', 'responsible']);
+
         $assetTypes = AssetType::query()
             ->orderBy('name')
             ->get(['id', 'name']);
@@ -96,7 +144,7 @@ class AssetController extends Controller
         $responsibles = User::query()
             ->where('company_id', $request->user()->company_id)
             ->orderBy('name')
-            ->get(['id', 'name']);
+            ->get(['id', 'name', 'email']);
 
         return view('assets.edit', compact('asset', 'assetTypes', 'responsibles'));
     }
