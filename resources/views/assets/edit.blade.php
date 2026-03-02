@@ -139,7 +139,6 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // Select2 para buscar por nombre/correo
             $('#responsible_user_id').select2({
                 width: '100%',
                 placeholder: '-- Ninguno --',

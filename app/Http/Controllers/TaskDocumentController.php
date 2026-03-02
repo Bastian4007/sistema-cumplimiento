@@ -29,14 +29,22 @@ class TaskDocumentController extends Controller
         abort_if($task->requirement->company_id !== $request->user()->company_id, 403);
 
         $request->validate([
-            'file' => ['required', 'file', 'max:10240'], // 10MB
+            'file' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
         ]);
 
-        $path = $request->file('file')->store(
-            'task-documents/'.$task->id,
-            'public'
-        );
+        // 1) Si ya hay documento, bórralo (BD + archivo)
+        $existing = TaskDocument::where('task_id', $task->id)->latest()->first();
 
+        if ($existing) {
+            Storage::disk('public')->delete($existing->file_path);
+            $existing->delete();
+        }
+
+        // 2) Guardar nuevo archivo
+        $file = $request->file('file');
+        $path = $file->store("task-documents/{$task->id}", 'public');
+
+        // 3) Crear registro
         TaskDocument::create([
             'task_id' => $task->id,
             'file_path' => $path,

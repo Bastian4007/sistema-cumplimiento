@@ -42,9 +42,20 @@ class AssetRequirementDocumentController extends Controller
         }
 
         $request->validate([
-            'file' => ['required', 'file', 'max:10240'], // 10MB
+            'file' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'], // opcional mimes
         ]);
 
+        // 1) Si ya existe un documento oficial, borrarlo (archivo + registro)
+        $existing = AssetRequirementDocument::where('asset_requirement_id', $requirement->id)
+            ->latest()
+            ->first();
+
+        if ($existing) {
+            Storage::disk('private')->delete($existing->file_path);
+            $existing->delete();
+        }
+
+        // 2) Guardar el nuevo archivo en PRIVATE
         $file = $request->file('file');
 
         $path = $file->store(
@@ -52,12 +63,13 @@ class AssetRequirementDocumentController extends Controller
             'private'
         );
 
+        // 3) Guardar metadata del documento
         AssetRequirementDocument::create([
             'asset_requirement_id' => $requirement->id,
             'company_id' => $asset->company_id,
-            'file_path' => $path, // OJO: path relativo al disk private
+            'file_path' => $path,
             'original_name' => $file->getClientOriginalName(),
-            'mime_type' => $file->getMimeType(),
+            'mime_type' => $file->getClientMimeType(), // mejor que getMimeType()
             'size' => $file->getSize(),
             'uploaded_by' => auth()->id(),
         ]);
