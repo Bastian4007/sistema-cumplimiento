@@ -23,7 +23,7 @@ class Task extends Model
 
     protected $casts = [
         'status' => \App\Enums\TaskStatus::class,
-        'due_date' => 'date',
+        'due_date' => 'datetime',
         'completed_at' => 'datetime',
         'requires_document' => 'boolean',
     ];

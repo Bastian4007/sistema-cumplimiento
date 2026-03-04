@@ -86,6 +86,9 @@ Route::middleware('auth')->group(function () {
     Route::patch('requirements/{requirement}/tasks/{task}/reopen', [RequirementTaskController::class, 'reopen'])
         ->name('requirements.tasks.reopen');
 
+    Route::post('assets/{asset}/requirements/{requirement}/checkout',[RequirementTaskController::class, 'checkout'])
+        ->name('assets.requirements.checkout');
+        
     // Task documents
     Route::get('tasks/{task}/documents', [TaskDocumentController::class, 'index'])
         ->name('tasks.documents.index');

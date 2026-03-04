@@ -8,18 +8,37 @@
     </x-slot>
 
     @php
+        // 1. Asset inactive
         $assetInactive = ($asset->status ?? null) === \App\Models\Asset::STATUS_INACTIVE
             || (method_exists($asset, 'isInactive') && $asset->isInactive());
 
+        // 2. Documentación oficial existente (ya subida)
         $hasOfficialDocument = $requirement->documents()->exists();
-        $isCompleted = $requirement->status === \App\Enums\RequirementStatus::COMPLETED;
 
-        // ✅ Debes tener cargada la relación tasks en el controller (ya la usas abajo)
+        // 3. Tasks (ya cargadas en $requirement->tasks)
         $totalTasks = $requirement->tasks->count();
         $doneTasks  = $requirement->tasks->whereNotNull('completed_at')->count();
 
-        // ✅ Regla: solo habilitar si todas las tareas están completadas (y hay al menos 1 tarea)
-        $canUploadOfficialDocument = !$assetInactive && $totalTasks > 0 && $doneTasks === $totalTasks;
+        // 4. Regla para permitir subir documentación oficial (tu regla actual)
+        $canUploadOfficialDocument = !$assetInactive
+            && $totalTasks > 0
+            && $doneTasks === $totalTasks;
+
+        // 5. Checkout abierto (si ya hay un "Check in -" pendiente)
+        $titleReq = $requirement->template?->name ?? $requirement->type;
+
+        $hasOpenCheckout = $requirement->tasks()
+            ->where('title', "Check in - {$titleReq}")
+            ->whereNull('completed_at')
+            ->exists();
+
+        // 6. Regla FINAL de checkout:
+        // - asset activo
+        // - NO hay checkout pendiente
+        // - SÍ existe documentación oficial
+        $canCheckout = !$assetInactive
+            && !$hasOpenCheckout
+            && $hasOfficialDocument;
     @endphp
 
     <div class="bg-white rounded-xl shadow p-6">
@@ -53,7 +72,7 @@
 
                 @if($canUploadOfficialDocument)
                     <a href="{{ route('assets.requirements.documents.index', [$asset, $requirement]) }}"
-                    class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
+                       class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
                         Documentación oficial
                     </a>
                 @else
@@ -64,7 +83,8 @@
                     </button>
                 @endif
 
-                <a href="{{ route('assets.show', $asset) }}" class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
+                <a href="{{ route('assets.show', $asset) }}"
+                   class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
                     Volver
                 </a>
             </div>
@@ -99,12 +119,37 @@
             <div class="p-5 border-b flex items-center justify-between">
                 <div class="font-semibold text-[#1A428A]">Tareas</div>
 
-                @if(auth()->user()->isOperative())
-                    <a href="{{ route('requirements.tasks.create', $requirement) }}"
-                       class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]
-                       {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
-                        Añadir tarea
-                    </a>
+                @if(auth()->user()->isOperative() && !$assetInactive)
+                    <div class="flex items-center gap-2">
+                        @if(!$hasOfficialDocument)
+                            <button type="button" disabled
+                                title="Primero debes subir la documentación oficial."
+                                class="px-4 py-2 rounded-md border bg-gray-100 text-gray-400 cursor-not-allowed">
+                                Check out
+                            </button>
+
+                        @elseif($hasOpenCheckout)
+                            <button type="button" disabled
+                                title="Ya hay un Check in pendiente. Completa esa tarea."
+                                class="px-4 py-2 rounded-md border bg-gray-100 text-gray-400 cursor-not-allowed">
+                                Check out
+                            </button>
+
+                        @else
+                            <button type="button"
+                                onclick="document.getElementById('checkout-modal').showModal()"
+                                class="px-4 py-2 rounded-md border bg-white text-[#1A428A] font-semibold hover:bg-gray-50">
+                                Check out
+                            </button>
+                        @endif
+
+                        {{-- Añadir tarea --}}
+                        <a href="{{ route('requirements.tasks.create', $requirement) }}"
+                           class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]
+                           {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
+                            Añadir tarea
+                        </a>
+                    </div>
                 @endif
             </div>
 
@@ -206,4 +251,47 @@
         </div>
 
     </div>
+
+    {{-- Modal Check out --}}
+    <dialog id="checkout-modal" class="rounded-xl p-0 w-full max-w-md backdrop:bg-black/40">
+    <form id="checkout-form"
+          method="POST"
+          action="{{ route('assets.requirements.checkout', [$asset, $requirement]) }}"
+          class="p-6 space-y-4">
+        @csrf
+
+        <div class="text-lg font-semibold text-[#1A428A]">
+            Check out de carpeta física
+        </div>
+
+        <p class="text-sm text-gray-600">
+            Indica cuándo vas a regresar el documento físico.
+        </p>
+
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">
+                Fecha y hora de regreso
+            </label>
+
+            <input type="datetime-local"
+                   name="return_at"
+                   required
+                   class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A]">
+        </div>
+    </form>
+
+    <div class="flex justify-end gap-2 pt-2 p-6">
+        <button type="button"
+                onclick="document.getElementById('checkout-modal').close()"
+                class="px-4 py-2 rounded-md border bg-white text-gray-700 font-semibold hover:bg-gray-50">
+            Cancelar
+        </button>
+
+        <button type="submit"
+                form="checkout-form"
+                class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
+            Confirmar check out
+        </button>
+    </div>
+</dialog>
 </x-layouts.vigia>

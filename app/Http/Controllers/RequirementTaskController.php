@@ -7,7 +7,9 @@ use App\Http\Requests\StoreTaskRequest;
 use App\Http\Requests\UpdateTaskRequest;
 use App\Models\AssetRequirement;
 use App\Models\Task;
+use App\Models\Asset;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use App\Services\AuditLogger;
 
 class RequirementTaskController extends Controller
@@ -206,5 +208,48 @@ class RequirementTaskController extends Controller
         );
 
         return back()->with('status', 'Tarea reabierta.');
+    }
+
+    public function checkout(Request $request, Asset $asset, AssetRequirement $requirement)
+    {
+        // Validación de rol
+        abort_unless(auth()->user()->isOperative(), 403);
+
+        // Validar pertenencia
+        if ((int) $requirement->asset_id !== (int) $asset->id) abort(404);
+
+        $hasOfficialDoc = $requirement->documents()->exists(); 
+
+        abort_unless($hasOfficialDoc, 422);
+
+        $data = $request->validate([
+            'return_at' => ['required', 'date', 'after:now'],
+        ]);
+
+        $titleReq = $requirement->template?->name ?? $requirement->type;
+        $title = "Check in - {$titleReq}";
+
+        $alreadyOpen = Task::where('asset_requirement_id', $requirement->id)
+            ->where('title', $title)
+            ->whereNull('completed_at')
+            ->whereHas('users', fn ($q) => $q->where('users.id', auth()->id()))
+            ->exists();
+
+        if ($alreadyOpen) {
+            return back()->with('error', 'Ya tienes un Check in pendiente para este requerimiento.');
+        }
+
+        $checkin = Task::create([
+            'asset_requirement_id' => $requirement->id,
+            'title' => $title,
+            'description' => "Check in del requerimiento: {$titleReq}",
+            'status' => TaskStatus::PENDING,
+            'due_date' => $data['return_at'],
+            'requires_document' => false,
+        ]);
+
+        $checkin->users()->syncWithoutDetaching([auth()->id()]);
+
+        return back()->with('success', 'Check out registrado. Se creó una tarea de Check in.');
     }
 }
