@@ -6,7 +6,7 @@
 
 <x-layouts.vigia :title="'Nueva tarea'">
     <x-slot name="breadcrumb">
-        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">Bóveda</a>
+        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">Activos y Actividades</a>
         <span class="text-gray-400">›</span>
 
         @if($asset)

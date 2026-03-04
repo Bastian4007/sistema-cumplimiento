@@ -1,6 +1,6 @@
 <x-layouts.vigia :title="'Carpeta: ' . ($requirement->template?->name ?? $requirement->type)">
     <x-slot name="breadcrumb">
-        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">Bóveda</a>
+        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">Activos y Actividades</a>
         <span class="text-gray-400">›</span>
         <a href="{{ route('assets.show', $asset) }}" class="text-gray-600 hover:underline">{{ $asset->name }}</a>
         <span class="text-gray-400">›</span>
@@ -11,9 +11,15 @@
         $assetInactive = ($asset->status ?? null) === \App\Models\Asset::STATUS_INACTIVE
             || (method_exists($asset, 'isInactive') && $asset->isInactive());
 
-        $hasOfficialDocument = method_exists($requirement, 'documents')
-            ? $requirement->documents()->exists()
-            : false;
+        $hasOfficialDocument = $requirement->documents()->exists();
+        $isCompleted = $requirement->status === \App\Enums\RequirementStatus::COMPLETED;
+
+        // ✅ Debes tener cargada la relación tasks en el controller (ya la usas abajo)
+        $totalTasks = $requirement->tasks->count();
+        $doneTasks  = $requirement->tasks->whereNotNull('completed_at')->count();
+
+        // ✅ Regla: solo habilitar si todas las tareas están completadas (y hay al menos 1 tarea)
+        $canUploadOfficialDocument = !$assetInactive && $totalTasks > 0 && $doneTasks === $totalTasks;
     @endphp
 
     <div class="bg-white rounded-xl shadow p-6">
@@ -38,47 +44,33 @@
                 </div>
             </div>
 
-            {{-- Acciones superiores (como el mock) --}}
+            {{-- Acciones superiores --}}
             <div class="flex items-center gap-2">
                 <a href="{{ route('assets.requirements.history', [$asset, $requirement]) }}"
                    class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
                     Ver historial
                 </a>
 
-                <a href="{{ route('assets.requirements.documents.index', [$asset, $requirement]) }}"
-                   class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50
-                   {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
-                    Documentación oficial
-                </a>
-
-                {{-- Completar requirement --}}
-                @if(auth()->user()->isOperative())
-                    @if($requirement->status !== \App\Enums\RequirementStatus::COMPLETED)
-                        @if($assetInactive || !$requirement->canBeCompleted())
-                            <button type="button" disabled
-                                class="px-4 py-2 rounded-md border bg-gray-100 text-gray-500 border-gray-300 font-semibold cursor-not-allowed">
-                                Completar
-                            </button>
-                        @else
-                            <form method="POST" action="{{ route('assets.requirements.complete', [$asset, $requirement]) }}">
-                                @csrf
-                                @method('PATCH')
-                                <button type="submit"
-                                    class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
-                                    Completar
-                                </button>
-                            </form>
-                        @endif
-                    @else
-                        <span class="px-4 py-2 rounded-md border bg-gray-50 text-gray-700 border-gray-200 font-semibold">
-                            Completado
-                        </span>
-                    @endif
+                @if($canUploadOfficialDocument)
+                    <a href="{{ route('assets.requirements.documents.index', [$asset, $requirement]) }}"
+                    class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
+                        Documentación oficial
+                    </a>
+                @else
+                    <button type="button" disabled
+                        title="Completa todas las tareas para habilitar la documentación oficial"
+                        class="px-4 py-2 rounded-md border bg-gray-100 text-gray-500 border-gray-300 font-semibold cursor-not-allowed">
+                        Documentación oficial
+                    </button>
                 @endif
+
+                <a href="{{ route('assets.show', $asset) }}" class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
+                    Volver
+                </a>
             </div>
         </div>
 
-        {{-- Card resumen (como el mock) --}}
+        {{-- Card resumen --}}
         <div class="mt-6 bg-gray-50 border rounded-xl p-5">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
                 <div class="space-y-1">
@@ -116,17 +108,12 @@
                 @endif
             </div>
 
-            {{-- ✅ SCROLL INTERNO: solo el listado crece, no la página --}}
             <div class="p-5">
-                <div class="max-h-[520px] overflow-y-auto pr-2 space-y-4
-                    {{-- Si quieres scroll bonito, crea la clase custom-scroll en tu CSS y descomenta esto:
-                    custom-scroll
-                    --}}
-                ">
+                <div class="max-h-[520px] overflow-y-auto pr-2 space-y-4">
                     @forelse($requirement->tasks as $task)
                         @php
                             $hasDocs = ($task->documents_count ?? 0) > 0;
-                            $isCompleted = (bool) $task->completed_at;
+                            $taskCompleted = (bool) $task->completed_at;
                         @endphp
 
                         <div class="border rounded-xl p-4 bg-white">
@@ -169,7 +156,7 @@
                                         {{ $hasDocs ? 'Ver evidencias (' . ($task->documents_count ?? 0) . ')' : 'Subir evidencia' }}
                                     </a>
 
-                                    @if(!$isCompleted)
+                                    @if(!$taskCompleted)
                                         <form method="POST" action="{{ route('requirements.tasks.complete', [$requirement, $task]) }}">
                                             @csrf
                                             @method('PATCH')
@@ -217,5 +204,6 @@
                 </div>
             </div>
         </div>
+
     </div>
 </x-layouts.vigia>

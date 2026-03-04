@@ -28,7 +28,7 @@ class AssetRequirement extends Model
     ];
 
     protected $casts = [
-        'status' => RequirementStatus::class,
+        'status' => \App\Enums\RequirementStatus::class,
         'due_date' => 'date',
         'completed_at' => 'datetime',
         'recurrence_anchor' => 'date',

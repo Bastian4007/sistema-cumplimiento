@@ -43,6 +43,9 @@ Route::middleware('auth')->group(function () {
 
     Route::patch('assets/{asset}/requirements/{requirement}/complete', [AssetRequirementController::class, 'complete'])
         ->name('assets.requirements.complete');
+    
+    Route::patch('/assets/{asset}/requirements/{requirement}/reopen', [AssetRequirementController::class, 'reopen'])
+        ->name('assets.requirements.reopen');
 
     // Requirement official documents (nested under asset + requirement)
     // ✅ Cambié {document} a {requirementDocument} para evitar binding equivocado

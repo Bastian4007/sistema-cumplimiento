@@ -1,7 +1,7 @@
 {{-- resources/views/assets/create.blade.php --}}
 <x-layouts.vigia :title="'Crear un activo'">
     <x-slot name="breadcrumb">
-        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">Bóveda</a>
+        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">Activos y Actividades</a>
         <span class="text-gray-400">›</span>
         <span class="text-gray-700 font-medium">Crear un activo</span>
     </x-slot>

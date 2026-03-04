@@ -34,9 +34,6 @@ class AssetRequirementController extends Controller
         return view('requirements.show', compact('asset', 'requirement'));
     }
 
-    /**
-     * Crear requirement manual (MVP) + crear una task principal obligatoria.
-     */
     public function store(StoreAssetRequirementRequest $request, Asset $asset)
     {
         abort_unless($asset->company_id === auth()->user()->company_id, 403);
@@ -47,20 +44,18 @@ class AssetRequirementController extends Controller
         $data['asset_id'] = $asset->id;
         $data['completed_at'] = null;
 
-        // ✅ status del Requirement (NO TaskStatus)
         $data['status'] = RequirementStatus::PENDING;
 
         $requirement = DB::transaction(function () use ($data) {
 
             $requirement = AssetRequirement::create($data);
 
-            // ✅ Crear task principal obligatoria (todas requieren documento)
             $requirement->tasks()->create([
                 'title' => 'Subir documento principal (permiso/obligación)',
                 'description' => 'Adjunta el documento oficial requerido para esta obligación.',
                 'status' => TaskStatus::PENDING,
                 'due_date' => $requirement->due_date,
-                'requires_document' => true, // 🔒 SIEMPRE true
+                'requires_document' => true, 
                 'completed_at' => null,
             ]);
 
@@ -133,11 +128,9 @@ class AssetRequirementController extends Controller
 
     public function complete(Asset $asset, AssetRequirement $requirement)
     {
-        // (si ya tienes authorize, déjalo)
-        // $this->authorize('complete', $requirement);
+        $this->authorize('complete', $requirement);
 
-        // Asegura jerarquía correcta (opcional pero recomendado)
-        if ((int)$requirement->asset_id !== (int)$asset->id) {
+        if ((int) $requirement->asset_id !== (int) $asset->id) {
             abort(404);
         }
 
@@ -148,9 +141,22 @@ class AssetRequirementController extends Controller
         $requirement->update([
             'status' => \App\Enums\RequirementStatus::COMPLETED,
             'completed_at' => now(),
-            // 'completed_by' => auth()->id(), // lo metemos en el paso de auditoría
         ]);
 
-        return back()->with('success', 'Requirement completado.');
+        return back()->with('success', 'Requerimiento completado.');
+    }
+
+    public function reopen(Asset $asset, AssetRequirement $requirement)
+    {
+        if ((int) $requirement->asset_id !== (int) $asset->id) {
+            abort(404);
+        }
+
+        $requirement->update([
+            'status' => \App\Enums\RequirementStatus::IN_PROGRESS,
+            'completed_at' => null,
+        ]);
+
+        return back()->with('success', 'Requerimiento reabierto.');
     }
 }

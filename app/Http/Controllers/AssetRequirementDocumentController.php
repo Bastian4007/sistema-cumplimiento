@@ -8,9 +8,12 @@ use App\Models\AssetRequirementDocument;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\Response;
+use App\Http\Controllers\Concerns\ValidatesCompany;
+use App\Enums\RequirementStatus;
 
 class AssetRequirementDocumentController extends Controller
 {
+    use ValidatesCompany;
     private function disk()
     {
         return Storage::disk('private');
@@ -19,7 +22,7 @@ class AssetRequirementDocumentController extends Controller
     public function index(Asset $asset, AssetRequirement $requirement)
     {
         $this->assertRequirementBelongsToAsset($asset, $requirement);
-        $this->assertSameCompany($requirement);
+        $this->assertSameCompany($asset);
 
         $assetInactive = method_exists($asset, 'isInactive') ? $asset->isInactive() : ($asset->status === 'inactive');
 
@@ -35,14 +38,14 @@ class AssetRequirementDocumentController extends Controller
     public function store(Request $request, Asset $asset, AssetRequirement $requirement)
     {
         $this->assertRequirementBelongsToAsset($asset, $requirement);
-        $this->assertSameCompany($requirement);
+        $this->assertSameCompany($asset);
 
         if (method_exists($asset, 'isInactive') ? $asset->isInactive() : ($asset->status === 'inactive')) {
             return back()->with('error', 'El activo está desactivado. No puedes subir documentación oficial.');
         }
 
         $request->validate([
-            'file' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'], // opcional mimes
+            'file' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
         ]);
 
         // 1) Si ya existe un documento oficial, borrarlo (archivo + registro)
@@ -51,7 +54,9 @@ class AssetRequirementDocumentController extends Controller
             ->first();
 
         if ($existing) {
-            Storage::disk('private')->delete($existing->file_path);
+            if ($this->disk()->exists($existing->file_path)) {
+                $this->disk()->delete($existing->file_path);
+            }
             $existing->delete();
         }
 
@@ -69,9 +74,15 @@ class AssetRequirementDocumentController extends Controller
             'company_id' => $asset->company_id,
             'file_path' => $path,
             'original_name' => $file->getClientOriginalName(),
-            'mime_type' => $file->getClientMimeType(), // mejor que getMimeType()
+            'mime_type' => $file->getClientMimeType(),
             'size' => $file->getSize(),
             'uploaded_by' => auth()->id(),
+        ]);
+
+        // ✅ 4) Marcar requirement como completado
+        $requirement->update([
+            'status' => \App\Enums\RequirementStatus::COMPLETED,
+            'completed_at' => now(),
         ]);
 
         return back()->with('success', 'Documento oficial subido correctamente.');
@@ -80,7 +91,7 @@ class AssetRequirementDocumentController extends Controller
     public function download(Asset $asset, AssetRequirement $requirement, AssetRequirementDocument $document)
     {
         $this->assertRequirementBelongsToAsset($asset, $requirement);
-        $this->assertSameCompany($requirement);
+        $this->assertSameCompany($asset);
         $this->assertDocumentBelongsToRequirement($document, $requirement);
 
         if (!$this->disk()->exists($document->file_path)) {
@@ -96,7 +107,7 @@ class AssetRequirementDocumentController extends Controller
     public function preview(Asset $asset, AssetRequirement $requirement, AssetRequirementDocument $document)
     {
         $this->assertRequirementBelongsToAsset($asset, $requirement);
-        $this->assertSameCompany($requirement);
+        $this->assertSameCompany($asset);
         $this->assertDocumentBelongsToRequirement($document, $requirement);
 
         if (!$this->disk()->exists($document->file_path)) {
@@ -121,7 +132,7 @@ class AssetRequirementDocumentController extends Controller
     public function destroy(Asset $asset, AssetRequirement $requirement, AssetRequirementDocument $document)
     {
         $this->assertRequirementBelongsToAsset($asset, $requirement);
-        $this->assertSameCompany($requirement);
+        $this->assertSameCompany($asset);
         $this->assertDocumentBelongsToRequirement($document, $requirement);
 
         if (method_exists($asset, 'isInactive') ? $asset->isInactive() : ($asset->status === 'inactive')) {
@@ -134,14 +145,18 @@ class AssetRequirementDocumentController extends Controller
 
         $document->delete();
 
-        return back()->with('status', 'Documento eliminado.');
-    }
+        $requirement->refresh();
 
-    private function assertSameCompany(AssetRequirement $requirement): void
-    {
-        if ((int)$requirement->company_id !== (int)auth()->user()->company_id) {
-            abort(403);
+        $remaining = $requirement->documents()->count();
+
+        if ($remaining === 0) {
+            $requirement->update([
+                'status' => \App\Enums\RequirementStatus::IN_PROGRESS,
+                'completed_at' => null,
+            ]);
         }
+
+        return back()->with('status', 'Documento eliminado.');
     }
 
     private function assertRequirementBelongsToAsset(Asset $asset, AssetRequirement $requirement): void

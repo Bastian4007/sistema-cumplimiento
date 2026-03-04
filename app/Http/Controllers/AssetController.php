@@ -9,6 +9,7 @@ use App\Models\AssetType;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use App\Enums\RequirementStatus;
 
 class AssetController extends Controller
 {
@@ -17,25 +18,47 @@ class AssetController extends Controller
         $this->authorizeResource(Asset::class, 'asset');
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $companyId = auth()->user()->company_id;
+        $companyId = $request->user()->company_id;
 
-        $status = request('status', 'all'); 
+        $assetTypes = AssetType::query()
+            ->orderBy('name')
+            ->get(['id','name']);
 
-        $query = \App\Models\Asset::query()
-            ->where('company_id', $companyId)
-            ->with(['type', 'responsibleUser', 'creator']);
+        $query = Asset::query()
+            ->where('company_id', $companyId);
 
-        if ($status === 'active') {
-            $query->where('status', 'active');
-        } elseif ($status === 'inactive') {
-            $query->where('status', 'inactive');
+        if ($request->filled('status') && in_array($request->status, ['active','inactive'], true)) {
+            $query->where('status', $request->status);
         }
 
-        $assets = $query->latest()->paginate(15)->withQueryString();
+        if ($request->filled('asset_type_id')) {
+            $query->where('asset_type_id', (int) $request->asset_type_id);
+        }
 
-        return view('assets.index', compact('assets', 'status'));
+        if ($request->filled('q')) {
+            $q = trim($request->q);
+            $query->where('name', 'like', "%{$q}%");
+        }
+
+        if ($request->filled('location')) {
+            $query->whereRaw('UPPER(TRIM(location)) = ?', [strtoupper(trim($request->location))]);
+        }
+
+        $assets = $query
+            ->latest('id')
+            ->paginate(15)
+            ->withQueryString();
+
+        $locations = Asset::where('company_id', auth()->user()->company_id)
+            ->whereNotNull('location')
+            ->where('location', '!=', '')
+            ->distinct()
+            ->orderBy('location')
+            ->pluck('location');
+
+        return view('assets.index', compact('assets', 'assetTypes', 'locations'));
     }
 
     public function create(Request $request)
@@ -188,5 +211,14 @@ class AssetController extends Controller
         $asset->update(['status' => Asset::STATUS_ACTIVE]);
 
         return back()->with('success', 'Activo reactivado.');
+    }
+
+    protected function prepareForValidation()
+    {
+        if ($this->has('location')) {
+            $this->merge([
+                'location' => strtoupper(trim($this->location)),
+            ]);
+        }
     }
 }

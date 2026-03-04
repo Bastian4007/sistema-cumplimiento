@@ -7,12 +7,6 @@
     <div class="bg-white rounded-xl shadow p-6">
         <div class="flex items-center justify-between gap-4">
             <h1 class="text-2xl font-semibold text-[#1A428A]">Tablero de cumplimiento</h1>
-
-            <div class="w-64">
-                <select class="w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm" disabled>
-                    <option>Todas las empresas</option>
-                </select>
-            </div>
         </div>
 
         {{-- Cards --}}

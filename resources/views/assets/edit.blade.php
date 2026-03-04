@@ -1,7 +1,7 @@
 {{-- resources/views/assets/edit.blade.php --}}
 <x-layouts.vigia :title="'Editar: ' . $asset->name">
     <x-slot name="breadcrumb">
-        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">Bóveda</a>
+        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">Activos y Actividades</a>
         <span class="text-gray-400">›</span>
         <a href="{{ route('assets.show', $asset) }}" class="text-gray-600 hover:underline">{{ $asset->name }}</a>
         <span class="text-gray-400">›</span>
