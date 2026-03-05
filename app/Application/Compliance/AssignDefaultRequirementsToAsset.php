@@ -4,61 +4,59 @@ namespace App\Application\Compliance;
 
 use App\Enums\RequirementStatus;
 use App\Models\Asset;
+use App\Models\AssetObligation;
 use App\Models\AssetRequirement;
-use App\Models\RequirementTemplate;
+use App\Models\AssetTypeRequirementTemplate;
 
 final class AssignDefaultRequirementsToAsset
 {
     public function handle(Asset $asset): void
     {
-        // ✅ Defaults demo (puedes cambiarlos luego)
-        $defaults = [
-            [
-                'name' => 'Permiso ambiental anual',
-                'description' => 'Cumplimiento anual ambiental (demo).',
-                'type' => 'permiso',
-                'days' => 365,
-            ],
-            [
-                'name' => 'Licencia de operación',
-                'description' => 'Renovación/validación de licencia (demo).',
-                'type' => 'licencia',
-                'days' => 180,
-            ],
-            [
-                'name' => 'Bitácora de mantenimiento',
-                'description' => 'Registro periódico de mantenimiento (demo).',
-                'type' => 'mantenimiento',
-                'days' => 30,
-            ],
-        ];
+        $rules = AssetTypeRequirementTemplate::query()
+            ->where('company_id', $asset->company_id)
+            ->where('asset_type_id', $asset->asset_type_id)
+            ->orderBy('sort_order')
+            ->orderBy('id')
+            ->get();
 
-        foreach ($defaults as $d) {
-            // 1) Asegurar template (si no existe, se crea)
-            $tpl = RequirementTemplate::firstOrCreate(
-                [
-                    'company_id' => $asset->company_id,
-                    'name' => $d['name'],
-                ],
-                [
-                    'description' => $d['description'],
-                ]
-            );
+        // Si no hay configuración, no precargamos nada (o puedes meter fallback demo)
+        if ($rules->isEmpty()) {
+            return;
+        }
 
-            // 2) Crear carpeta del activo (si no existe ya)
-            AssetRequirement::firstOrCreate(
-                [
-                    'company_id' => $asset->company_id,
-                    'asset_id' => $asset->id,
-                    'requirement_template_id' => $tpl->id,
-                ],
-                [
-                    'type' => $d['type'],
-                    'status' => RequirementStatus::PENDING,
-                    'due_date' => now()->addDays($d['days'])->toDateString(),
-                    'completed_at' => null,
-                ]
-            );
+        foreach ($rules as $rule) {
+            $dueDate = now()->addDays((int) $rule->default_days)->toDateString();
+
+            if ($rule->applies_to_requirements) {
+                AssetRequirement::firstOrCreate(
+                    [
+                        'company_id' => $asset->company_id,
+                        'asset_id' => $asset->id,
+                        'requirement_template_id' => $rule->requirement_template_id,
+                    ],
+                    [
+                        'type' => $rule->requirement_type ?? 'permiso',
+                        'status' => RequirementStatus::PENDING,
+                        'due_date' => $dueDate,
+                        'completed_at' => null,
+                    ]
+                );
+            }
+
+            if ($rule->applies_to_obligations) {
+                AssetObligation::firstOrCreate(
+                    [
+                        'company_id' => $asset->company_id,
+                        'asset_id' => $asset->id,
+                        'requirement_template_id' => $rule->requirement_template_id,
+                    ],
+                    [
+                        'issue_date' => now()->toDateString(),
+                        'due_date' => $dueDate,
+                        'status' => 'active',
+                    ]
+                );
+            }
         }
     }
 }

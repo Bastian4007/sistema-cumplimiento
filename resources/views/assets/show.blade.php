@@ -92,7 +92,7 @@
 
             <div class="p-6 border-b">
                 <div class="font-semibold text-[#1A428A] text-lg">
-                    Obligaciones / Requerimientos
+                    Normativa
                 </div>
                 <div class="text-sm text-gray-500">
                     Visualiza el avance, riesgo y estado de cada carpeta de cumplimiento.
