@@ -98,6 +98,37 @@
                     @enderror
                 </div>
 
+                {{-- Responsable --}}
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700">Responsable</label>
+                    <select
+                        name="responsible_user_id"
+                        class="mt-1 block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                        required
+                    >
+                        <option value="">-- Selecciona un responsable --</option>
+
+                        @foreach($responsibles as $responsible)
+                            <option
+                                value="{{ $responsible->id }}"
+                                @selected(
+                                    (string) old('responsible_user_id', $defaultResponsibleId ?? '') === (string) $responsible->id
+                                )
+                            >
+                                {{ $responsible->name }}
+                            </option>
+                        @endforeach
+                    </select>
+
+                    <p class="mt-1 text-xs text-gray-500">
+                        Por defecto se sugiere el responsable del activo.
+                    </p>
+
+                    @error('responsible_user_id')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
                 {{-- Fecha límite --}}
                 <div>
                     <label class="block text-sm font-semibold text-gray-700">Fecha límite</label>

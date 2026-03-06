@@ -5,6 +5,9 @@
         <span class="text-gray-400">›</span>
         <span class="text-gray-700 font-medium">Crear un activo</span>
     </x-slot>
+    @php
+        $selectClass = "mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm";
+    @endphp
 
     {{-- Select2 CSS --}}
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -42,22 +45,21 @@
                     @enderror
                 </div>
 
-                {{-- Responsable (Select2) --}}
+                {{-- Responsable --}}
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Selecciona un responsable</label>
 
                     <select
                         id="responsible_user_id"
                         name="responsible_user_id"
-                        class="mt-1 w-full text-sm"
-                    >
-                        <option value="">-- Ninguno --</option>
+                        class="{{ $selectClass }}"
+                        required>
+                        
+                        <option value="">-- Selecciona un responsable --</option>
+
                         @foreach($responsibles as $u)
-                            <option
-                                value="{{ $u->id }}"
-                                @selected((string) old('responsible_user_id') === (string) $u->id)
-                            >
-                                {{ $u->name }} ({{ $u->email }})
+                            <option value="{{ $u->id }}" @selected((string) old('responsible_user_id') === (string) $u->id)>
+                                {{ $u->name }}
                             </option>
                         @endforeach
                     </select>
@@ -70,12 +72,21 @@
                 {{-- Ubicación --}}
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Selecciona ubicación</label>
-                    <input
-                        type="text"
+
+                    <select
                         name="location"
-                        value="{{ old('location') }}"
-                        class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
-                    />
+                        class="{{ $selectClass }}"
+                        required
+                    >
+                        <option value="">-- Selecciona ubicación --</option>
+
+                        @foreach($mexicoStates as $state)
+                            <option value="{{ $state }}" @selected(old('location') === $state)>
+                                {{ $state }}
+                            </option>
+                        @endforeach
+                    </select>
+
                     @error('location')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
@@ -84,12 +95,14 @@
                 {{-- Tipo --}}
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Selecciona un tipo</label>
+
                     <select
                         name="asset_type_id"
-                        class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                        class="{{ $selectClass }}"
                         required
                     >
                         <option value="">-- Selecciona tipo --</option>
+
                         @foreach($assetTypes as $type)
                             <option value="{{ $type->id }}" @selected((string) old('asset_type_id') === (string) $type->id)>
                                 {{ $type->name }}
@@ -98,6 +111,35 @@
                     </select>
 
                     @error('asset_type_id')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                {{-- Fecha inicio cumplimiento --}}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Fecha de inicio de operaciones</label>
+                    <input
+                        type="date"
+                        name="compliance_start_date"
+                        value="{{ old('compliance_start_date') }}"
+                        class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                        required
+                    />
+                    @error('compliance_start_date')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Fecha límite para cumplir los requerimientos</label>
+                    <input
+                        type="date"
+                        name="compliance_due_date"
+                        value="{{ old('compliance_due_date') }}"
+                        class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                        required
+                    >
+                    @error('compliance_due_date')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>
@@ -141,16 +183,14 @@
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            $('#responsible_user_id').select2({
-                width: '100%',
-                placeholder: 'Selecciona un responsable',
-                allowClear: true
-            });
-
-            // Ajuste visual para que el select2 se parezca al input Tailwind
-            const $container = $('#responsible_user_id').next('.select2').find('.select2-selection');
-            $container.addClass('rounded-md border border-gray-300');
-        });
+    document.addEventListener('DOMContentLoaded', () => {
+    new TomSelect('#responsible_user_id', {
+        create: false,
+        placeholder: '-- Selecciona un responsable --',
+        allowEmptyOption: true,
+        closeAfterSelect: true,
+        sortField: { field: "text", direction: "asc" }
+    });
+    });
     </script>
 </x-layouts.vigia>

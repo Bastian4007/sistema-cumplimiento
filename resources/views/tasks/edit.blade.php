@@ -1,7 +1,7 @@
 {{-- resources/views/tasks/edit.blade.php --}}
 @php
     /** @var \App\Models\AssetRequirement $requirement */
-    /** @var \App\Models\RequirementTask $task */
+    /** @var \App\Models\Task $task */
 
     $asset = $asset ?? $requirement->asset;
     $folderTitle = $requirement->template?->name ?? $requirement->type ?? 'Carpeta';
@@ -111,6 +111,34 @@
                     @enderror
                 </div>
 
+                {{-- Responsable --}}
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700">Responsable</label>
+                    <select
+                        name="responsible_user_id"
+                        class="mt-1 block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                        required
+                        {{ $assetInactive ? 'disabled' : '' }}
+                    >
+                        <option value="">-- Selecciona un responsable --</option>
+
+                        @foreach($responsibles as $responsible)
+                            <option
+                                value="{{ $responsible->id }}"
+                                @selected(
+                                    (string) old('responsible_user_id', $selectedResponsibleId ?? '') === (string) $responsible->id
+                                )
+                            >
+                                {{ $responsible->name }}
+                            </option>
+                        @endforeach
+                    </select>
+
+                    @error('responsible_user_id')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
                 {{-- Fecha límite --}}
                 <div>
                     <label class="block text-sm font-semibold text-gray-700">Fecha límite</label>
@@ -141,7 +169,6 @@
                     Actualizar
                 </button>
 
-                {{-- Cancelar --}}
                 @if($asset)
                     <a
                         href="{{ route('assets.requirements.show', [$asset, $requirement]) }}"

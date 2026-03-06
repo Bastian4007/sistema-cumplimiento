@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateTaskRequest;
 use App\Models\AssetRequirement;
 use App\Models\Task;
 use App\Models\Asset;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use App\Services\AuditLogger;
@@ -32,7 +33,18 @@ class RequirementTaskController extends Controller
     {
         $this->guardRequirement($requirement);
 
-        return view('tasks.create', compact('requirement'));
+        $responsibles = User::query()
+            ->where('company_id', auth()->user()->company_id)
+            ->orderBy('name')
+            ->get();
+
+        $defaultResponsibleId = $requirement->asset?->responsible_user_id;
+
+        return view('tasks.create', compact(
+            'requirement',
+            'responsibles',
+            'defaultResponsibleId'
+        ));
     }
 
     public function store(StoreTaskRequest $request, AssetRequirement $requirement): RedirectResponse
@@ -44,11 +56,15 @@ class RequirementTaskController extends Controller
             'title' => $request->title,
             'description' => $request->description,
             'due_date' => $request->due_date,
-            'requires_document' => TRUE,
+            'requires_document' => true,
             'status' => TaskStatus::PENDING,
             'completed_at' => null,
             'completed_by' => null,
         ]);
+
+        // ✅ Asignar responsable a la tarea
+        $responsibleUserId = (int) $request->responsible_user_id;
+        $task->users()->sync([$responsibleUserId]);
 
         AuditLogger::log(
             'task.created',
@@ -63,6 +79,7 @@ class RequirementTaskController extends Controller
                 'title' => $task->title,
                 'due_date' => $task->due_date,
                 'requires_document' => $task->requires_document,
+                'responsible_user_id' => $responsibleUserId,
             ]
         );
 
@@ -76,10 +93,22 @@ class RequirementTaskController extends Controller
         $this->guardRequirement($requirement);
         $this->guardTaskScope($requirement, $task);
 
-        return view('tasks.edit', compact('requirement', 'task'));
+        $responsibles = User::query()
+            ->where('company_id', auth()->user()->company_id)
+            ->orderBy('name')
+            ->get();
+
+        $selectedResponsibleId = $task->users()->value('users.id') ?? $requirement->asset?->responsible_user_id;
+
+        return view('tasks.edit', compact(
+            'requirement',
+            'task',
+            'responsibles',
+            'selectedResponsibleId'
+        ));
     }
 
-   public function update(UpdateTaskRequest $request, AssetRequirement $requirement, Task $task): RedirectResponse
+    public function update(UpdateTaskRequest $request, AssetRequirement $requirement, Task $task): RedirectResponse
     {
         $this->guardRequirement($requirement);
         $this->guardTaskScope($requirement, $task);
@@ -90,8 +119,12 @@ class RequirementTaskController extends Controller
             'title' => $request->title,
             'description' => $request->description,
             'due_date' => $request->due_date,
-            'requires_document' => TRUE,
+            'requires_document' => true,
         ]);
+
+        // ✅ Actualizar responsable
+        $responsibleUserId = (int) $request->responsible_user_id;
+        $task->users()->sync([$responsibleUserId]);
 
         AuditLogger::log(
             'task.updated',
@@ -105,6 +138,7 @@ class RequirementTaskController extends Controller
             [
                 'before' => $before,
                 'after' => $task->only(['title', 'description', 'due_date', 'requires_document']),
+                'responsible_user_id' => $responsibleUserId,
             ]
         );
 
@@ -212,14 +246,13 @@ class RequirementTaskController extends Controller
 
     public function checkout(Request $request, Asset $asset, AssetRequirement $requirement)
     {
-        // Validación de rol
         abort_unless(auth()->user()->isOperative(), 403);
 
-        // Validar pertenencia
-        if ((int) $requirement->asset_id !== (int) $asset->id) abort(404);
+        if ((int) $requirement->asset_id !== (int) $asset->id) {
+            abort(404);
+        }
 
-        $hasOfficialDoc = $requirement->documents()->exists(); 
-
+        $hasOfficialDoc = $requirement->documents()->exists();
         abort_unless($hasOfficialDoc, 422);
 
         $data = $request->validate([

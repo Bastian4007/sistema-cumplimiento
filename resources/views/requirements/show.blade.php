@@ -159,13 +159,23 @@
                         @php
                             $hasDocs = ($task->documents_count ?? 0) > 0;
                             $taskCompleted = (bool) $task->completed_at;
+                            $taskResponsible = $task->users->first();
                         @endphp
 
-                        <div class="border rounded-xl p-4 bg-white">
-                            <div class="font-semibold text-gray-900">{{ $task->title }}</div>
+                            <div class="rounded-xl border border-gray-200 bg-white p-5">
+                                    <div class="font-semibold text-gray-900 text-xl">
+                                        {{ $task->title }}
+                                    </div>
+                            
+                            <div class="mt-2 text-sm text-gray-500">
+                                    Responsable:
+                                    <span class="font-medium text-gray-700">
+                                        {{ $taskResponsible?->name ?? 'Sin asignar' }}
+                                    </span>
+                                </div>
 
                             <div class="text-sm text-gray-600 mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
-                                <span>Status:
+                                <span> Status:
                                     <span class="px-2 py-0.5 rounded border text-xs bg-gray-50">
                                         {{ $task->status->value }}
                                     </span>
@@ -176,10 +186,6 @@
 
                                 <span class="text-gray-300">|</span>
                                 <span>Evidencias: {{ $task->documents_count ?? 0 }}</span>
-
-                                <span class="text-xs px-2 py-0.5 rounded border bg-yellow-50">
-                                    Requiere evidencia
-                                </span>
 
                                 @if($hasDocs)
                                     <span class="text-xs px-2 py-0.5 rounded border bg-green-50 text-green-700 border-green-200">

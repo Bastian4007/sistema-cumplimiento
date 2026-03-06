@@ -47,6 +47,9 @@ class StoreAssetRequest extends FormRequest
                 'integer',
                 Rule::exists('users', 'id')->where(fn ($q) => $q->where('company_id', $companyId)),
             ],
+
+            'compliance_start_date' => ['required', 'date'],
+            'compliance_due_date'   => ['required', 'date', 'after_or_equal:compliance_start_date'],
         ];
     }
 }

@@ -7,6 +7,7 @@ use App\Models\Asset;
 use App\Models\AssetObligation;
 use App\Models\AssetRequirement;
 use App\Models\AssetTypeRequirementTemplate;
+use Carbon\Carbon;
 
 final class AssignDefaultRequirementsToAsset
 {
@@ -19,13 +20,25 @@ final class AssignDefaultRequirementsToAsset
             ->orderBy('id')
             ->get();
 
-        // Si no hay configuración, no precargamos nada (o puedes meter fallback demo)
         if ($rules->isEmpty()) {
             return;
         }
 
+        // ✅ inicio (ancla)
+        $start = $asset->compliance_start_date
+            ? Carbon::parse($asset->compliance_start_date)->startOfDay()
+            : now()->startOfDay();
+
+        // ✅ vencimiento base (lo que eligieron al crear el activo)
+        // si no existe, fallback a start (o hoy)
+        $baseDue = $asset->compliance_due_date
+            ? Carbon::parse($asset->compliance_due_date)->toDateString()
+            : $start->toDateString();
+
         foreach ($rules as $rule) {
-            $dueDate = now()->addDays((int) $rule->default_days)->toDateString();
+
+            // ✅ ya NO sumamos default_days
+            $dueDate = $baseDue;
 
             if ($rule->applies_to_requirements) {
                 AssetRequirement::firstOrCreate(
@@ -51,7 +64,7 @@ final class AssignDefaultRequirementsToAsset
                         'requirement_template_id' => $rule->requirement_template_id,
                     ],
                     [
-                        'issue_date' => now()->toDateString(),
+                        'issue_date' => $start->toDateString(),
                         'due_date' => $dueDate,
                         'status' => 'active',
                     ]
