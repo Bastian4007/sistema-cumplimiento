@@ -1,10 +1,21 @@
-<x-layouts.vigia :title="'Carpeta: ' . ($requirement->template?->name ?? $requirement->type)">
+<x-layouts.vigia :title="$requirement->template?->name ?? 'Requerimiento'" :nav-context="$navContext">
+
     <x-slot name="breadcrumb">
-        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">Activos y Actividades</a>
+        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">
+            Activos y Actividades
+        </a>
+
         <span class="text-gray-400">›</span>
-        <a href="{{ route('assets.show', $asset) }}" class="text-gray-600 hover:underline">{{ $asset->name }}</a>
+
+        <a href="{{ route('assets.show', $asset) }}" class="text-gray-600 hover:underline">
+            {{ $asset->name }}
+        </a>
+
         <span class="text-gray-400">›</span>
-        <span class="text-gray-700 font-medium">{{ $requirement->template?->name ?? $requirement->type }}</span>
+
+        <span class="text-gray-700 font-medium">
+            {{ $requirement->template?->name ?? 'Requerimiento' }}
+        </span>
     </x-slot>
 
     @php

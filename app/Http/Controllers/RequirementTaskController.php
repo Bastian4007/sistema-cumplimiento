@@ -15,6 +15,27 @@ use App\Services\AuditLogger;
 
 class RequirementTaskController extends Controller
 {
+    public function show(AssetRequirement $requirement, Task $task)
+    {
+        $this->guardRequirement($requirement);
+        $this->guardTaskScope($requirement, $task);
+
+        $task->load([
+            'users',
+            'documents',
+            'requirement.asset',
+            'requirement.template',
+        ]);
+
+        $navContext = [
+            'asset' => $requirement->asset,
+            'requirement' => $requirement,
+            'task' => $task,
+            'documentSection' => false,
+        ];
+
+        return view('tasks.show', compact('requirement', 'task', 'navContext'));
+    }
     private function guardRequirement(AssetRequirement $requirement): void
     {
         abort_unless($requirement->company_id === auth()->user()->company_id, 403);
@@ -33,6 +54,11 @@ class RequirementTaskController extends Controller
     {
         $this->guardRequirement($requirement);
 
+        $requirement->loadMissing([
+            'asset',
+            'template',
+        ]);
+
         $responsibles = User::query()
             ->where('company_id', auth()->user()->company_id)
             ->orderBy('name')
@@ -40,10 +66,18 @@ class RequirementTaskController extends Controller
 
         $defaultResponsibleId = $requirement->asset?->responsible_user_id;
 
+        $navContext = [
+            'asset' => $requirement->asset,
+            'requirement' => $requirement,
+            'task' => null,
+            'documentSection' => false,
+        ];
+
         return view('tasks.create', compact(
             'requirement',
             'responsibles',
-            'defaultResponsibleId'
+            'defaultResponsibleId',
+            'navContext'
         ));
     }
 
@@ -93,18 +127,34 @@ class RequirementTaskController extends Controller
         $this->guardRequirement($requirement);
         $this->guardTaskScope($requirement, $task);
 
+        $requirement->loadMissing([
+            'asset',
+            'template',
+        ]);
+
+        $task->loadMissing('users');
+
         $responsibles = User::query()
             ->where('company_id', auth()->user()->company_id)
             ->orderBy('name')
             ->get();
 
-        $selectedResponsibleId = $task->users()->value('users.id') ?? $requirement->asset?->responsible_user_id;
+        $selectedResponsibleId = $task->users->first()?->id
+            ?? $requirement->asset?->responsible_user_id;
+
+        $navContext = [
+            'asset' => $requirement->asset,
+            'requirement' => $requirement,
+            'task' => $task,
+            'documentSection' => false,
+        ];
 
         return view('tasks.edit', compact(
             'requirement',
             'task',
             'responsibles',
-            'selectedResponsibleId'
+            'selectedResponsibleId',
+            'navContext'
         ));
     }
 

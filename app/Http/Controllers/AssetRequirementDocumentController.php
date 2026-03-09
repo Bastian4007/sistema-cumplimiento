@@ -24,14 +24,28 @@ class AssetRequirementDocumentController extends Controller
         $this->assertRequirementBelongsToAsset($asset, $requirement);
         $this->assertSameCompany($asset);
 
-        $assetInactive = method_exists($asset, 'isInactive') ? $asset->isInactive() : ($asset->status === 'inactive');
+        $assetInactive = method_exists($asset, 'isInactive')
+            ? $asset->isInactive()
+            : ($asset->status === 'inactive');
 
-        $requirement->load(['documents.uploader']);
+        $requirement->load([
+            'template',
+            'documents.uploader',
+        ]);
+
+        $navContext = [
+            'asset' => $asset,
+            'requirement' => $requirement,
+            'task' => null,
+            'documentSection' => true,
+            'documentOwner' => 'requirement',
+        ];
 
         return view('requirements.documents', [
             'asset' => $asset,
             'requirement' => $requirement,
             'assetInactive' => $assetInactive,
+            'navContext' => $navContext,
         ]);
     }
 

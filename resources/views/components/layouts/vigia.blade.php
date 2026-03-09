@@ -1,31 +1,62 @@
 {{-- resources/views/components/layouts/vigia.blade.php --}}
-@props(['title' => null])
+@props([
+    'title' => null,
+    'navContext' => [
+        'asset' => null,
+        'requirement' => null,
+        'task' => null,
+        'documentSection' => false,
+        'documentOwner' => null,
+    ],
+])
 
 <!DOCTYPE html>
 <html lang="es">
-    <head>
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css">
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>{{ $title ? $title.' · Vigia' : 'Vigia' }}</title>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ $title ? $title . ' · Vigia' : 'Vigia' }}</title>
 
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
-    </head>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css">
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 
-    <body class="bg-gray-50 text-gray-900">
+    {{-- Alpine para drawer móvil --}}
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+
+<body class="h-screen overflow-hidden bg-gray-50 text-gray-900">
+    <div x-data="{ mobileMenuOpen: false }" class="flex h-screen flex-col">
         {{-- Topbar --}}
-        <header class="bg-[#1A428A] text-white">
-            <div class="mx-auto max-w-[1360px] px-6 py-3 flex items-center justify-between">
-                <a href="{{ route('dashboard') }}" class="flex items-center gap-3">
-                    <img src="{{ asset('images/vigia.svg') }}" alt="VIGIA" class="h-8 w-auto">
-                </a>
+        <header class="shrink-0 bg-[#1A428A] text-white">
+            <div class="mx-auto flex max-w-[1680px] items-center justify-between px-4 py-3 sm:px-6">
+                <div class="flex items-center gap-3">
+                    {{-- Botón móvil --}}
+                    <button
+                        type="button"
+                        class="inline-flex items-center justify-center rounded-md p-2 hover:bg-white/10 lg:hidden"
+                        @click="mobileMenuOpen = true"
+                        aria-label="Abrir menú"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none"
+                             viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+
+                    <a href="{{ route('dashboard') }}" class="flex items-center gap-3">
+                        <img src="{{ asset('images/vigia.svg') }}" alt="VIGIA" class="h-8 w-auto">
+                    </a>
+                </div>
 
                 <div class="flex items-center gap-3">
-                    <div class="text-sm opacity-90">{{ auth()->user()?->name }}</div>
+                    <div class="hidden text-sm opacity-90 sm:block">
+                        {{ auth()->user()?->name }}
+                    </div>
 
                     <form method="POST" action="{{ route('logout') }}">
                         @csrf
-                        <button class="bg-white text-[#1A428A] text-sm font-semibold px-4 py-2 rounded-md shadow-sm">
+                        <button class="rounded-md bg-white px-3 py-2 text-sm font-semibold text-[#1A428A] shadow-sm sm:px-4">
                             Cerrar Sesión
                         </button>
                     </form>
@@ -33,61 +64,200 @@
             </div>
         </header>
 
-        {{-- Page --}}
-        <div class="mx-auto max-w-[1360px] px-6 py-6">
+        {{-- Drawer móvil --}}
+        <div
+            x-show="mobileMenuOpen"
+            x-transition.opacity
+            class="fixed inset-0 z-40 bg-black/40 lg:hidden"
+            @click="mobileMenuOpen = false"
+            style="display: none;"
+        ></div>
 
-            <div class="grid grid-cols-12 gap-8">
-                {{-- Sidebar --}}
-                <aside class="col-span-12 lg:col-span-3 xl:col-span-2">
-                    <div class="bg-white rounded-xl shadow p-4">
-                        <div class="flex items-center gap-2 text-sm font-semibold text-[#1A428A] mb-3">
-                            <span>☰</span>
-                            <span>Menú</span>
-                        </div>
-
-                        <nav class="space-y-1">
-                            <a href="{{ route('dashboard') }}"
-                            class="block px-3 py-2 rounded-md text-sm
-                            {{ request()->routeIs('dashboard') ? 'bg-gray-100 font-semibold' : 'hover:bg-gray-50' }}">
-                                Tablero
-                            </a>
-
-                            <a href="{{ route('assets.index') }}"
-                            class="block px-3 py-2 rounded-md text-sm
-                            {{ request()->routeIs('assets.*') ? 'bg-gray-100 font-semibold' : 'hover:bg-gray-50' }}">
-                                Activos y Actividades
-                            </a>
-                        </nav>
+        <aside
+            x-show="mobileMenuOpen"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="-translate-x-full"
+            x-transition:enter-end="translate-x-0"
+            x-transition:leave="transition ease-in duration-150"
+            x-transition:leave-start="translate-x-0"
+            x-transition:leave-end="-translate-x-full"
+            class="fixed inset-y-0 left-0 z-50 w-[290px] bg-white shadow-xl lg:hidden"
+            style="display: none;"
+        >
+            <div class="flex h-full flex-col">
+                <div class="flex items-center justify-between border-b px-4 py-4">
+                    <div class="flex items-center gap-2 text-sm font-semibold text-[#1A428A]">
+                        <span>☰</span>
+                        <span>Menú</span>
                     </div>
-                </aside>
 
-                {{-- Contenido --}}
-                <div class="col-span-12 lg:col-span-9 xl:col-span-10">
+                    <button
+                        type="button"
+                        class="rounded-md p-2 text-gray-500 hover:bg-gray-100"
+                        @click="mobileMenuOpen = false"
+                        aria-label="Cerrar menú"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                             viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
 
-                    {{-- ✅ Breadcrumb ahora va AQUÍ --}}
-                    @isset($breadcrumb)
-                        <div class="mb-4 flex items-center gap-2 text-sm text-gray-500">
+                <div class="min-h-0 flex-1 overflow-y-auto p-4">
+                    <nav class="space-y-1 text-sm">
+                        <a href="{{ route('dashboard') }}"
+                           @click="mobileMenuOpen = false"
+                           class="block rounded-md px-3 py-2 {{ request()->routeIs('dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                            Tablero
+                        </a>
+
+                        <a href="{{ route('assets.index') }}"
+                           @click="mobileMenuOpen = false"
+                           class="block rounded-md px-3 py-2 {{ request()->routeIs('assets.*') || !empty($navContext['asset']) ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                            Activos y Actividades
+                        </a>
+
+                        @if(!empty($navContext['asset']))
+                            <a href="{{ route('assets.show', $navContext['asset']) }}"
+                               @click="mobileMenuOpen = false"
+                               class="ml-4 block rounded-md px-3 py-2 {{ empty($navContext['requirement']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                <span class="mr-2 text-gray-400">└</span>
+                                {{ $navContext['asset']->name }}
+                            </a>
+                        @endif
+
+                        @if(!empty($navContext['requirement']))
+                            <a href="{{ route('assets.requirements.show', [$navContext['asset']->id, $navContext['requirement']->id]) }}"
+                               @click="mobileMenuOpen = false"
+                               class="ml-8 block rounded-md px-3 py-2 {{ empty($navContext['task']) && empty($navContext['documentSection']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                <span class="mr-2 text-gray-400">└</span>
+                                {{ $navContext['requirement']->name ?? $navContext['requirement']->title ?? $navContext['requirement']->template?->name ?? 'Requerimiento' }}
+                            </a>
+                        @endif
+
+                        @if(!empty($navContext['task']))
+                            <a href="{{ route('requirements.tasks.show', [$navContext['requirement']->id, $navContext['task']->id]) }}"
+                               @click="mobileMenuOpen = false"
+                               class="ml-12 block rounded-md px-3 py-2 {{ empty($navContext['documentSection']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                <span class="mr-2 text-gray-400">└</span>
+                                {{ $navContext['task']->title ?? $navContext['task']->name ?? 'Tarea' }}
+                            </a>
+                        @endif
+
+                        @if(!empty($navContext['documentSection']) && ($navContext['documentOwner'] ?? null) === 'requirement')
+                            <a href="{{ route('assets.requirements.documents.index', [$navContext['asset']->id, $navContext['requirement']->id]) }}"
+                               @click="mobileMenuOpen = false"
+                               class="ml-12 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
+                                <span class="mr-2 text-gray-400">└</span>
+                                Documentos
+                            </a>
+                        @endif
+
+                        @if(!empty($navContext['documentSection']) && ($navContext['documentOwner'] ?? null) === 'task')
+                            <a href="{{ route('tasks.documents.index', $navContext['task']->id) }}"
+                               @click="mobileMenuOpen = false"
+                               class="ml-16 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
+                                <span class="mr-2 text-gray-400">└</span>
+                                Documentos
+                            </a>
+                        @endif
+                    </nav>
+                </div>
+            </div>
+        </aside>
+
+        {{-- Page --}}
+        <div class="mx-auto flex min-h-0 w-full max-w-[1680px] flex-1 gap-8 px-4 py-4 sm:px-6 sm:py-6">
+            {{-- Sidebar desktop --}}
+            <aside class="hidden shrink-0 lg:block lg:w-[280px] xl:w-[250px]">
+                <div class="h-full rounded-xl bg-white p-4 shadow">
+                    <div class="mb-3 flex items-center gap-2 text-sm font-semibold text-[#1A428A]">
+                        <span>☰</span>
+                        <span>Menú</span>
+                    </div>
+
+                    <nav class="space-y-1 text-sm">
+                        <a href="{{ route('dashboard') }}"
+                           class="block rounded-md px-3 py-2 {{ request()->routeIs('dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                            Tablero
+                        </a>
+
+                        <a href="{{ route('assets.index') }}"
+                           class="block rounded-md px-3 py-2 {{ request()->routeIs('assets.*') || !empty($navContext['asset']) ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                            Activos y Actividades
+                        </a>
+
+                        @if(!empty($navContext['asset']))
+                            <a href="{{ route('assets.show', $navContext['asset']) }}"
+                               class="ml-4 block rounded-md px-3 py-2 {{ empty($navContext['requirement']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                <span class="mr-2 text-gray-400">└</span>
+                                {{ $navContext['asset']->name }}
+                            </a>
+                        @endif
+
+                        @if(!empty($navContext['requirement']))
+                            <a href="{{ route('assets.requirements.show', [$navContext['asset']->id, $navContext['requirement']->id]) }}"
+                               class="ml-8 block rounded-md px-3 py-2 {{ empty($navContext['task']) && empty($navContext['documentSection']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                <span class="mr-2 text-gray-400">└</span>
+                                {{ $navContext['requirement']->name ?? $navContext['requirement']->title ?? $navContext['requirement']->template?->name ?? 'Requerimiento' }}
+                            </a>
+                        @endif
+
+                        @if(!empty($navContext['task']))
+                            <a href="{{ route('requirements.tasks.show', [$navContext['requirement']->id, $navContext['task']->id]) }}"
+                               class="ml-12 block rounded-md px-3 py-2 {{ empty($navContext['documentSection']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                <span class="mr-2 text-gray-400">└</span>
+                                {{ $navContext['task']->title ?? $navContext['task']->name ?? 'Tarea' }}
+                            </a>
+                        @endif
+
+                        @if(!empty($navContext['documentSection']) && ($navContext['documentOwner'] ?? null) === 'requirement')
+                            <a href="{{ route('assets.requirements.documents.index', [$navContext['asset']->id, $navContext['requirement']->id]) }}"
+                               class="ml-12 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
+                                <span class="mr-2 text-gray-400">└</span>
+                                Documentos
+                            </a>
+                        @endif
+
+                        @if(!empty($navContext['documentSection']) && ($navContext['documentOwner'] ?? null) === 'task')
+                            <a href="{{ route('tasks.documents.index', $navContext['task']->id) }}"
+                               class="ml-16 block rounded-md bg-blue-50 px-3 py-2 font-semibold text-[#1A428A]">
+                                <span class="mr-2 text-gray-400">└</span>
+                                Documentos
+                            </a>
+                        @endif
+                    </nav>
+                </div>
+            </aside>
+
+            {{-- Main content --}}
+            <div class="min-h-0 flex-1 overflow-y-auto pr-0 sm:pr-1">
+                @isset($breadcrumb)
+                    <div class="mb-4 overflow-x-auto text-sm text-gray-500">
+                        <div class="flex min-w-max items-center gap-2">
                             <span class="inline-flex items-center gap-2">
                                 <span class="text-gray-400">⌂</span>
                                 {{ $breadcrumb }}
                             </span>
                         </div>
-                    @endisset
+                    </div>
+                @endisset
 
-                    {{-- Flash messages --}}
-                    @if(session('success'))
-                        <div class="mb-4 rounded-lg bg-green-50 border border-green-200 text-green-800 px-4 py-3 text-sm">
-                            {{ session('success') }}
-                        </div>
-                    @endif
+                @if(session('success'))
+                    <div class="mb-4 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                        {{ session('success') }}
+                    </div>
+                @endif
 
-                    {{-- Main content --}}
-                    <main>
-                        {{ $slot }}
-                    </main>
-                </div>
+                <main>
+                    {{ $slot }}
+                </main>
             </div>
         </div>
-        <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
-    </body>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+</body>
 </html>

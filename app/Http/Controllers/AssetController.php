@@ -186,7 +186,14 @@ class AssetController extends Controller
             },
         ]);
 
-        return view('assets.show', compact('asset'));
+        $navContext = [
+            'asset' => $asset,
+            'requirement' => null,
+            'task' => null,
+            'documentSection' => false,
+        ];
+
+        return view('assets.show', compact('asset', 'navContext'));
     }
 
     public function edit(Request $request, Asset $asset)

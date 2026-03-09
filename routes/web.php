@@ -88,6 +88,9 @@ Route::middleware('auth')->group(function () {
 
     Route::post('assets/{asset}/requirements/{requirement}/checkout',[RequirementTaskController::class, 'checkout'])
         ->name('assets.requirements.checkout');
+
+    Route::get('requirements/{requirement}/tasks/{task}', [RequirementTaskController::class, 'show'])
+        ->name('requirements.tasks.show');
         
     // Task documents
     Route::get('tasks/{task}/documents', [TaskDocumentController::class, 'index'])

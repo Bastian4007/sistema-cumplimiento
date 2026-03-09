@@ -1,10 +1,16 @@
 {{-- resources/views/assets/show.blade.php --}}
-<x-layouts.vigia :title="$asset->name">
+<x-layouts.vigia :title="$asset->name" :nav-context="$navContext">
 
     <x-slot name="breadcrumb">
-        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">Activos y Actividades</a>
+        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">
+            Activos y Actividades
+        </a>
+
         <span class="text-gray-400">›</span>
-        <span class="text-gray-700 font-medium">{{ $asset->name }}</span>
+
+        <span class="text-gray-700 font-medium">
+            {{ $asset->name }}
+        </span>
     </x-slot>
 
     @php

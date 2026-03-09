@@ -34,7 +34,14 @@ class AssetRequirementController extends Controller
             'tasks as tasks_done' => fn ($t) => $t->whereNotNull('completed_at'),
         ]);
 
-        return view('requirements.show', compact('asset', 'requirement'));
+        $navContext = [
+            'asset' => $asset,
+            'requirement' => $requirement,
+            'task' => null,
+            'documentSection' => false,
+        ];
+
+        return view('requirements.show', compact('asset', 'requirement', 'navContext'));
     }
 
     public function store(StoreAssetRequirementRequest $request, Asset $asset)

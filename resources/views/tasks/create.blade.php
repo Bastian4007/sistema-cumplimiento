@@ -4,25 +4,31 @@
     $title = $requirement->template?->name ?? $requirement->type ?? 'Carpeta';
 @endphp
 
-<x-layouts.vigia :title="'Nueva tarea'">
+<x-layouts.vigia title="Nueva tarea" :nav-context="$navContext">
+
     <x-slot name="breadcrumb">
-        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">Activos y Actividades</a>
+        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">
+            Activos y Actividades
+        </a>
+
         <span class="text-gray-400">›</span>
 
-        @if($asset)
-            <a href="{{ route('assets.show', $asset) }}" class="text-gray-600 hover:underline">
-                {{ $asset->name }}
-            </a>
-            <span class="text-gray-400">›</span>
+        <a href="{{ route('assets.show', $requirement->asset) }}" class="text-gray-600 hover:underline">
+            {{ $requirement->asset->name }}
+        </a>
 
-            <a href="{{ route('assets.requirements.show', [$asset, $requirement]) }}"
-               class="text-gray-600 hover:underline">
-                {{ $title }}
-            </a>
-            <span class="text-gray-400">›</span>
-        @endif
+        <span class="text-gray-400">›</span>
 
-        <span class="text-gray-700 font-medium">Nueva tarea</span>
+        <a href="{{ route('assets.requirements.show', [$requirement->asset_id, $requirement->id]) }}"
+           class="text-gray-600 hover:underline">
+            {{ $requirement->template?->name ?? 'Requerimiento' }}
+        </a>
+
+        <span class="text-gray-400">›</span>
+
+        <span class="text-gray-700 font-medium">
+            Nueva tarea
+        </span>
     </x-slot>
 
     <div class="bg-white rounded-xl shadow p-6">

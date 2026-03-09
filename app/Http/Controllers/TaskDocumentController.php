@@ -12,16 +12,36 @@ class TaskDocumentController extends Controller
 {
     public function index(Task $task, Request $request)
     {
-        // ✅ Seguridad multiempresa por la relación Task -> Requirement -> Asset
+        $task->loadMissing([
+            'requirement.asset',
+            'requirement.template',
+        ]);
+
+        // Seguridad multiempresa
         abort_if($task->requirement->company_id !== $request->user()->company_id, 403);
 
-        $task->load(['documents.uploader']);
-
-        return view('tasks.documents', [
-            'task' => $task,
-            'requirement' => $task->requirement,
-            'asset' => $task->requirement->asset,
+        $task->load([
+            'documents.uploader',
+            'users',
         ]);
+
+        $requirement = $task->requirement;
+        $asset = $requirement->asset;
+
+        $navContext = [
+            'asset' => $asset,
+            'requirement' => $requirement,
+            'task' => $task,
+            'documentSection' => true,
+            'documentOwner' => 'task',
+        ];
+
+        return view('tasks.documents', compact(
+            'task',
+            'requirement',
+            'asset',
+            'navContext'
+        ));
     }
 
     public function store(Task $task, Request $request)
