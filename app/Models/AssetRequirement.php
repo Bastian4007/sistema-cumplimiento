@@ -32,6 +32,8 @@ class AssetRequirement extends Model
         'due_date' => 'date',
         'completed_at' => 'datetime',
         'recurrence_anchor' => 'date',
+        'issued_at' => 'date',
+        'expires_at' => 'date',
     ];
 
     public function company()

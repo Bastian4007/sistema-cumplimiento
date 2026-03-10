@@ -15,9 +15,14 @@ class AssetRequirementDocument extends Model
         'company_id',
         'file_path',
         'original_name',
-        'mime_type',
-        'size',
         'uploaded_by',
+        'issued_at',
+        'expires_at',
+    ];
+
+    protected $casts = [
+        'issued_at' => 'date',
+        'expires_at' => 'date',
     ];
 
     public function requirement(): BelongsTo

@@ -307,7 +307,17 @@ class RequirementTaskController extends Controller
 
         $data = $request->validate([
             'return_at' => ['required', 'date', 'after:now'],
+            'responsible_user_id' => [
+                'required',
+                'integer',
+                'exists:users,id',
+            ],
         ]);
+
+        $responsibleUser = User::query()
+            ->where('id', $data['responsible_user_id'])
+            ->where('company_id', auth()->user()->company_id)
+            ->firstOrFail();
 
         $titleReq = $requirement->template?->name ?? $requirement->type;
         $title = "Check in - {$titleReq}";
@@ -315,11 +325,11 @@ class RequirementTaskController extends Controller
         $alreadyOpen = Task::where('asset_requirement_id', $requirement->id)
             ->where('title', $title)
             ->whereNull('completed_at')
-            ->whereHas('users', fn ($q) => $q->where('users.id', auth()->id()))
+            ->whereHas('users', fn ($q) => $q->where('users.id', $responsibleUser->id))
             ->exists();
 
         if ($alreadyOpen) {
-            return back()->with('error', 'Ya tienes un Check in pendiente para este requerimiento.');
+            return back()->with('error', 'Ya existe un Check in pendiente asignado a ese responsable para este requerimiento.');
         }
 
         $checkin = Task::create([
@@ -331,8 +341,8 @@ class RequirementTaskController extends Controller
             'requires_document' => false,
         ]);
 
-        $checkin->users()->syncWithoutDetaching([auth()->id()]);
+        $checkin->users()->sync([$responsibleUser->id]);
 
-        return back()->with('success', 'Check out registrado. Se creó una tarea de Check in.');
+        return back()->with('success', 'Check out registrado. Se creó una tarea de Check in con responsable asignado.');
     }
 }

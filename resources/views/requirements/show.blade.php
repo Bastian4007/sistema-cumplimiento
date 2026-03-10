@@ -103,7 +103,7 @@
 
         {{-- Card resumen --}}
         <div class="mt-6 bg-gray-50 border rounded-xl p-5">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 text-sm text-gray-700">
                 <div class="space-y-1">
                     <div><strong>Tipo:</strong> {{ $asset->assetType->name ?? '-' }}</div>
                     <div><strong>Vence:</strong> {{ $requirement->due_date?->format('Y-m-d') ?? 'Sin fecha' }}</div>
@@ -114,11 +114,49 @@
                 <div class="space-y-1">
                     <div><strong>Progreso:</strong> {{ $requirement->progress }}%</div>
                     <div><strong>Tareas:</strong> {{ $requirement->tasks_done }}/{{ $requirement->tasks_total }}</div>
-                    <div><strong>Recurrencia:</strong>
+                    <div>
+                        <strong>Recurrencia:</strong>
                         @if($requirement->isRecurrent())
                             {{ $requirement->recurrenceLabel() }}
                         @else
                             No recurrente
+                        @endif
+                    </div>
+                </div>
+
+                <div class="space-y-1">
+                    <div class="font-semibold text-[#1A428A] mb-2">
+                        Vigencia del documento oficial
+                    </div>
+
+                    <div>
+                        <strong>Emisión:</strong>
+                        {{ $requirement->issued_at?->format('Y-m-d') ?? 'No registrada' }}
+                    </div>
+
+                    <div>
+                        <strong>Vencimiento:</strong>
+                        {{ $requirement->expires_at?->format('Y-m-d') ?? 'No registrado' }}
+                    </div>
+
+                    <div>
+                        <strong>Estado de vigencia:</strong>
+                        @if(!$requirement->expires_at)
+                            <span class="inline-flex px-2 py-0.5 rounded border text-xs bg-gray-100 text-gray-700 border-gray-300">
+                                Sin vigencia
+                            </span>
+                        @elseif($requirement->expires_at->isPast())
+                            <span class="inline-flex px-2 py-0.5 rounded border text-xs bg-red-50 text-red-700 border-red-200">
+                                Vencido
+                            </span>
+                        @elseif($requirement->expires_at->lte(now()->addDays(60)))
+                            <span class="inline-flex px-2 py-0.5 rounded border text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
+                                Próximo a vencer
+                            </span>
+                        @else
+                            <span class="inline-flex px-2 py-0.5 rounded border text-xs bg-green-50 text-green-700 border-green-200">
+                                Vigente
+                            </span>
                         @endif
                     </div>
                 </div>
@@ -165,7 +203,7 @@
             </div>
 
             <div class="p-5">
-                <div class="max-h-[520px] overflow-y-auto pr-2 space-y-4">
+                <div class="space-y-4">
                     @forelse($requirement->tasks as $task)
                         @php
                             $hasDocs = ($task->documents_count ?? 0) > 0;
@@ -282,7 +320,7 @@
         </div>
 
         <p class="text-sm text-gray-600">
-            Indica cuándo vas a regresar el documento físico.
+            Indica cuándo vas a regresar el documento físico y quién será responsable del check in.
         </p>
 
         <div>
@@ -294,6 +332,29 @@
                    name="return_at"
                    required
                    class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A]">
+        </div>
+
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">
+                Responsable del check in
+            </label>
+
+            <select name="responsible_user_id"
+                    required
+                    class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A]">
+                <option value="">Selecciona un responsable</option>
+
+                @foreach($responsibles as $responsible)
+                    <option value="{{ $responsible->id }}"
+                        {{ (int) old('responsible_user_id', $asset->responsible_user_id) === (int) $responsible->id ? 'selected' : '' }}>
+                        {{ $responsible->name }}
+                    </option>
+                @endforeach
+            </select>
+
+            @error('responsible_user_id')
+                <div class="mt-1 text-sm text-red-600">{{ $message }}</div>
+            @enderror
         </div>
     </form>
 

@@ -10,6 +10,7 @@ use App\Models\Asset;
 use App\Models\AssetRequirement;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
+use App\Models\User;
 
 class AssetRequirementController extends Controller
 {
@@ -34,6 +35,11 @@ class AssetRequirementController extends Controller
             'tasks as tasks_done' => fn ($t) => $t->whereNotNull('completed_at'),
         ]);
 
+        $responsibles = User::query()
+            ->where('company_id', auth()->user()->company_id)
+            ->orderBy('name')
+            ->get();
+
         $navContext = [
             'asset' => $asset,
             'requirement' => $requirement,
@@ -41,7 +47,12 @@ class AssetRequirementController extends Controller
             'documentSection' => false,
         ];
 
-        return view('requirements.show', compact('asset', 'requirement', 'navContext'));
+        return view('requirements.show', compact(
+            'asset',
+            'requirement',
+            'responsibles',
+            'navContext'
+        ));
     }
 
     public function store(StoreAssetRequirementRequest $request, Asset $asset)
