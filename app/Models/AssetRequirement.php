@@ -22,9 +22,9 @@ class AssetRequirement extends Model
         'status',
         'due_date',
         'completed_at',
-        'recurrence_interval',
-        'recurrence_unit',
-        'recurrence_anchor',
+        'issued_at',
+        'expires_at',
+        'current_document_id',
     ];
 
     protected $casts = [
@@ -254,5 +254,18 @@ class AssetRequirement extends Model
     {
         // Si ya tienes relación documents() al modelo AssetRequirementDocument
         return $this->documents()->exists();
+    }
+
+    public function currentDocument()
+    {
+        return $this->belongsTo(
+            AssetRequirementDocument::class,
+            'current_document_id'
+        );
+    }
+
+    public function renewalTasks()
+    {
+        return $this->tasks()->where('type', 'renewal');
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\Requirements\UploadOfficialDocumentService;
 use App\Models\Asset;
 use App\Models\AssetRequirement;
 use App\Models\AssetRequirementDocument;
@@ -53,7 +54,7 @@ class AssetRequirementDocumentController extends Controller
         ]);
     }
 
-    public function store(Request $request, Asset $asset, AssetRequirement $requirement)
+    public function store(Request $request, Asset $asset, AssetRequirement $requirement, UploadOfficialDocumentService $uploadOfficialDocumentService) 
     {
         $this->assertRequirementBelongsToAsset($asset, $requirement);
         $this->assertSameCompany($asset);
@@ -66,56 +67,21 @@ class AssetRequirementDocumentController extends Controller
             'file' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
             'issued_at' => ['nullable', 'date'],
             'expires_at' => ['required', 'date', 'after:today'],
+            'notes' => ['nullable', 'string'],
         ], [
             'expires_at.required' => 'La fecha de vencimiento es obligatoria.',
             'expires_at.after' => 'La fecha de vencimiento debe ser posterior a hoy.',
         ]);
 
-        // 1) Si ya existe un documento oficial, borrarlo (archivo + registro)
-        $existing = AssetRequirementDocument::where('asset_requirement_id', $requirement->id)
-            ->latest()
-            ->first();
-
-        if ($existing) {
-            if ($this->disk()->exists($existing->file_path)) {
-                $this->disk()->delete($existing->file_path);
-            }
-            $existing->delete();
-        }
-
-        // 2) Guardar el nuevo archivo en PRIVATE
-        $file = $request->file('file');
-
-        $path = $file->store(
-            "companies/{$asset->company_id}/requirements/{$requirement->id}",
-            'private'
+        $uploadOfficialDocumentService->handle(
+            requirement: $requirement,
+            file: $request->file('file'),
+            issuedAt: $data['issued_at'] ?? null,
+            expiresAt: $data['expires_at'],
+            notes: $data['notes'] ?? null,
         );
 
-        // 3) Guardar metadata del documento
-        AssetRequirementDocument::create([
-            'asset_requirement_id' => $requirement->id,
-            'company_id' => $asset->company_id,
-            'file_path' => $path,
-            'original_name' => $file->getClientOriginalName(),
-            'mime_type' => $file->getClientMimeType(),
-            'size' => $file->getSize(),
-            'uploaded_by' => auth()->id(),
-            'issued_at' => $data['issued_at'] ?? null,
-            'expires_at' => $data['expires_at'],
-        ]);
-
-        // 4) Actualizar vigencia del requerimiento y marcarlo como completado
-        $requirement->update([
-            'issued_at' => $data['issued_at'] ?? null,
-            'expires_at' => $data['expires_at'],
-            'status' => RequirementStatus::COMPLETED,
-            'completed_at' => now(),
-        ]);
-
-        // 5) Crear tarea automática de renovación
-        $this->createRenewalTask($asset, $requirement, $data['expires_at']);
-
-        return back()->with('success', 'Documento oficial subido correctamente y tarea de renovación generada.');
+        return back()->with('success', 'Documento oficial guardado correctamente. Se actualizó el histórico y la renovación.');
     }
 
     public function download(Asset $asset, AssetRequirement $requirement, AssetRequirementDocument $document)

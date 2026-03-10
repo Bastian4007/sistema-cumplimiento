@@ -11,11 +11,19 @@ class Task extends Model
 {
     use HasFactory;
 
+    public const TYPE_MANUAL = 'manual';
+    public const TYPE_INITIAL = 'initial';
+    public const TYPE_RENEWAL = 'renewal';
+    public const TYPE_CHECKOUT = 'checkout';
+    public const TYPE_CHECKIN = 'checkin';
+    public const TYPE_REVIEW = 'review';
+
     protected $fillable = [
         'asset_requirement_id',
         'title',
         'description',
         'status',
+        'type',
         'due_date',
         'completed_at',
         'requires_document'

@@ -34,7 +34,13 @@
             || (method_exists($asset, 'isInactive') && $asset->isInactive())
         );
 
-        $doc = $requirement->documents?->sortByDesc('created_at')->first();
+        $currentDoc = $requirement->currentDocument
+            ?? $requirement->documents?->firstWhere('is_current', true)
+            ?? $requirement->documents?->sortByDesc('version_number')->first();
+
+        $documentHistory = $requirement->documents
+            ? $requirement->documents->sortByDesc('version_number')
+            : collect();
     @endphp
 
     <div class="bg-white rounded-xl shadow p-6">
@@ -99,11 +105,11 @@
             <div class="bg-white border rounded-xl overflow-hidden">
                 <div class="p-5 border-b">
                     <div class="font-semibold text-[#1A428A]">
-                        {{ $doc ? 'Reemplazar documento' : 'Subir documento' }}
+                        {{ $currentDoc ? 'Subir nueva versión' : 'Subir documento' }}
                     </div>
 
                     <div class="text-sm text-gray-500">
-                        Sube un archivo y se guardará como el documento oficial de esta carpeta.
+                        Sube un archivo y se guardará como una nueva versión del documento oficial de esta carpeta.
                     </div>
                 </div>
 
@@ -150,7 +156,7 @@
 
                                     <input type="date"
                                            name="issued_at"
-                                           value="{{ old('issued_at', optional($doc?->issued_at)->format('Y-m-d')) }}"
+                                           value="{{ old('issued_at', optional($currentDoc?->issued_at)->format('Y-m-d')) }}"
                                            class="block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm">
 
                                     @error('issued_at')
@@ -165,7 +171,7 @@
 
                                     <input type="date"
                                            name="expires_at"
-                                           value="{{ old('expires_at', optional($doc?->expires_at)->format('Y-m-d')) }}"
+                                           value="{{ old('expires_at', optional($currentDoc?->expires_at)->format('Y-m-d')) }}"
                                            class="block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
                                            required>
 
@@ -177,7 +183,7 @@
 
                             <button type="submit"
                                 class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
-                                {{ $doc ? 'Reemplazar' : 'Subir' }}
+                                {{ $currentDoc ? 'Subir nueva versión' : 'Subir documento' }}
                             </button>
                         </form>
                     @endif
@@ -189,46 +195,50 @@
                 <div class="p-5 border-b">
                     <div class="font-semibold text-[#1A428A]">Documento actual</div>
                     <div class="text-sm text-gray-500">
-                        Solo se conserva un documento oficial por carpeta.
+                       Se muestra la versión actual del documento oficial. Las versiones anteriores permanecen en el historial.
                     </div>
                 </div>
 
                 <div class="p-5">
-                    @if($doc)
+                    @if($currentDoc)
                         <div class="border rounded-xl p-4 flex items-start justify-between gap-4">
                             <div class="min-w-0">
                                 <div class="font-semibold text-gray-900 truncate">
-                                    {{ $doc->original_name ?? basename($doc->file_path) }}
+                                    {{ $currentDoc->original_name ?? basename($currentDoc->file_path) }}
                                 </div>
 
                                 <div class="text-sm text-gray-500 mt-1">
-                                    <span class="block">Subido por:</span>
-                                    <span class="block">{{ $doc->uploader?->name ?? '—' }}</span>
-                                    <span class="block">{{ optional($doc->created_at)->format('Y-m-d H:i') }}</span>
+                                    <span class="block">Subido por: {{ $currentDoc->uploader?->name ?? '—' }}</span>
+                                    <span class="block">{{ optional($currentDoc->created_at)->format('Y-m-d H:i') }}</span>
 
-                                    @if($doc->issued_at)
+                                    @if($currentDoc->issued_at)
                                         <span class="block">
-                                            Emisión: {{ $doc->issued_at->format('Y-m-d') }}
+                                            Emisión: {{ $currentDoc->issued_at->format('Y-m-d') }}
                                         </span>
                                     @endif
 
-                                    @if($doc->expires_at)
+                                    @if($currentDoc->expires_at)
                                         <span class="block">
-                                            Vigente hasta: {{ $doc->expires_at->format('Y-m-d') }}
+                                            Vigente hasta: {{ $currentDoc->expires_at->format('Y-m-d') }}
                                         </span>
                                     @endif
+
+                                    <div class="text-sm text-gray-500 mt-1">
+                                        <span class="block">Versión: {{ $currentDoc->version_number ?? '—' }}</span>
+                                        <span class="block">Estado: {{ $currentDoc->is_current ? 'Actual' : ucfirst($currentDoc->status ?? '—') }}</span>
+                                    </div>
                                 </div>
                             </div>
 
                             <div class="flex items-center gap-2 shrink-0">
-                                <a href="{{ route('assets.requirements.documents.preview', [$asset, $requirement, $doc]) }}"
+                                <a href="{{ route('assets.requirements.documents.preview', [$asset, $requirement, $currentDoc]) }}"
                                    target="_blank"
                                    class="px-3 py-2 rounded-md border font-semibold text-sm
                                    {{ $assetInactive ? 'bg-gray-100 text-gray-500 border-gray-300 pointer-events-none' : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
                                     Ver
                                 </a>
 
-                                <a href="{{ route('assets.requirements.documents.download', [$asset, $requirement, $doc]) }}"
+                                <a href="{{ route('assets.requirements.documents.download', [$asset, $requirement, $currentDoc]) }}"
                                    class="px-3 py-2 rounded-md border font-semibold text-sm
                                    {{ $assetInactive ? 'bg-gray-100 text-gray-500 border-gray-300 pointer-events-none' : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
                                     Descargar
@@ -236,7 +246,7 @@
 
                                 @if(auth()->user()->isOperative())
                                     <form method="POST"
-                                          action="{{ route('assets.requirements.documents.destroy', [$asset, $requirement, $doc]) }}"
+                                          action="{{ route('assets.requirements.documents.destroy', [$asset, $requirement, $currentDoc]) }}"
                                           onsubmit="return confirm('¿Eliminar este documento oficial?')">
                                         @csrf
                                         @method('DELETE')
@@ -258,6 +268,80 @@
                 </div>
             </div>
 
+        </div>
+        <div class="mt-8 bg-white border rounded-xl overflow-hidden">
+            <div class="p-5 border-b">
+                <div class="font-semibold text-[#1A428A]">Histórico documental</div>
+                <div class="text-sm text-gray-500">
+                    Se conservan todas las versiones del documento oficial registradas para este requerimiento.
+                </div>
+            </div>
+
+            <div class="p-5">
+                @if($documentHistory->isNotEmpty())
+                    <div class="space-y-3">
+                        @foreach($documentHistory as $historyDoc)
+                            <div class="border rounded-xl p-4 flex items-start justify-between gap-4">
+                                <div class="min-w-0">
+                                    <div class="font-semibold text-gray-900 truncate">
+                                        {{ $historyDoc->original_name ?? basename($historyDoc->file_path) }}
+                                    </div>
+
+                                    <div class="text-sm text-gray-500 mt-1">
+                                        <span class="block">
+                                            Versión: {{ $historyDoc->version_number ?? '—' }}
+                                            @if($historyDoc->is_current)
+                                                · <span class="text-green-700 font-medium">Actual</span>
+                                            @else
+                                                · <span class="text-gray-700 font-medium">{{ ucfirst($historyDoc->status ?? '—') }}</span>
+                                            @endif
+                                        </span>
+
+                                        <span class="block">
+                                            Subido por: {{ $historyDoc->uploader?->name ?? '—' }}
+                                        </span>
+
+                                        <span class="block">
+                                            Fecha de carga: {{ optional($historyDoc->created_at)->format('Y-m-d H:i') }}
+                                        </span>
+
+                                        @if($historyDoc->issued_at)
+                                            <span class="block">
+                                                Emisión: {{ $historyDoc->issued_at->format('Y-m-d') }}
+                                            </span>
+                                        @endif
+
+                                        @if($historyDoc->expires_at)
+                                            <span class="block">
+                                                Vencimiento: {{ $historyDoc->expires_at->format('Y-m-d') }}
+                                            </span>
+                                        @endif
+                                    </div>
+                                </div>
+
+                                <div class="flex items-center gap-2 shrink-0">
+                                    <a href="{{ route('assets.requirements.documents.preview', [$asset, $requirement, $historyDoc]) }}"
+                                    target="_blank"
+                                    class="px-3 py-2 rounded-md border font-semibold text-sm
+                                    {{ $assetInactive ? 'bg-gray-100 text-gray-500 border-gray-300 pointer-events-none' : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
+                                        Ver
+                                    </a>
+
+                                    <a href="{{ route('assets.requirements.documents.download', [$asset, $requirement, $historyDoc]) }}"
+                                    class="px-3 py-2 rounded-md border font-semibold text-sm
+                                    {{ $assetInactive ? 'bg-gray-100 text-gray-500 border-gray-300 pointer-events-none' : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
+                                        Descargar
+                                    </a>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                @else
+                    <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-gray-700 text-sm">
+                        Aún no hay versiones registradas en el historial.
+                    </div>
+                @endif
+            </div>
         </div>
     </div>
 </x-layouts.vigia>
