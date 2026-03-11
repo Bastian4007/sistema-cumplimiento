@@ -21,6 +21,13 @@ class Asset extends Model
         'location',
         'responsible_user_id',
         'status',
+        'compliance_start_date',
+        'compliance_due_date',
+    ];
+
+    protected $casts = [
+        'compliance_start_date' => 'date',
+        'compliance_due_date' => 'date',
     ];
 
     public function assetType()

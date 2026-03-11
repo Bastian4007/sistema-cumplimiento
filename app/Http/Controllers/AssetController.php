@@ -147,9 +147,6 @@ class AssetController extends Controller
             ...$data,
         ]);
 
-        app(\App\Application\Compliance\AssignDefaultRequirementsToAsset::class)
-            ->handle($asset);
-
         return redirect()
             ->route('assets.show', $asset)
             ->with('status', 'Activo creado.');
@@ -180,9 +177,7 @@ class AssetController extends Controller
                 ->withCount([
                     'tasks as tasks_total',
                     'tasks as tasks_done' => fn ($t) => $t->whereNotNull('completed_at'),
-                ])
-                ->orderByRaw("CASE WHEN due_date IS NULL THEN 1 ELSE 0 END")
-                ->orderBy('due_date');
+                ]);
             },
         ]);
 

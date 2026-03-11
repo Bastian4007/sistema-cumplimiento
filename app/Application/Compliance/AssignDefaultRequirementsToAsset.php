@@ -14,7 +14,6 @@ final class AssignDefaultRequirementsToAsset
     public function handle(Asset $asset): void
     {
         $rules = AssetTypeRequirementTemplate::query()
-            ->where('company_id', $asset->company_id)
             ->where('asset_type_id', $asset->asset_type_id)
             ->orderBy('sort_order')
             ->orderBy('id')
@@ -24,20 +23,15 @@ final class AssignDefaultRequirementsToAsset
             return;
         }
 
-        // ✅ inicio (ancla)
         $start = $asset->compliance_start_date
             ? Carbon::parse($asset->compliance_start_date)->startOfDay()
             : now()->startOfDay();
 
-        // ✅ vencimiento base (lo que eligieron al crear el activo)
-        // si no existe, fallback a start (o hoy)
         $baseDue = $asset->compliance_due_date
             ? Carbon::parse($asset->compliance_due_date)->toDateString()
             : $start->toDateString();
 
         foreach ($rules as $rule) {
-
-            // ✅ ya NO sumamos default_days
             $dueDate = $baseDue;
 
             if ($rule->applies_to_requirements) {

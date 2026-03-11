@@ -40,6 +40,11 @@ class AssetObligation extends Model
         return $this->belongsTo(Asset::class);
     }
 
+    public function requirementTemplate()
+    {
+        return $this->belongsTo(RequirementTemplate::class, 'requirement_template_id');
+    }
+
     public function template()
     {
         return $this->belongsTo(RequirementTemplate::class, 'requirement_template_id');
