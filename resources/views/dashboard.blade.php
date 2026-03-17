@@ -21,12 +21,12 @@
             </div>
 
             <div class="bg-[#FFB529] rounded-lg shadow-sm p-4 text-white">
-                <div class="text-sm font-semibold">Próximas a vencer</div>
+                <div class="text-sm font-semibold">Críticos</div>
                 <div class="mt-2 text-2xl font-bold">{{ $stats['due_soon'] ?? 0 }}</div>
             </div>
 
             <div class="bg-[#DB0000] rounded-lg shadow-sm p-4 text-white">
-                <div class="text-sm font-semibold">Vencidas</div>
+                <div class="text-sm font-semibold">En riesgo</div>
                 <div class="mt-2 text-2xl font-bold">{{ $stats['overdue'] ?? 0 }}</div>
             </div>
         </div>
@@ -76,7 +76,7 @@
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     {{-- Próximos a vencer --}}
                     <div>
-                        <div class="text-sm font-semibold text-[#FFB529] mb-3">Próximos a vencer</div>
+                        <div class="text-sm font-semibold text-[#FFB529] mb-3">Fechas críticas</div>
 
                         <div class="border rounded-lg overflow-hidden">
                             @forelse($upcoming as $r)
@@ -112,7 +112,7 @@
 
                     {{-- Críticos --}}
                     <div>
-                        <div class="text-sm font-semibold text-[#DB0000] mb-3">Críticos (vencidos / en riesgo)</div>
+                        <div class="text-sm font-semibold text-[#DB0000] mb-3">Fechas en riesgo</div>
 
                         <div class="border rounded-lg overflow-hidden">
                             @forelse($critical as $r)
@@ -165,7 +165,7 @@
                         class="task-subtab-btn px-3 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold"
                         data-subtab="pending"
                     >
-                        Pendientes
+                        En tiempo
                     </button>
 
                     <button

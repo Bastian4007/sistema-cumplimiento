@@ -169,6 +169,13 @@ class AssetController extends Controller
     {
         $this->authorize('view', $asset);
 
+        $scope = request()->get('scope', 'project');
+
+        $requirements = $asset->requirements()
+            ->when($scope === 'project', fn($q) => $q->where('compliance_scope', 'project'))
+            ->when($scope === 'operation', fn($q) => $q->where('compliance_scope', 'operation'))
+            ->get();
+
         $asset->load([
             'assetType',
             'responsible',
@@ -188,7 +195,7 @@ class AssetController extends Controller
             'documentSection' => false,
         ];
 
-        return view('assets.show', compact('asset', 'navContext'));
+        return view('assets.show', compact('asset', 'navContext', 'scope', 'requirements'));
     }
 
     public function edit(Request $request, Asset $asset)

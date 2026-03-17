@@ -21,6 +21,7 @@ class AssetRequirement extends Model
         'type',
         'status',
         'due_date',
+        'compliance_scope',
         'completed_at',
         'issued_at',
         'expires_at',

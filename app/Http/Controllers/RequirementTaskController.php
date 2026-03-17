@@ -232,10 +232,22 @@ class RequirementTaskController extends Controller
         $this->guardRequirement($requirement);
         $this->guardTaskScope($requirement, $task);
 
-        if ($task->documents()->count() === 0) {
-            return back()->withErrors([
-                'task' => 'Debes subir al menos una evidencia para completar esta tarea.',
-            ]);
+        $isRenewal = $task->type === Task::TYPE_RENEWAL;
+
+        if ($isRenewal) {
+            $hasOfficialDocument = $requirement->documents()->exists();
+
+            if (!$hasOfficialDocument) {
+                return back()->withErrors([
+                    'task' => 'Debes subir primero la documentación oficial para completar esta tarea de renovación.',
+                ]);
+            }
+        } else {
+            if ($task->documents()->count() === 0) {
+                return back()->withErrors([
+                    'task' => 'Debes subir al menos una evidencia para completar esta tarea.',
+                ]);
+            }
         }
 
         $before = $task->only(['status', 'completed_at', 'completed_by']);

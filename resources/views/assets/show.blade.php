@@ -16,6 +16,14 @@
     @php
         $assetInactive = ($asset->status ?? null) === \App\Models\Asset::STATUS_INACTIVE
             || (method_exists($asset, 'isInactive') && $asset->isInactive());
+
+        $scopeTitle = $scope === 'operation'
+            ? 'Normativa de operación'
+            : 'Normativa de proyecto';
+
+        $scopeDescription = $scope === 'operation'
+            ? 'Visualiza el avance, riesgo y estado de cada carpeta de cumplimiento en operación.'
+            : 'Visualiza el avance, riesgo y estado de cada carpeta de cumplimiento del proyecto.';
     @endphp
 
     <div class="bg-white rounded-xl shadow p-6 space-y-8">
@@ -96,12 +104,38 @@
         {{-- ================= REQUERIMIENTOS ================= --}}
         <div class="bg-white border rounded-xl overflow-hidden">
 
-            <div class="p-6 border-b">
-                <div class="font-semibold text-[#1A428A] text-lg">
-                    Normativa
+            <div class="p-6 border-b space-y-4">
+                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                    <div>
+                        <div class="font-semibold text-[#1A428A] text-lg">
+                            Cumplimiento normativo
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            {{ $scopeDescription }}
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <a href="{{ route('assets.show', ['asset' => $asset, 'scope' => 'project']) }}"
+                           class="px-4 py-2 rounded-md border font-semibold
+                           {{ $scope === 'project'
+                                ? 'bg-[#1A428A] text-white border-[#1A428A]'
+                                : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
+                            Normativa de proyecto
+                        </a>
+
+                        <a href="{{ route('assets.show', ['asset' => $asset, 'scope' => 'operation']) }}"
+                           class="px-4 py-2 rounded-md border font-semibold
+                           {{ $scope === 'operation'
+                                ? 'bg-[#1A428A] text-white border-[#1A428A]'
+                                : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
+                            Normativa de operación
+                        </a>
+                    </div>
                 </div>
-                <div class="text-sm text-gray-500">
-                    Visualiza el avance, riesgo y estado de cada carpeta de cumplimiento.
+
+                <div class="font-semibold text-[#1A428A] text-base">
+                    {{ $scopeTitle }}
                 </div>
             </div>
 
@@ -113,7 +147,7 @@
                             <th class="text-left px-6 py-4 font-semibold">Carpeta</th>
                             <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Vence</th>
                             <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Riesgo</th>
-                            <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Estatus</th>
+                            <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Estado</th>
                             <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Progreso</th>
                             <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Tareas</th>
                             <th class="text-right px-6 py-4 font-semibold whitespace-nowrap">Acciones</th>
@@ -121,8 +155,7 @@
                     </thead>
 
                     <tbody class="divide-y">
-
-                        @forelse($asset->requirements as $req)
+                        @forelse($requirements as $req)
                             @php
                                 $title = $req->template?->name ?? $req->type;
                                 $due = $req->due_date?->format('Y-m-d') ?? '-';
@@ -132,7 +165,10 @@
                                 $progress   = $tasksTotal > 0 ? (int) round(($tasksDone / $tasksTotal) * 100) : 0;
 
                                 $riskVal = strtolower($req->risk_level ?? 'normal');
-                                $statusLabel = strtoupper($req->status?->label() ?? 'PENDIENTE');
+
+                                $statusLabel = \App\Enums\RequirementStatus::tryFrom($req->computed_status ?? '')?->label()
+                                    ?? $req->status?->label()
+                                    ?? 'Pendiente';
                             @endphp
 
                             <tr class="hover:bg-gray-50">
@@ -156,7 +192,7 @@
                                     @endif
                                 </td>
 
-                                {{-- Estatus --}}
+                                {{-- Estado --}}
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span class="text-xs px-3 py-1 rounded border bg-gray-50 text-gray-800">
                                         {{ $statusLabel }}
@@ -179,6 +215,7 @@
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     {{ $tasksDone }}/{{ $tasksTotal }}
                                 </td>
+
                                 {{-- Acciones --}}
                                 <td class="px-6 py-4 text-right whitespace-nowrap space-x-4">
                                     <a href="{{ route('assets.requirements.show', [$asset, $req]) }}"
@@ -193,15 +230,13 @@
                                 </td>
 
                             </tr>
-
                         @empty
                             <tr>
                                 <td colspan="7" class="px-6 py-10 text-center text-gray-500">
-                                    No hay requerimientos todavía.
+                                    No hay requerimientos de {{ $scope === 'operation' ? 'operación' : 'proyecto' }} todavía.
                                 </td>
                             </tr>
                         @endforelse
-
                     </tbody>
 
                 </table>

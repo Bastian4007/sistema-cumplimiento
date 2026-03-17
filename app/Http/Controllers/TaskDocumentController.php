@@ -48,6 +48,12 @@ class TaskDocumentController extends Controller
     {
         abort_if($task->requirement->company_id !== $request->user()->company_id, 403);
 
+        if ($task->type === Task::TYPE_RENEWAL) {
+            return back()->withErrors([
+                'file' => 'Las tareas de renovación deben gestionarse desde la documentación oficial.',
+            ]);
+        }
+
         $request->validate([
             'file' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
         ]);
