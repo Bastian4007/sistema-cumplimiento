@@ -132,7 +132,7 @@
                                 $progress   = $tasksTotal > 0 ? (int) round(($tasksDone / $tasksTotal) * 100) : 0;
 
                                 $riskVal = strtolower($req->risk_level ?? 'normal');
-                                $statusLabel = strtoupper($req->computed_status ?? $req->status ?? 'pending');
+                                $statusLabel = strtoupper($req->status?->label() ?? 'PENDIENTE');
                             @endphp
 
                             <tr class="hover:bg-gray-50">
@@ -148,9 +148,9 @@
                                 {{-- Riesgo --}}
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     @if($riskVal === 'danger')
-                                        <span class="text-xs px-3 py-1 rounded border bg-red-50 text-red-700 border-red-200">DANGER</span>
+                                        <span class="text-xs px-3 py-1 rounded border bg-red-50 text-red-700 border-red-200">PELIGRO</span>
                                     @elseif($riskVal === 'warning')
-                                        <span class="text-xs px-3 py-1 rounded border bg-yellow-50 text-yellow-700 border-yellow-200">WARNING</span>
+                                        <span class="text-xs px-3 py-1 rounded border bg-yellow-50 text-yellow-700 border-yellow-200">CRÍTICO</span>
                                     @else
                                         <span class="text-xs px-3 py-1 rounded border bg-green-50 text-green-700 border-green-200">NORMAL</span>
                                     @endif
@@ -179,7 +179,6 @@
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     {{ $tasksDone }}/{{ $tasksTotal }}
                                 </td>
-
                                 {{-- Acciones --}}
                                 <td class="px-6 py-4 text-right whitespace-nowrap space-x-4">
                                     <a href="{{ route('assets.requirements.show', [$asset, $req]) }}"

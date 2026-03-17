@@ -64,7 +64,7 @@
                 <div class="mt-2 flex items-center gap-2 flex-wrap">
                     <span class="text-xs px-3 py-1 rounded border
                         {{ $assetInactive ? 'bg-gray-100 text-gray-700 border-gray-300' : 'bg-green-50 text-green-700 border-green-200' }}">
-                        {{ $assetInactive ? 'ASSET INACTIVO' : 'ASSET ACTIVO' }}
+                        {{ $assetInactive ? 'INACTIVO' : 'ACTIVO' }}
                     </span>
 
                     <span class="text-xs px-3 py-1 rounded border
@@ -107,8 +107,25 @@
                 <div class="space-y-1">
                     <div><strong>Tipo:</strong> {{ $asset->assetType->name ?? '-' }}</div>
                     <div><strong>Vence:</strong> {{ $requirement->due_date?->format('Y-m-d') ?? 'Sin fecha' }}</div>
-                    <div><strong>Riesgo:</strong> {{ $requirement->risk_level }}</div>
-                    <div><strong>Estatus:</strong> {{ $requirement->computed_status }}</div>
+                    <div>
+                        <strong>Riesgo:</strong>
+                        @switch(strtolower($requirement->risk_level ?? 'normal'))
+                            @case('danger')
+                                Peligro
+                                @break
+                            @case('warning')
+                                Crítico
+                                @break
+                            @default
+                                Normal
+                        @endswitch
+                    </div>
+                    <div>
+                        <strong>Estado:</strong>
+                                {{ \App\Enums\RequirementStatus::tryFrom($requirement->computed_status ?? '')?->label()
+                                ?? $requirement->status?->label()
+                                ?? 'Pendiente' }}
+                    </div>
                 </div>
 
                 <div class="space-y-1">
@@ -121,6 +138,9 @@
                         @else
                             No recurrente
                         @endif
+                    </div>
+                    <div>
+                        <strong>Bóveda:</strong> {{ $asset->vault_location ?: 'No asignada' }}
                     </div>
                 </div>
 
@@ -226,7 +246,7 @@
                             <div class="text-sm text-gray-600 mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
                                 <span> Status:
                                     <span class="px-2 py-0.5 rounded border text-xs bg-gray-50">
-                                        {{ $task->status->value }}
+                                        {{ $task->status?->label() ?? 'Pendiente' }}
                                     </span>
                                 </span>
 

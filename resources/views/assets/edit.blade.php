@@ -42,10 +42,10 @@
                 <div>
                     <label class="block text-sm font-semibold text-gray-700">Nombre</label>
                     <input type="text"
-                           name="name"
-                           value="{{ old('name', $asset->name) }}"
-                           class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
-                           required>
+                        name="name"
+                        value="{{ old('name', $asset->name) }}"
+                        class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                        required>
                     @error('name')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
@@ -73,10 +73,19 @@
                 {{-- Ubicación --}}
                 <div>
                     <label class="block text-sm font-semibold text-gray-700">Ubicación</label>
-                    <input type="text"
-                           name="location"
-                           value="{{ old('location', $asset->location) }}"
-                           class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm">
+                    <select
+                        name="location"
+                        class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                        required
+                    >
+                        <option value="">-- Selecciona ubicación --</option>
+
+                        @foreach($mexicoStates as $state)
+                            <option value="{{ $state }}" @selected(old('location', $asset->location) === $state)>
+                                {{ $state }}
+                            </option>
+                        @endforeach
+                    </select>
                     @error('location')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
@@ -86,21 +95,20 @@
                 <div>
                     <label class="block text-sm font-semibold text-gray-700">Código</label>
                     <input type="text"
-                           name="code"
-                           value="{{ old('code', $asset->code) }}"
-                           class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm">
+                        name="code"
+                        value="{{ old('code', $asset->code) }}"
+                        class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm">
                     <p class="mt-1 text-xs text-gray-500">
-                        Si lo dejas igual, se mantiene. (Luego lo podemos hacer automático.)
+                        Si lo dejas igual, se mantiene.
                     </p>
                     @error('code')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>
 
-                {{-- Responsable (Select2) --}}
-                <div class="lg:col-span-2">
+                {{-- Responsable --}}
+                <div>
                     <label class="block text-sm font-semibold text-gray-700">Responsable</label>
-
                     <select id="responsible_user_id"
                             name="responsible_user_id"
                             class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm">
@@ -117,18 +125,36 @@
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>
+
+                {{-- Bóveda documental --}}
+                <div>
+                    <label for="vault_location" class="block text-sm font-semibold text-gray-700">
+                        Bóveda documental
+                    </label>
+                    <input
+                        type="text"
+                        name="vault_location"
+                        id="vault_location"
+                        value="{{ old('vault_location', $asset->vault_location) }}"
+                        class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-[#1A428A] focus:ring-[#1A428A] text-sm"
+                        placeholder="Ej. Bóveda A - Estante 3"
+                    >
+                    @error('vault_location')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
             </div>
 
-            <div class="mt-8 flex items-center gap-3">
-                <button type="submit"
-                        class="px-6 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d] transition">
-                    Actualizar
-                </button>
-
+            <div class="mt-8 flex justify-end gap-3 border-t pt-6">
                 <a href="{{ route('assets.show', $asset) }}"
-                   class="px-6 py-2 rounded-md bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition">
+                class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">
                     Cancelar
                 </a>
+
+                <button type="submit"
+                        class="px-5 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
+                    Guardar cambios
+                </button>
             </div>
         </form>
     </div>

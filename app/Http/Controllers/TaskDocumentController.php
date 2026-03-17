@@ -62,7 +62,13 @@ class TaskDocumentController extends Controller
 
         // 2) Guardar nuevo archivo
         $file = $request->file('file');
-        $path = $file->store("task-documents/{$task->id}", 'public');
+        $originalName = $file->getClientOriginalName();
+
+        $path = $file->storeAs(
+            "task-documents/{$task->id}",
+            $originalName,
+            'public'
+        );
 
         // 3) Crear registro
         TaskDocument::create([

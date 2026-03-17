@@ -125,14 +125,15 @@ class UploadOfficialDocumentService
                 TaskStatus::IN_PROGRESS,
             ])
             ->exists();
-
+            
         if ($alreadyExists) {
             return;
         }
 
         $title = $requirement->template?->name ?? $requirement->type;
+        $responsibleUserId = $requirement->asset?->responsible_user_id;
 
-        Task::create([
+        $task = Task::create([
             'asset_requirement_id' => $requirement->id,
             'title' => 'Renovar ' . $title .' ' . $dueDate->year,
             'description' => 'Renovación automática generada al registrar una nueva versión del documento oficial.',
@@ -141,5 +142,9 @@ class UploadOfficialDocumentService
             'due_date' => $dueDate->toDateString(),
             'requires_document' => false,
         ]);
+
+        if ($responsibleUserId) {
+            $task->users()->sync([$responsibleUserId]);
+        }
     }
 }

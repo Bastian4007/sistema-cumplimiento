@@ -42,6 +42,12 @@ class StoreAssetRequest extends FormRequest
                 'max:255',
             ],
 
+            'vault_location' => [
+                'nullable', 
+                'string', 
+                'max:255'
+            ],
+
             'responsible_user_id' => [
                 'nullable',
                 'integer',

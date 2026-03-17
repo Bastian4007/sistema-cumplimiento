@@ -206,7 +206,42 @@ class AssetController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
 
-        return view('assets.edit', compact('asset', 'assetTypes', 'responsibles'));
+        $mexicoStates = [
+            'Aguascalientes',
+            'Baja California',
+            'Baja California Sur',
+            'Campeche',
+            'Chiapas',
+            'Chihuahua',
+            'Ciudad de México',
+            'Coahuila',
+            'Colima',
+            'Durango',
+            'Estado de México',
+            'Guanajuato',
+            'Guerrero',
+            'Hidalgo',
+            'Jalisco',
+            'Michoacán',
+            'Morelos',
+            'Nayarit',
+            'Nuevo León',
+            'Oaxaca',
+            'Puebla',
+            'Querétaro',
+            'Quintana Roo',
+            'San Luis Potosí',
+            'Sinaloa',
+            'Sonora',
+            'Tabasco',
+            'Tamaulipas',
+            'Tlaxcala',
+            'Veracruz',
+            'Yucatán',
+            'Zacatecas',
+        ];
+
+        return view('assets.edit', compact('asset', 'responsibles', 'assetTypes', 'mexicoStates'));
     }
 
     public function update(UpdateAssetRequest $request, Asset $asset)

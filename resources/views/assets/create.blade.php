@@ -12,7 +12,7 @@
     {{-- Select2 CSS --}}
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
-    <div class="bg-white rounded-xl shadow p-6">
+    <div class="bg-white rounded-xl shadow p-6 max-w-5xl">
         <h1 class="text-2xl font-semibold text-[#1A428A]">Crear un activo</h1>
 
         @if ($errors->any())
@@ -28,9 +28,7 @@
         <form method="POST" action="{{ route('assets.store') }}" class="mt-6">
             @csrf
 
-            {{-- Grid como el mock --}}
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-3xl">
-                {{-- Nombre --}}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Nombre de activo</label>
                     <input
@@ -45,16 +43,13 @@
                     @enderror
                 </div>
 
-                {{-- Responsable --}}
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Selecciona un responsable</label>
-
                     <select
                         id="responsible_user_id"
                         name="responsible_user_id"
                         class="{{ $selectClass }}"
                         required>
-                        
                         <option value="">-- Selecciona un responsable --</option>
 
                         @foreach($responsibles as $u)
@@ -69,10 +64,8 @@
                     @enderror
                 </div>
 
-                {{-- Ubicación --}}
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Selecciona ubicación</label>
-
                     <select
                         name="location"
                         class="{{ $selectClass }}"
@@ -92,10 +85,8 @@
                     @enderror
                 </div>
 
-                {{-- Tipo --}}
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Selecciona un tipo</label>
-
                     <select
                         name="asset_type_id"
                         class="{{ $selectClass }}"
@@ -115,7 +106,6 @@
                     @enderror
                 </div>
 
-                {{-- Fecha inicio cumplimiento --}}
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Fecha de inicio de operaciones</label>
                     <input
@@ -144,36 +134,34 @@
                     @enderror
                 </div>
 
-                {{-- Código (si lo quieres en el diseño, lo dejo abajo) --}}
                 <div class="md:col-span-2">
-                    <label class="block text-sm font-medium text-gray-700">Código (opcional)</label>
+                    <label for="vault_location" class="block text-sm font-medium text-gray-700">
+                        Bóveda documental
+                    </label>
                     <input
                         type="text"
-                        name="code"
-                        value="{{ old('code') }}"
-                        class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
-                    />
-                    @error('code')
+                        name="vault_location"
+                        id="vault_location"
+                        value="{{ old('vault_location') }}"
+                        class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-[#1A428A] focus:ring-[#1A428A] text-sm"
+                        placeholder="Ej. Bóveda A - Estante 3"
+                    >
+                    @error('vault_location')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>
             </div>
 
-            {{-- Botón principal como el mock --}}
-            <div class="mt-8 max-w-3xl">
-                <button
-                    type="submit"
-                    class="w-full md:w-64 px-6 py-3 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d] transition"
-                >
-                    Crear un activo
-                </button>
-
-                <a
-                    href="{{ route('assets.index') }}"
-                    class="ml-3 inline-block px-6 py-3 rounded-md bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200 transition"
-                >
+            <div class="mt-6 flex justify-end gap-3">
+                <a href="{{ route('assets.index') }}"
+                class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">
                     Cancelar
                 </a>
+
+                <button type="submit"
+                        class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
+                    Crear activo
+                </button>
             </div>
         </form>
     </div>

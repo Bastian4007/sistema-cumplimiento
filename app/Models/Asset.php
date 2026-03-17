@@ -19,6 +19,7 @@ class Asset extends Model
         'name',
         'code',
         'location',
+        'vault_location',
         'responsible_user_id',
         'status',
         'compliance_start_date',

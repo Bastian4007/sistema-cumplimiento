@@ -34,8 +34,12 @@ class RequirementTaskController extends Controller
             'documentSection' => false,
         ];
 
-        return view('tasks.show', compact('requirement', 'task', 'navContext'));
+        return redirect()->route('assets.requirements.show', [
+            $requirement->asset,
+            $requirement,
+        ]);
     }
+
     private function guardRequirement(AssetRequirement $requirement): void
     {
         abort_unless($requirement->company_id === auth()->user()->company_id, 403);

@@ -24,6 +24,8 @@ class UpdateAssetRequest extends FormRequest
             'code' => ['nullable', 'string', 'max:100'],
             'location' => ['nullable', 'string', 'max:255'],
 
+            'vault_location' => ['nullable', 'string', 'max:255'],
+
             'responsible_user_id' => [
             'nullable',
             'integer',
