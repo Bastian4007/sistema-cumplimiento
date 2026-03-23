@@ -26,6 +26,9 @@ class AssetRequirement extends Model
         'issued_at',
         'expires_at',
         'current_document_id',
+        'recurrence_interval',
+        'recurrence_unit',
+        'recurrence_anchor',
     ];
 
     protected $casts = [

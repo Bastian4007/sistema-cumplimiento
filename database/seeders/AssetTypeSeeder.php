@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\AssetType;
 
@@ -11,15 +10,13 @@ class AssetTypeSeeder extends Seeder
     public function run(): void
     {
         $types = [
-            'ATQ',
-            'Pipa',
-            'Plantas',
-            'Muelles',
-            'ES',
+            'Almacenamiento',
+            'Comercialización',
             'EC',
-            'Terminal',
+            'ES',
+            'Importación',
+            'Plantas',
             'Transporte',
-            'Documentos',
         ];
 
         foreach ($types as $name) {

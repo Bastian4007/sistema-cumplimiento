@@ -42,6 +42,36 @@
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Código del activo</label>
+                    <input type="text" 
+                            name="code" 
+                            id="code" 
+                            placeholder="Ej. LP/26139/ALM/2024"
+                            value="{{ old('code') }}"
+                            class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                            required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Selecciona un tipo</label>
+                    <select
+                        name="asset_type_id"
+                        class="{{ $selectClass }}"
+                        required
+                    >
+                        <option value="">-- Selecciona tipo --</option>
+
+                        @foreach($assetTypes as $type)
+                            <option value="{{ $type->id }}" @selected((string) old('asset_type_id') === (string) $type->id)>
+                                {{ $type->name }}
+                            </option>
+                        @endforeach
+                    </select>
+
+                    @error('asset_type_id')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
 
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Selecciona un responsable</label>
@@ -84,24 +114,19 @@
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>
-
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Selecciona un tipo</label>
-                    <select
-                        name="asset_type_id"
-                        class="{{ $selectClass }}"
-                        required
+                    <label for="vault_location" class="block text-sm font-medium text-gray-700">
+                        Bóveda documental
+                    </label>
+                    <input
+                        type="text"
+                        name="vault_location"
+                        id="vault_location"
+                        value="{{ old('vault_location') }}"
+                        class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-[#1A428A] focus:ring-[#1A428A] text-sm"
+                        placeholder="Ej. Bóveda A - Estante 3"
                     >
-                        <option value="">-- Selecciona tipo --</option>
-
-                        @foreach($assetTypes as $type)
-                            <option value="{{ $type->id }}" @selected((string) old('asset_type_id') === (string) $type->id)>
-                                {{ $type->name }}
-                            </option>
-                        @endforeach
-                    </select>
-
-                    @error('asset_type_id')
+                    @error('vault_location')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>
@@ -130,23 +155,6 @@
                         required
                     >
                     @error('compliance_due_date')
-                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div class="md:col-span-2">
-                    <label for="vault_location" class="block text-sm font-medium text-gray-700">
-                        Bóveda documental
-                    </label>
-                    <input
-                        type="text"
-                        name="vault_location"
-                        id="vault_location"
-                        value="{{ old('vault_location') }}"
-                        class="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-[#1A428A] focus:ring-[#1A428A] text-sm"
-                        placeholder="Ej. Bóveda A - Estante 3"
-                    >
-                    @error('vault_location')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>

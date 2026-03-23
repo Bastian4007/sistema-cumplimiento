@@ -22,8 +22,8 @@
                 <select name="status"
                         class="w-full rounded-md border-gray-300 text-sm">
                     <option value="">Todos</option>
-                    <option value="active" @selected(request('status')==='active')>Activos</option>
-                    <option value="inactive" @selected(request('status')==='inactive')>Inactivos</option>
+                    <option value="active" @selected(request('status')==='active')>Operación</option>
+                    <option value="inactive" @selected(request('status')==='inactive')>Sin operación</option>
                 </select>
             </div>
 
@@ -143,7 +143,7 @@
                             </tr>
                         @empty
                             <tr class="border-t">
-                                <td colspan="4" class="px-6 py-6 text-center text-gray-500">
+                                <td colspan="6" class="px-6 py-6 text-center text-gray-500">
                                     No hay activos para este filtro.
                                 </td>
                             </tr>

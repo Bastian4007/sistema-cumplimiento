@@ -10,6 +10,10 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use App\Enums\RequirementStatus;
+use App\Models\RequirementTemplate;
+use App\Models\AssetRequirement;
+use Illuminate\Support\Facades\DB;
+use App\Enums\TaskStatus;
 
 class AssetController extends Controller
 {
@@ -117,39 +121,90 @@ class AssetController extends Controller
         $data = $request->validated();
         $companyId = (int) $request->user()->company_id;
 
-        if (empty($data['code'])) {
-            $namePart = Str::upper(Str::substr(Str::slug($data['name'], ''), 0, 10)); 
+        if (!empty($data['code'])) {
+            $data['code'] = Str::upper(trim($data['code']));
+        }
 
-            $type = \App\Models\AssetType::find($data['asset_type_id']);
+        if (empty($data['code'])) {
+            $namePart = Str::upper(Str::substr(Str::slug($data['name'], ''), 0, 10));
+
+            $type = AssetType::find($data['asset_type_id']);
             $typePart = $type?->code
-                ? Str::upper(Str::slug($type->code, ''))         
-                : Str::upper(Str::substr(Str::slug($type?->name ?? 'TIPO', ''), 0, 6)); 
+                ? Str::upper(Str::slug($type->code, ''))
+                : Str::upper(Str::substr(Str::slug($type?->name ?? 'TIPO', ''), 0, 6));
 
             $prefix = "{$namePart}-{$typePart}-";
 
             $last = Asset::query()
                 ->where('company_id', $companyId)
-                ->where('code', 'like', $prefix.'%')
+                ->where('code', 'like', $prefix . '%')
                 ->orderBy('code', 'desc')
                 ->value('code');
 
             $nextNumber = 1;
+
             if ($last) {
                 $lastNumber = (int) Str::afterLast($last, '-');
                 $nextNumber = $lastNumber + 1;
             }
 
-            $data['code'] = $prefix . str_pad((string)$nextNumber, 3, '0', STR_PAD_LEFT);
+            $data['code'] = $prefix . str_pad((string) $nextNumber, 3, '0', STR_PAD_LEFT);
         }
 
-        $asset = Asset::create([
-            'company_id' => $companyId,
-            ...$data,
-        ]);
+        $asset = DB::transaction(function () use ($companyId, $data) {
+            $asset = Asset::create([
+                'company_id' => $companyId,
+                ...$data,
+            ]);
+
+            $this->createRequirementsFromTemplates($asset);
+
+            return $asset;
+        });
 
         return redirect()
             ->route('assets.show', $asset)
             ->with('status', 'Activo creado.');
+    }
+
+    private function createRequirementsFromTemplates(Asset $asset): void
+    {
+        $templates = RequirementTemplate::query()
+            ->where('asset_type_id', $asset->asset_type_id)
+            ->orderBy('id')
+            ->get();
+
+        foreach ($templates as $template) {
+            $requirement = AssetRequirement::firstOrCreate(
+                [
+                    'asset_id' => $asset->id,
+                    'requirement_template_id' => $template->id,
+                ],
+                [
+                    'company_id' => $asset->company_id,
+                    'status' => RequirementStatus::PENDING,
+                    'due_date' => $asset->compliance_due_date,
+                    'compliance_scope' => $template->compliance_scope ?? 'project',
+                    'completed_at' => null,
+                    'issued_at' => null,
+                    'expires_at' => null,
+                    'type' => 'initial',
+                    'current_document_id' => null,
+                ]
+            );
+
+            if (!$requirement->tasks()->exists()) {
+                $requirement->tasks()->create([
+                    'title' => 'Subir documento principal (permiso/obligación)',
+                    'description' => 'Adjunta el documento oficial requerido para este requerimiento.',
+                    'status' => \App\Enums\TaskStatus::PENDING,
+                    'due_date' => $requirement->due_date,
+                    'requires_document' => false,
+                    'type' => 'initial',
+                    'completed_at' => null,
+                ]);
+            }
+        }
     }
 
     private function generateAssetCode(int $companyId): string
@@ -172,20 +227,18 @@ class AssetController extends Controller
         $scope = request()->get('scope', 'project');
 
         $requirements = $asset->requirements()
-            ->when($scope === 'project', fn($q) => $q->where('compliance_scope', 'project'))
-            ->when($scope === 'operation', fn($q) => $q->where('compliance_scope', 'operation'))
+            ->when($scope === 'project', fn ($q) => $q->where('compliance_scope', 'project'))
+            ->when($scope === 'operation', fn ($q) => $q->where('compliance_scope', 'operation'))
+            ->with('template')
+            ->withCount([
+                'tasks as tasks_total',
+                'tasks as tasks_done' => fn ($t) => $t->whereNotNull('completed_at'),
+            ])
             ->get();
 
         $asset->load([
             'assetType',
             'responsible',
-            'requirements' => function ($q) {
-                $q->with('template')
-                ->withCount([
-                    'tasks as tasks_total',
-                    'tasks as tasks_done' => fn ($t) => $t->whereNotNull('completed_at'),
-                ]);
-            },
         ]);
 
         $navContext = [

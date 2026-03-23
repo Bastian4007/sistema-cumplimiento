@@ -11,14 +11,20 @@ class RequirementTemplate extends Model
     use HasFactory;
 
     protected $fillable = [
-        'company_id',
+        'asset_type_id',
         'name',
-        'description'
+        'description',
+        'compliance_scope',
     ];
 
     public function company()
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function assetType()
+    {
+        return $this->belongsTo(AssetType::class);
     }
 
     public function assetRequirements()
