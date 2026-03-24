@@ -1,0 +1,50 @@
+﻿#,Documento,FRECUENCIA DEL PERMISO,Aplica para:,AUTORIDAD,TIPO DE DOCUMENTO,Si/NO/NA,FECHA COMPROMISO PARA CONTAR CON DOC FALTANTE: ,ÁREA RESPONSABLE TRÁMITE
+1,Alta como establecimiento en el SAT,único,CN,SAT,PDF,,,Administración
+2,Permiso de expendio de petrolíferos CRE/CNE,30 años,CN y OP,CNE,PDF,,,Licencias y Permisos
+3,Autorización de inicio de operaciones (permisos emitidos a partir de 2025),único,CN,CNE,,,,Licencias y Permisos
+4,Resolución de Modificación del título de permiso CRE/CNE (cesión),único,OP,CNE,PDF,,,Licencias y Permisos
+5,"Resolutivo de Modificación emitida por CRE/CNE adicionar o eliminar dispensarios, tanques o modificación estructural adicional a ES + solicitud + acuse OPE",único,OP,CNE,PDF,,,Licencias y Permisos
+6,Resolución de Modificación del título de permiso CRE/CNE estructura accionaria/ cambio de control,único,OP,CNE,PDF,,,Licencias y Permisos
+7,Resolutivo de Actualización emitida por CRE/CNE de actualización de estructura accionaria SIN cambio de control + solicitud + acuse OPE,único,OP,CNE,PDF,,,Licencias y Permisos
+8,Resolutivo de Actualización emitida por CRE/CNE de adición o eliminación de producto + solicitud + acuse OPE,único,OP,CNE,PDF,,,Licencias y Permisos
+9,Registro SASISOPA,único,CN,ASEA,Original,,,Crecimiento
+10,Sistema de Administración de Seguridad Industrial (SASISOPA) implementado,,,,,,,
+11,Auditoría SASISOPA anual,,,,,,,
+12,Informe de desempeño anual SASISOPA + acuse de cumplimiento autoridad,anual,OP,ASEA,PDF,,,Operaciones
+13,Pago supervisión anual CNE 2017  + hoja de ayuda + acuse de cumplimiento autoridad,anual,OP,CNE,PDF,,,Licencias y Permisos
+14,Pago supervisión anual CRE 2018 + hoja de ayuda + acuse de cumplimiento autoridad,anual,OP,CNE,PDF,,,Licencias y Permisos
+15,Pago supervisión anual CRE 2019  + hoja de ayuda + acuse de cumplimiento autoridad,anual,OP,CNE,PDF,,,Licencias y Permisos
+16,Pago supervisión anual CNE 2020  + hoja de ayuda + acuse de cumplimiento autoridad,anual,OP,CNE,PDF,,,Licencias y Permisos
+17,Pago supervisión anual CRE 2021  + hoja de ayuda + acuse de cumplimiento autoridad,anual,OP,CNE,PDF,,,Licencias y Permisos
+18,Pago supervisión anual CRE 2022  + hoja de ayuda + acuse de cumplimiento autoridad,anual,OP,CNE,PDF,,,Licencias y Permisos
+19,Pago supervisión anual CNE 2023  + hoja de ayuda + acuse de cumplimiento autoridad,anual,OP,CNE,PDF,,,Licencias y Permisos
+20,Pago supervisión anual CRE 2024  + hoja de ayuda + acuse de cumplimiento autoridad,anual,OP,CNE,PDF,,,Licencias y Permisos
+21,Pago supervisión anual CRE 2025  + hoja de ayuda + acuse de cumplimiento autoridad,anual,OP,CNE,PDF,,,Licencias y Permisos
+22,Pago supervisión anual CNE 2026  + hoja de ayuda + acuse de cumplimiento autoridad,anual,OP,CNE,PDF,,,Licencias y Permisos
+23,Acuse de estructura accionaria OPE/CNE 2017,anual,OP,CNE,PDF,,,Licencias y Permisos
+24,Acuse de estructura accionaria OPE/CRE 2018,anual,OP,CNE,PDF,,,Licencias y Permisos
+25,Acuse de estructura accionaria OPE/CRE 2019,anual,OP,CNE,PDF,,,Licencias y Permisos
+26,Acuse de estructura accionaria OPE/CNE 2020,anual,OP,CNE,PDF,,,Licencias y Permisos
+27,Acuse de estructura accionaria OPE/CRE 2021,anual,OP,CNE,PDF,,,Licencias y Permisos
+28,Acuse de estructura accionaria OPE/CRE 2022,anual,OP,CNE,PDF,,,Licencias y Permisos
+29,Acuse de estructura accionaria OPE/CNE 2023,anual,OP,CNE,PDF,,,Licencias y Permisos
+30,Acuse de estructura accionaria OPE/CRE 2024,anual,OP,CNE,PDF,,,Licencias y Permisos
+31,Acuse de estructura accionaria OPE/CRE 2025,anual,OP,CNE,PDF,,,Licencias y Permisos
+32,Acuse de estructura accionaria OPE/CNE 2026,anual,OP,CNE,PDF,,,Licencias y Permisos
+33,Sistema de Gestión de Medición + implementación,anual,OP,ASEA,Original,,,Operaciones
+34,Reporte control volumetrico mensual SAT,mensual,OP,SAT,Original,,,Operaciones
+35,Acuse Dictamen control volumetrico SAT 2024,anual,OP,SAT,Original,,,Operaciones
+36,Acuse Dictamen control volumetrico SAT 2025,anual,OP,SAT,Original,,,Operaciones
+37,Acuse Dictamen control volumetrico SAT 2026,anual,OP,SAT,Original,,,Operaciones
+38,Reporte de cumplimiento semanal,semanal,OP,CNE,,,,Licencias y Permisos
+39,Due diligence obligatorio: Verificación documental previa a cualquier VENTA.,trimestral,OP,CNE,,,,Licencias y Permisos
+40,Contratos por cada cliente ,trimestral,OP,CNE,,,,Licencias y Permisos
+41,Contratos por cada compra,trimestral,OP,CNE,,,,Licencias y Permisos
+42,Autorización de Registro de marca,único,OP,CNE,,,,Licencias y Permisos
+43,"Acuse trimestral a partir de 2026 de entrega de información (contratos logisticos, inventarios y relaciones comerciales)",trimestral,OP,CNE,,,,Licencias y Permisos
+44,Acuse de reporte trimestral de facturacion de compra venta de producto,trimestral,OP,CNE,,,,Licencias y Permisos
+45,Acuse de reporte de desglose anual de costos unitarios y margenes operativos,anual,OP,CNE,,,,Licencias y Permisos
+46,Acuse de reporte de confirmación del domicilio fiscal,semestral,OP,CNE,,,,Licencias y Permisos
+47,Aviso de impedimento de siministro ,cuando aplique,OP,CNE,,,,Licencias y Permisos
+48,Solicitar la actualización formal ante la CNE.,cuando aplique,OP,CNE,,,,Licencias y Permisos
+49,Tickets de cumplimiento de Politica Pública de Almacenamiento,mensual,OP,CNE,,,,Licencias y Permisos

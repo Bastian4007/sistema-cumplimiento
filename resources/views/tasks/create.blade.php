@@ -21,7 +21,9 @@
 
         <a href="{{ route('assets.requirements.show', [$requirement->asset_id, $requirement->id]) }}"
            class="text-gray-600 hover:underline">
-            {{ $requirement->template?->name ?? 'Requerimiento' }}
+                <x-truncate max="max-w-[400px]" class="font-semibold text-gray-700">
+                    {{ $requirement->template?->name ?? $requirement->type }}
+                </x-truncate>
         </a>
 
         <span class="text-gray-400">›</span>

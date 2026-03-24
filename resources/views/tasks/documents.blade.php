@@ -20,7 +20,9 @@
 
     <a href="{{ route('assets.requirements.show', [$asset->id, $requirement->id]) }}"
        class="text-gray-600 hover:underline">
-        {{ $requirement->template?->name ?? $requirement->type ?? 'Requerimiento' }}
+        <x-truncate max="max-w-[400px]" class="font-semibold text-gray-700">
+            {{ $requirement->template?->name ?? $requirement->type }}
+        </x-truncate>
     </a>
 
     <span class="text-gray-400">›</span>
@@ -61,14 +63,14 @@ $assetInactive = ($asset->status ?? null) === 'inactive'
 
                 · Carpeta:
 
-                <span class="font-semibold text-gray-700">
+                <x-truncate max="max-w-[700px]" class="font-semibold text-gray-700">
                     {{ $requirement->template?->name ?? $requirement->type }}
-                </span>
+                </x-truncate>
             </div>
 
             <span class="inline-flex text-xs px-3 py-1 rounded border
                 {{ $assetInactive ? 'bg-gray-100 text-gray-700 border-gray-300' : 'bg-green-50 text-green-700 border-green-200' }}">
-                {{ $assetInactive ? 'ASSET INACTIVO' : 'ASSET ACTIVO' }}
+                {{ $assetInactive ? 'ASSET SIN OPERACIÓN' : 'ASSET OPERANDO' }}
             </span>
         </div>
 

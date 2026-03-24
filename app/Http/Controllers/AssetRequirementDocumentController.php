@@ -135,63 +135,143 @@ class AssetRequirementDocumentController extends Controller
             abort(403, 'Asset inactive');
         }
 
-        if ($this->disk()->exists($document->file_path)) {
-            $this->disk()->delete($document->file_path);
-        }
+        \DB::transaction(function () use ($requirement, $document) {
+            $requirement = AssetRequirement::query()
+                ->whereKey($requirement->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $document->delete();
+            $document = AssetRequirementDocument::query()
+                ->whereKey($document->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        $requirement->refresh();
+            $wasCurrent = (bool) $document->is_current;
 
-        $remaining = $requirement->documents()->count();
+            if ($this->disk()->exists($document->file_path)) {
+                $this->disk()->delete($document->file_path);
+            }
 
-        if ($remaining === 0) {
-            $requirement->update([
-                'status' => RequirementStatus::IN_PROGRESS,
-                'completed_at' => null,
-                'issued_at' => null,
-                'expires_at' => null,
-            ]);
-        }
+            $document->delete();
 
-        return back()->with('status', 'Documento eliminado.');
+            if (! $wasCurrent) {
+                return;
+            }
+
+            $replacement = AssetRequirementDocument::query()
+                ->where('asset_requirement_id', $requirement->id)
+                ->orderByDesc('version_number')
+                ->orderByDesc('id')
+                ->first();
+
+            if ($replacement) {
+                AssetRequirementDocument::query()
+                    ->where('asset_requirement_id', $requirement->id)
+                    ->update([
+                        'is_current' => false,
+                    ]);
+
+                $replacement->update([
+                    'is_current' => true,
+                    'status' => 'active',
+                    'replaced_by_document_id' => null,
+                ]);
+
+                $requirement->update([
+                    'status' => RequirementStatus::COMPLETED,
+                    'completed_at' => $requirement->completed_at ?: now(),
+                    'issued_at' => $replacement->issued_at,
+                    'expires_at' => $replacement->expires_at,
+                    'current_document_id' => $replacement->id,
+                ]);
+
+                $this->syncRenewalTaskFromCurrentDocument($requirement, $replacement);
+            } else {
+                $requirement->update([
+                    'status' => RequirementStatus::IN_PROGRESS,
+                    'completed_at' => null,
+                    'issued_at' => null,
+                    'expires_at' => null,
+                    'current_document_id' => null,
+                ]);
+
+                $this->deleteOpenRenewalTasks($requirement);
+            }
+        });
+
+        return back()->with('status', 'Documento eliminado correctamente.');
     }
 
-    private function createRenewalTask(Asset $asset, AssetRequirement $requirement, string $expiresAt): void
+    private function deleteOpenRenewalTasks(AssetRequirement $requirement): void
     {
-        $requirementName = $requirement->template?->name ?? $requirement->type ?? 'Requerimiento';
-        $title = 'Renovar ' . $requirementName;
+        Task::query()
+            ->where('asset_requirement_id', $requirement->id)
+            ->where('type', Task::TYPE_RENEWAL)
+            ->whereIn('status', [
+                TaskStatus::PENDING,
+                TaskStatus::IN_PROGRESS,
+            ])
+            ->whereNull('completed_at')
+            ->delete();
+    }
 
-        // 60 días antes del vencimiento
-        $dueDate = Carbon::parse($expiresAt)->subDays(60);
+    private function syncRenewalTaskFromCurrentDocument(
+        AssetRequirement $requirement,
+        AssetRequirementDocument $document
+    ): void {
+        if (! $document->expires_at) {
+            $this->deleteOpenRenewalTasks($requirement);
+            return;
+        }
+
+        $dueDate = Carbon::parse($document->expires_at)->subDays(60);
 
         if ($dueDate->isPast()) {
             $dueDate = Carbon::today()->addDay();
         }
 
-        $alreadyExists = Task::query()
-            ->where('asset_requirement_id', $requirement->id)
-            ->where('title', $title)
-            ->whereNull('completed_at')
-            ->exists();
+        $title = $requirement->template?->name ?? $requirement->type;
+        $expectedTitle = 'Renovar ' . $title . ' ' . $dueDate->year;
 
-        if ($alreadyExists) {
+        $openRenewalTasks = Task::query()
+            ->where('asset_requirement_id', $requirement->id)
+            ->where('type', Task::TYPE_RENEWAL)
+            ->whereIn('status', [
+                TaskStatus::PENDING,
+                TaskStatus::IN_PROGRESS,
+            ])
+            ->whereNull('completed_at')
+            ->get();
+
+        if ($openRenewalTasks->isEmpty()) {
+            $task = Task::create([
+                'asset_requirement_id' => $requirement->id,
+                'title' => $expectedTitle,
+                'description' => 'Renovación automática ajustada al documento oficial actual.',
+                'type' => Task::TYPE_RENEWAL,
+                'status' => TaskStatus::PENDING,
+                'due_date' => $dueDate->toDateString(),
+                'requires_document' => false,
+            ]);
+
+            $responsibleUserId = $requirement->asset?->responsible_user_id;
+            if ($responsibleUserId) {
+                $task->users()->sync([$responsibleUserId]);
+            }
+
             return;
         }
 
-        $task = Task::create([
-            'asset_requirement_id' => $requirement->id,
-            'title' => $title,
-            'description' => 'Renovación automática del documento oficial del requerimiento.',
-            'due_date' => $dueDate->toDateString(),
-            'requires_document' => true,
-            'status' => TaskStatus::PENDING,
-            'completed_at' => null,
-            'completed_by' => null,
-        ]);
-
-        if ($asset->responsible_user_id) {
-            $task->users()->sync([$asset->responsible_user_id]);
+        foreach ($openRenewalTasks as $index => $task) {
+            if ($index === 0) {
+                $task->update([
+                    'title' => $expectedTitle,
+                    'description' => 'Renovación automática ajustada al documento oficial actual.',
+                    'due_date' => $dueDate->toDateString(),
+                ]);
+            } else {
+                $task->delete();
+            }
         }
     }
 
@@ -207,10 +287,5 @@ class AssetRequirementDocumentController extends Controller
         if ((int) $document->asset_requirement_id !== (int) $requirement->id) {
             abort(404);
         }
-    }
-
-    private function safeFilename(string $name): string
-    {
-        return preg_replace('/[^A-Za-z0-9\.\-\_\s]/', '', $name) ?: 'document';
     }
 }

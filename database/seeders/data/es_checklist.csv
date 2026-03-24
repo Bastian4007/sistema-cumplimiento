@@ -1,0 +1,36 @@
+﻿#,PERMISO,FRECUENCIA DEL PERMISO,Aplica para:,AUTORIDAD,Requerido en ES,ÁREA RESPONSABLE TRÁMITE
+12,Licencia de Anuncios,anual,CN y OP,MUNICIPIO,SI,Crecimiento
+14,Dictamen Favorable Estudio de Riesgo Protección Civil Estatal (Analisis de riesgo) ,único,CN,ESTADO,SI,Crecimiento
+19,Programa Interno de Protección Civil ,anual,CN y OP,MUNICIPIO,SI,Crecimiento
+20,Programa de Prevención de Accidentes (PPA),anual,CN y OP,MUNICIPIO,SI,Crecimiento
+21,Aviso de Funcionamiento Cofepris,único,CN,SALUD,SI,Administración
+22,Carpeta STPS,único,CN y OP,STPS,SI,Crecimiento
+23,Modelo prototipo dispensario,único,CN,PROFECO/SE,SI,Crecimiento
+24,Dictamen de calibración de medidores dispensario ( Semestral),semestral,CN y OP,PROFECO,SI,Crecimiento
+25,Modelo prototipo software dispensario ( NOM-185-SCFI-2011) Único,único,CN,PROFECO/SE,SI,Crecimiento
+26,Formato de control a distancia,,CN,PROFECO,SI,Crecimiento
+30,"Prueba de hermeticidad tanques ( nueva cada 5 años, después de 6 anual)",cada 5 años,CN y OP,ASEA,SI,Operaciones
+31,Permiso de expendio de petrolíferos CRE/CNE,30 años,CN y OP,CNE,SI,Licencias y Permisos
+32,Resolución de Modificación del título de permiso CRE/CNE (cesión),único,OP,CNE,SI,Licencias y Permisos
+33,"Resolutivo de Modificación emitida por CRE/CNE adicionar o eliminar dispensarios, tanques o modificación estructural adicional a ES + solicitud + acuse OPE",único,OP,CNE,SI,Licencias y Permisos
+34,Resolución de Modificación del título de permiso CRE/CNE estructura accionaria/ cambio de control,único,OP,CNE,SI,Licencias y Permisos
+35,Resolutivo de Actualización emitida por CRE/CNE de actualización de estructura accionaria SIN cambio de control + solicitud + acuse OPE,único,OP,CNE,SI,Licencias y Permisos
+36,Resolutivo de Actualización emitida por CRE/CNE de adición o eliminación de producto + solicitud + acuse OPE,único,OP,CNE,SI,Licencias y Permisos
+37,Manifestación de Impacto Ambiental  + Estudio Técnico Justificativo + condicionantes desahogadas,30 años,CN,ASEA,SI,Licencias y Permisos
+38,Informe Preventivo + condicionantes,30 años,CN,ASEA,SI,Licencias y Permisos
+42,Dictamen de operación y mantenimiento NOM-ASEA-2016,anual,OP,ASEA,SI,Operaciones
+43,Registro Generador de Residuos Peligrosos,único,CN,ASEA,SI,Crecimiento
+44,Registro Generador de Residuos Manejo Especial,único,CN,ESTADO,SI,Crecimiento
+45,Registro de Almacenamiento de Materiales Peligrosos,anual,CN,ESTADO,SI,Operaciones
+46,Licencia Ambiental Única (LAU),único,CN,ASEA,SI,Crecimiento
+48,Registro SASISOPA,único,CN,ASEA,SI,Crecimiento
+49,Informe de desempeño anual SASISOPA + acuse de cumplimiento autoridad,anual,OP,ASEA,SI,Operaciones
+50,Bitácora de Lecturas de Explosividad,mensual,CN y OP,ESTADO,SI,Operaciones
+70,Póliza de seguro de responsabilidad Civil 2026 + acuse de cumplimiento autoridad,anual,OP,CNE,SI,Administración
+80,Póliza de seguro de responsabilidad Ambiental 2026 + acuse de cumplimiento autoridad,anual,OP,ASEA,SI,Administración
+108,Muestreo de laboratorio de calidad de petrolíferos NOM-016-CRE  2026 1er  semestre + acuse de cumplimiento autoridad,semestral,OP,CNE/ASEA,SI,Operaciones
+109,Muestreo de laboratorio de calidad de petrolíferos NOM-016-CRE  2026 2er  semestre + acuse de cumplimiento autoridad,semestral,OP,CNE/ASEA,SI,Operaciones
+119,Dictamen de calidad de petrolíferos NOM-016-CRE  2026  + acuse de cumplimiento a autoridad,anual,OP,CNE,SI,Operaciones
+120,Dictamen Inicio operaciones Sistema Recuperación de Vapores NOM-004-ASEA-2017,anual,CN y OP,ASEA,SI,Operaciones
+128,Dictamen Sistema recuperación de vapores NOM-004-ASEA-2017  2026,anual,OP,ASEA,SI,Operaciones
+129,Sistema de Gestión de Medición + implementación,anual,OP,ASEA,SI,Operaciones

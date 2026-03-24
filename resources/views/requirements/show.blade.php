@@ -14,7 +14,9 @@
         <span class="text-gray-400">›</span>
 
         <span class="text-gray-700 font-medium">
-            {{ $requirement->template?->name ?? 'Requerimiento' }}
+            <x-truncate max="max-w-[400px]" class="font-semibold text-gray-700">
+                {{ $requirement->template?->name ?? $requirement->type }}
+            </x-truncate>
         </span>
     </x-slot>
 
@@ -55,16 +57,19 @@
     <div class="bg-white rounded-xl shadow p-6">
 
         {{-- Header: Titulo + badges + acciones --}}
-        <div class="flex items-start justify-between gap-6">
-            <div>
+        <div class="flex items-start justify-between gap-6 flex-wrap">
+            <div class="space-y-1 max-w-[70%]">
                 <h1 class="text-2xl font-bold text-[#1A428A]">
-                    {{ $asset->name }} - {{ $requirement->template?->name ?? $requirement->type }}
+                    {{ $asset->name }} -
+                    <x-truncate max="max-w-[600px]">
+                        {{ $requirement->template?->name ?? $requirement->type }}
+                    </x-truncate>
                 </h1>
 
                 <div class="mt-2 flex items-center gap-2 flex-wrap">
                     <span class="text-xs px-3 py-1 rounded border
                         {{ $assetInactive ? 'bg-gray-100 text-gray-700 border-gray-300' : 'bg-green-50 text-green-700 border-green-200' }}">
-                        {{ $assetInactive ? 'INACTIVO' : 'ACTIVO' }}
+                        {{ $assetInactive ? 'Sin Operación' : 'Operando' }}
                     </span>
 
                     <span class="text-xs px-3 py-1 rounded border
@@ -75,7 +80,7 @@
             </div>
 
             {{-- Acciones superiores --}}
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 shrink-0">
                 <a href="{{ route('assets.requirements.history', [$asset, $requirement]) }}"
                    class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
                     Ver historial
@@ -131,14 +136,6 @@
                 <div class="space-y-1">
                     <div><strong>Progreso:</strong> {{ $requirement->progress }}%</div>
                     <div><strong>Tareas:</strong> {{ $requirement->tasks_done }}/{{ $requirement->tasks_total }}</div>
-                    <div>
-                        <strong>Recurrencia:</strong>
-                        @if($requirement->isRecurrent())
-                            {{ $requirement->recurrenceLabel() }}
-                        @else
-                            No recurrente
-                        @endif
-                    </div>
                     <div>
                         <strong>Bóveda:</strong> {{ $asset->vault_location ?: 'No asignada' }}
                     </div>

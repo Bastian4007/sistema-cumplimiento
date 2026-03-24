@@ -23,6 +23,7 @@ class UploadOfficialDocumentService
     ): AssetRequirementDocument {
         return DB::transaction(function () use ($requirement, $file, $issuedAt, $expiresAt, $notes) {
             $requirement = AssetRequirement::query()
+                ->with(['asset', 'template'])
                 ->whereKey($requirement->id)
                 ->lockForUpdate()
                 ->firstOrFail();
@@ -77,10 +78,7 @@ class UploadOfficialDocumentService
             ]);
 
             $this->completeOpenRenewalTask($requirement);
-
-            if ($newDocument->expires_at) {
-                $this->createNextRenewalTask($requirement, $newDocument);
-            }
+            $this->syncNextRenewalTask($requirement, $newDocument);
 
             return $newDocument;
         });
@@ -94,6 +92,8 @@ class UploadOfficialDocumentService
                 TaskStatus::PENDING,
                 TaskStatus::IN_PROGRESS,
             ])
+            ->whereNull('completed_at')
+            ->orderBy('due_date')
             ->orderBy('id')
             ->first();
 
@@ -104,47 +104,87 @@ class UploadOfficialDocumentService
         $task->update([
             'status' => TaskStatus::COMPLETED,
             'completed_at' => now(),
+            'completed_by' => Auth::id(),
         ]);
     }
 
-    protected function createNextRenewalTask(
+    protected function syncNextRenewalTask(
         AssetRequirement $requirement,
         AssetRequirementDocument $document
     ): void {
         if (! $document->expires_at) {
+            $this->deleteOpenRenewalTasks($requirement);
             return;
         }
 
         $dueDate = Carbon::parse($document->expires_at)->subDays(60);
 
-        $alreadyExists = $requirement->tasks()
+        if ($dueDate->isPast()) {
+            $dueDate = Carbon::today()->addDay();
+        }
+
+        $titleBase = $requirement->template?->name ?? $requirement->type ?? 'Requerimiento';
+        $expectedTitle = 'Renovar ' . $titleBase . ' ' . $dueDate->year;
+        $responsibleUserId = $requirement->asset?->responsible_user_id;
+
+        $openTasks = $requirement->tasks()
             ->where('type', Task::TYPE_RENEWAL)
-            ->whereDate('due_date', $dueDate->toDateString())
             ->whereIn('status', [
                 TaskStatus::PENDING,
                 TaskStatus::IN_PROGRESS,
             ])
-            ->exists();
-            
-        if ($alreadyExists) {
+            ->whereNull('completed_at')
+            ->orderBy('due_date')
+            ->orderBy('id')
+            ->get();
+
+        if ($openTasks->isEmpty()) {
+            $task = Task::create([
+                'asset_requirement_id' => $requirement->id,
+                'title' => $expectedTitle,
+                'description' => 'Renovación automática generada al registrar una nueva versión del documento oficial.',
+                'type' => Task::TYPE_RENEWAL,
+                'status' => TaskStatus::PENDING,
+                'due_date' => $dueDate->toDateString(),
+                'requires_document' => false,
+            ]);
+
+            if ($responsibleUserId) {
+                $task->users()->sync([$responsibleUserId]);
+            }
+
             return;
         }
 
-        $title = $requirement->template?->name ?? $requirement->type;
-        $responsibleUserId = $requirement->asset?->responsible_user_id;
+        $keeper = $openTasks->first();
 
-        $task = Task::create([
-            'asset_requirement_id' => $requirement->id,
-            'title' => 'Renovar ' . $title .' ' . $dueDate->year,
+        $keeper->update([
+            'title' => $expectedTitle,
             'description' => 'Renovación automática generada al registrar una nueva versión del documento oficial.',
-            'type' => Task::TYPE_RENEWAL,
             'status' => TaskStatus::PENDING,
             'due_date' => $dueDate->toDateString(),
-            'requires_document' => false,
+            'completed_at' => null,
+            'completed_by' => null,
         ]);
 
         if ($responsibleUserId) {
-            $task->users()->sync([$responsibleUserId]);
+            $keeper->users()->sync([$responsibleUserId]);
         }
+
+        foreach ($openTasks->slice(1) as $duplicate) {
+            $duplicate->delete();
+        }
+    }
+
+    protected function deleteOpenRenewalTasks(AssetRequirement $requirement): void
+    {
+        $requirement->tasks()
+            ->where('type', Task::TYPE_RENEWAL)
+            ->whereIn('status', [
+                TaskStatus::PENDING,
+                TaskStatus::IN_PROGRESS,
+            ])
+            ->whereNull('completed_at')
+            ->delete();
     }
 }

@@ -18,7 +18,9 @@
         <span class="text-gray-400">›</span>
 
         <a href="{{ route('assets.requirements.show', [$asset, $requirement]) }}" class="text-gray-600 hover:underline">
-            {{ $requirement->template?->name ?? $requirement->type }}
+            <x-truncate max="max-w-[400px]" class="font-semibold text-gray-700">
+                {{ $requirement->template?->name ?? $requirement->type }}
+            </x-truncate>
         </a>
 
         <span class="text-gray-400">›</span>
@@ -54,9 +56,9 @@
 
                 <div class="text-sm text-gray-500">
                     Carpeta:
-                    <span class="font-semibold text-gray-700">
+                    <x-truncate max="max-w-[700px]" class="font-semibold text-gray-700">
                         {{ $requirement->template?->name ?? $requirement->type }}
-                    </span>
+                    </x-truncate>
 
                     · Activo:
 
@@ -67,11 +69,11 @@
 
                 @if($assetInactive)
                     <div class="mt-2 inline-flex items-center text-xs px-3 py-1 rounded border bg-gray-100 text-gray-700 border-gray-300">
-                        Activo desactivado
+                        Activo sin operar
                     </div>
                 @else
                     <div class="mt-2 inline-flex items-center text-xs px-3 py-1 rounded border bg-green-50 text-green-700 border-green-200">
-                        Activo activo
+                        Activo operando
                     </div>
                 @endif
             </div>
@@ -245,18 +247,19 @@
                                 </a>
 
                                 @if(auth()->user()->isOperative())
-                                    <form method="POST"
-                                          action="{{ route('assets.requirements.documents.destroy', [$asset, $requirement, $currentDoc]) }}"
-                                          onsubmit="return confirm('¿Eliminar este documento oficial?')">
-                                        @csrf
-                                        @method('DELETE')
-
-                                        <button type="submit"
-                                            class="px-3 py-2 rounded-md font-semibold text-sm
-                                            {{ $assetInactive ? 'bg-gray-100 text-gray-500 border border-gray-300 pointer-events-none' : 'bg-[#DB0000] text-white hover:bg-red-700' }}">
-                                            Eliminar
-                                        </button>
-                                    </form>
+                                    <button
+                                        type="button"
+                                        onclick="openDeleteDocumentModal(
+                                            '{{ route('assets.requirements.documents.destroy', [$asset, $requirement, $currentDoc]) }}',
+                                            @js($currentDoc->original_name ?? basename($currentDoc->file_path)),
+                                            '{{ $currentDoc->version_number ?? '—' }}'
+                                        )"
+                                        class="px-3 py-2 rounded-md font-semibold text-sm
+                                        {{ $assetInactive ? 'bg-gray-100 text-gray-500 border border-gray-300 pointer-events-none' : 'bg-[#DB0000] text-white hover:bg-red-700' }}"
+                                        {{ $assetInactive ? 'disabled' : '' }}
+                                    >
+                                        Eliminar
+                                    </button>
                                 @endif
                             </div>
                         </div>
@@ -332,6 +335,22 @@
                                     {{ $assetInactive ? 'bg-gray-100 text-gray-500 border-gray-300 pointer-events-none' : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
                                         Descargar
                                     </a>
+
+                                    @if(auth()->user()->isOperative())
+                                        <button
+                                            type="button"
+                                            onclick="openDeleteDocumentModal(
+                                                '{{ route('assets.requirements.documents.destroy', [$asset, $requirement, $historyDoc]) }}',
+                                                @js($historyDoc->original_name ?? basename($historyDoc->file_path)),
+                                                '{{ $historyDoc->version_number ?? '—' }}'
+                                            )"
+                                            class="px-3 py-2 rounded-md font-semibold text-sm
+                                            {{ $assetInactive ? 'bg-gray-100 text-gray-500 border border-gray-300 pointer-events-none' : 'bg-[#DB0000] text-white hover:bg-red-700' }}"
+                                            {{ $assetInactive ? 'disabled' : '' }}
+                                        >
+                                            Eliminar
+                                        </button>
+                                    @endif
                                 </div>
                             </div>
                         @endforeach
@@ -344,4 +363,120 @@
             </div>
         </div>
     </div>
+<div
+    id="deleteDocumentModal"
+    class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 px-4"
+>
+    <div class="w-full max-w-lg rounded-xl bg-white shadow-2xl">
+        <div class="p-6 border-b">
+            <h3 class="text-lg font-bold text-gray-900">
+                Confirmar eliminación
+            </h3>
+            <p class="mt-2 text-sm text-gray-600">
+                Vas a eliminar un documento del historial oficial. Esta acción debe usarse solo para archivos cargados por error.
+            </p>
+        </div>
+
+        <div class="p-6 space-y-4">
+            <div class="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-[#1A428A]">
+                Esta acción eliminará el documento seleccionado. Úsala solo si el archivo fue cargado por error.
+            </div>
+
+            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+                <div>
+                    <span class="font-semibold">Archivo:</span>
+                    <span id="deleteDocumentName">—</span>
+                </div>
+                <div class="mt-1">
+                    <span class="font-semibold">Versión:</span>
+                    <span id="deleteDocumentVersion">—</span>
+                </div>
+            </div>
+
+            <div>
+                <label for="delete_document_confirmation" class="block text-sm font-medium text-gray-700 mb-1">
+                    Escribe <span class="font-bold">ELIMINAR</span> para confirmar
+                </label>
+
+                <input
+                    id="delete_document_confirmation"
+                    type="text"
+                    class="block w-full rounded-md border-gray-300 focus:border-red-600 focus:ring-red-600 text-sm"
+                    placeholder="ELIMINAR"
+                    oninput="validateDeleteDocumentConfirmation()"
+                >
+            </div>
+
+            <form id="deleteDocumentForm" method="POST" class="flex items-center justify-end gap-3">
+                @csrf
+                @method('DELETE')
+
+                <button
+                    type="button"
+                    onclick="closeDeleteDocumentModal()"
+                    class="px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50"
+                >
+                    Cancelar
+                </button>
+
+                <button
+                    id="deleteDocumentSubmitButton"
+                    type="submit"
+                    disabled
+                    class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold opacity-50 cursor-not-allowed disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    Confirmar eliminación
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openDeleteDocumentModal(actionUrl, fileName, versionNumber) {
+        const modal = document.getElementById('deleteDocumentModal');
+        const form = document.getElementById('deleteDocumentForm');
+        const nameLabel = document.getElementById('deleteDocumentName');
+        const versionLabel = document.getElementById('deleteDocumentVersion');
+        const input = document.getElementById('delete_document_confirmation');
+        const submitButton = document.getElementById('deleteDocumentSubmitButton');
+
+        form.action = actionUrl;
+        nameLabel.textContent = fileName || '—';
+        versionLabel.textContent = versionNumber || '—';
+        input.value = '';
+        submitButton.disabled = true;
+        submitButton.classList.add('opacity-50', 'cursor-not-allowed');
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        input.focus();
+    }
+
+    function closeDeleteDocumentModal() {
+        const modal = document.getElementById('deleteDocumentModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
+    function validateDeleteDocumentConfirmation() {
+        const input = document.getElementById('delete_document_confirmation');
+        const submitButton = document.getElementById('deleteDocumentSubmitButton');
+        const valid = input.value.trim() === 'ELIMINAR';
+
+        submitButton.disabled = !valid;
+
+        if (valid) {
+            submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
+        } else {
+            submitButton.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+    }
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+            closeDeleteDocumentModal();
+        }
+    });
+</script>
 </x-layouts.vigia>

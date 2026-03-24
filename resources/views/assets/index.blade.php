@@ -110,7 +110,7 @@
                                 <td class="px-6 py-3">
                                     <div class="font-semibold text-gray-800">{{ $asset->name }}</div>
                                     <div class="text-xs text-gray-500">
-                                        {{ strtoupper($asset->status ?? '') }}
+                                        {{ $asset->status === 'active' ? 'OPERACIÓN' : 'SIN OPERACIÓN' }}
                                     </div>
                                 </td>
 

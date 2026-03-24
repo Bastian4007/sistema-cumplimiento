@@ -40,7 +40,7 @@
                         {{ $assetInactive
                             ? 'bg-gray-100 text-gray-700 border-gray-300'
                             : 'bg-green-50 text-green-700 border-green-200' }}">
-                        {{ $assetInactive ? 'INACTIVO' : 'ACTIVO' }}
+                        {{ $assetInactive ? 'SIN OPERACIÓN' : 'OPERANDO' }}
                     </span>
                 </div>
 
@@ -66,7 +66,7 @@
                             @method('PATCH')
                             <button type="submit"
                                 class="px-6 py-2 rounded-md font-semibold text-white bg-[#1A428A] hover:bg-[#15356d]">
-                                Activar
+                                Volver a Operar
                             </button>
                         </form>
                     @else
@@ -76,7 +76,7 @@
                             <button type="submit"
                                 onclick="return confirm('¿Seguro que quieres desactivar este activo?');"
                                 class="px-6 py-2 rounded-md font-semibold text-white bg-[#DB0000] hover:bg-red-700">
-                                Desactivar
+                                Sin Operación
                             </button>
                         </form>
                     @endif
@@ -85,26 +85,41 @@
         </div>
 
         {{-- ================= RESUMEN ================= --}}
-        <div class="bg-gray-50 border rounded-xl p-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-gray-700">
-
-                <div class="space-y-2">
-                    <div><span class="font-semibold text-gray-900">Tipo:</span> {{ $asset->assetType->name ?? '-' }}</div>
-                    <div><span class="font-semibold text-gray-900">Código:</span> {{ $asset->code ?? '-' }}</div>
+        <div class="bg-gray-50 border rounded-xl px-6 py-5">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+                <div>
+                    <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Tipo
+                    </div>
+                    <div class="mt-1 text-base font-semibold text-gray-900">
+                        {{ $asset->assetType->name ?? '-' }}
+                    </div>
                 </div>
 
-                <div class="space-y-2">
-                    <div><span class="font-semibold text-gray-900">Ubicación:</span> {{ $asset->location ?? '-' }}</div>
-                    <div><span class="font-semibold text-gray-900">Responsable:</span> {{ $asset->responsible->name ?? '-' }}</div>
+                <div class="md:border-l md:border-gray-200 md:pl-6">
+                    <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Ubicación
+                    </div>
+                    <div class="mt-1 text-base font-semibold text-gray-900">
+                        {{ $asset->location ?? '-' }}
+                    </div>
                 </div>
 
+                <div class="md:border-l md:border-gray-200 md:pl-6">
+                    <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Responsable
+                    </div>
+                    <div class="mt-1 text-base font-semibold text-gray-900">
+                        {{ $asset->responsible->name ?? '-' }}
+                    </div>
+                </div>
             </div>
         </div>
 
         {{-- ================= REQUERIMIENTOS ================= --}}
         <div class="bg-white border rounded-xl overflow-hidden">
 
-            <div class="p-6 border-b space-y-4">
+            <div class="p-6 border-b space-y-5">
                 <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                     <div>
                         <div class="font-semibold text-[#1A428A] text-lg">
@@ -117,16 +132,16 @@
 
                     <div class="flex items-center gap-2 flex-wrap">
                         <a href="{{ route('assets.show', ['asset' => $asset, 'scope' => 'project']) }}"
-                           class="px-4 py-2 rounded-md border font-semibold
-                           {{ $scope === 'project'
+                        class="px-4 py-2 rounded-md border font-semibold whitespace-nowrap
+                        {{ $scope === 'project'
                                 ? 'bg-[#1A428A] text-white border-[#1A428A]'
                                 : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
                             Normativa de proyecto
                         </a>
 
                         <a href="{{ route('assets.show', ['asset' => $asset, 'scope' => 'operation']) }}"
-                           class="px-4 py-2 rounded-md border font-semibold
-                           {{ $scope === 'operation'
+                        class="px-4 py-2 rounded-md border font-semibold whitespace-nowrap
+                        {{ $scope === 'operation'
                                 ? 'bg-[#1A428A] text-white border-[#1A428A]'
                                 : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
                             Normativa de operación
@@ -137,8 +152,118 @@
                 <div class="font-semibold text-[#1A428A] text-base">
                     {{ $scopeTitle }}
                 </div>
-            </div>
 
+                <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+                    <form method="GET" action="{{ route('assets.show', $asset) }}" class="flex items-center gap-3 flex-wrap">
+                        <input type="hidden" name="scope" value="{{ $scope }}">
+
+                        <input
+                            type="text"
+                            name="search"
+                            value="{{ request('search') }}"
+                            placeholder="Buscar requerimiento..."
+                            class="w-72 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 placeholder-gray-400 focus:border-[#1A428A] focus:ring-[#1A428A]"
+                        >
+
+                        <button
+                            type="submit"
+                            class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d] whitespace-nowrap"
+                        >
+                            Buscar
+                        </button>
+
+                        @if(request()->filled('search'))
+                            <a
+                                href="{{ route('assets.show', ['asset' => $asset, 'scope' => $scope]) }}"
+                                class="px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50 whitespace-nowrap"
+                            >
+                                Limpiar
+                            </a>
+                        @endif
+                    </form>
+
+                    @if($requirements->hasPages())
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 xl:justify-end">
+                            <div class="text-sm text-gray-500 whitespace-nowrap">
+                                {{ $requirements->firstItem() }} a {{ $requirements->lastItem() }}
+                                de {{ $requirements->total() }} requerimientos
+                            </div>
+
+                            <div class="flex items-center gap-2">
+                                @if($requirements->onFirstPage())
+                                    <span class="px-3 py-2 rounded-md border border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed">
+                                        ←
+                                    </span>
+                                @else
+                                    <a href="{{ $requirements->previousPageUrl() }}"
+                                    class="px-3 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                                        ←
+                                    </a>
+                                @endif
+
+                                @php
+                                    $current = $requirements->currentPage();
+                                    $last = $requirements->lastPage();
+                                    $start = max(1, $current - 1);
+                                    $end = min($last, $current + 1);
+                                @endphp
+
+                                @if($start > 1)
+                                    <a href="{{ $requirements->url(1) }}"
+                                    class="px-4 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                                        1
+                                    </a>
+
+                                    @if($start > 2)
+                                        <span class="px-2 text-gray-400">…</span>
+                                    @endif
+                                @endif
+
+                                @for($page = $start; $page <= $end; $page++)
+                                    @if($page == $current)
+                                        <span class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold border border-[#1A428A]">
+                                            {{ $page }}
+                                        </span>
+                                    @else
+                                        <a href="{{ $requirements->url($page) }}"
+                                        class="px-4 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                                            {{ $page }}
+                                        </a>
+                                    @endif
+                                @endfor
+
+                                @if($end < $last)
+                                    @if($end < $last - 1)
+                                        <span class="px-2 text-gray-400">…</span>
+                                    @endif
+
+                                    <a href="{{ $requirements->url($last) }}"
+                                    class="px-4 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                                        {{ $last }}
+                                    </a>
+                                @endif
+
+                                @if($requirements->hasMorePages())
+                                    <a href="{{ $requirements->nextPageUrl() }}"
+                                    class="px-3 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                                        →
+                                    </a>
+                                @else
+                                    <span class="px-3 py-2 rounded-md border border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed">
+                                        →
+                                    </span>
+                                @endif
+                            </div>
+                        </div>
+                    @endif
+                </div>
+            </div>
+            @if(request()->filled('search'))
+                <div class="px-6 py-3 bg-blue-50 border-b text-sm text-[#1A428A]">
+                    Mostrando resultados para:
+                    <span class="font-semibold">{{ request('search') }}</span>
+                </div>
+            @endif
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
 
@@ -233,7 +358,11 @@
                         @empty
                             <tr>
                                 <td colspan="7" class="px-6 py-10 text-center text-gray-500">
-                                    No hay requerimientos de {{ $scope === 'operation' ? 'operación' : 'proyecto' }} todavía.
+                                    @if(request('search'))
+                                        No se encontraron requerimientos para “{{ request('search') }}”.
+                                    @else
+                                        No hay requerimientos de {{ $scope === 'operation' ? 'operación' : 'proyecto' }} todavía.
+                                    @endif
                                 </td>
                             </tr>
                         @endforelse

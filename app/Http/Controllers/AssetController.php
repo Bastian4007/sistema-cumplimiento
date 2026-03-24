@@ -192,18 +192,6 @@ class AssetController extends Controller
                     'current_document_id' => null,
                 ]
             );
-
-            if (!$requirement->tasks()->exists()) {
-                $requirement->tasks()->create([
-                    'title' => 'Subir documento principal (permiso/obligación)',
-                    'description' => 'Adjunta el documento oficial requerido para este requerimiento.',
-                    'status' => \App\Enums\TaskStatus::PENDING,
-                    'due_date' => $requirement->due_date,
-                    'requires_document' => false,
-                    'type' => 'initial',
-                    'completed_at' => null,
-                ]);
-            }
         }
     }
 
@@ -226,20 +214,26 @@ class AssetController extends Controller
 
         $scope = request()->get('scope', 'project');
 
-        $requirements = $asset->requirements()
-            ->when($scope === 'project', fn ($q) => $q->where('compliance_scope', 'project'))
-            ->when($scope === 'operation', fn ($q) => $q->where('compliance_scope', 'operation'))
-            ->with('template')
+        $search = trim((string) request('search'));
+
+        $requirements = AssetRequirement::query()
+            ->with(['template'])
+            ->where('asset_id', $asset->id)
+            ->where('compliance_scope', $scope)
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($subQuery) use ($search) {
+                    $subQuery->whereHas('template', function ($templateQuery) use ($search) {
+                        $templateQuery->where('name', 'ilike', "%{$search}%");
+                    })->orWhere('type', 'ilike', "%{$search}%");
+                });
+            })
             ->withCount([
                 'tasks as tasks_total',
-                'tasks as tasks_done' => fn ($t) => $t->whereNotNull('completed_at'),
+                'tasks as tasks_done' => fn ($q) => $q->where('status', \App\Enums\TaskStatus::COMPLETED),
             ])
-            ->get();
-
-        $asset->load([
-            'assetType',
-            'responsible',
-        ]);
+            ->orderBy('id')
+            ->paginate(10)
+            ->withQueryString();
 
         $navContext = [
             'asset' => $asset,
