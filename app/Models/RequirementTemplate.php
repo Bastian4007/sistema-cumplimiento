@@ -14,6 +14,7 @@ class RequirementTemplate extends Model
         'asset_type_id',
         'name',
         'description',
+        'authority',
         'compliance_scope',
     ];
 

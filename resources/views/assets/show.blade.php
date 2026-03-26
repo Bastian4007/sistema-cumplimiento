@@ -14,16 +14,16 @@
     </x-slot>
 
     @php
-        $assetInactive = ($asset->status ?? null) === \App\Models\Asset::STATUS_INACTIVE
-            || (method_exists($asset, 'isInactive') && $asset->isInactive());
+        $activeSearch = $search ?? request('search');
+        $activeAuthority = $authority ?? request('authority');
+        $activeRisk = $risk ?? request('risk');
+        $activeStatus = $status ?? request('status');
 
-        $scopeTitle = $scope === 'operation'
-            ? 'Normativa de operación'
-            : 'Normativa de proyecto';
-
-        $scopeDescription = $scope === 'operation'
-            ? 'Visualiza el avance, riesgo y estado de cada carpeta de cumplimiento en operación.'
-            : 'Visualiza el avance, riesgo y estado de cada carpeta de cumplimiento del proyecto.';
+        $hasActiveFilters =
+            filled($activeSearch) ||
+            filled($activeAuthority) ||
+            filled($activeRisk) ||
+            filled($activeStatus);
     @endphp
 
     <div class="bg-white rounded-xl shadow p-6 space-y-8">
@@ -51,7 +51,6 @@
                 @endif
             </div>
 
-            {{-- Botones solo Operativo --}}
             @if(auth()->user()->isOperative())
                 <div class="flex items-center gap-3">
                     <a href="{{ route('assets.edit', $asset) }}"
@@ -119,154 +118,255 @@
         {{-- ================= REQUERIMIENTOS ================= --}}
         <div class="bg-white border rounded-xl overflow-hidden">
 
-            <div class="p-6 border-b space-y-5">
-                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                    <div>
-                        <div class="font-semibold text-[#1A428A] text-lg">
-                            Cumplimiento normativo
-                        </div>
-                        <div class="text-sm text-gray-500">
-                            {{ $scopeDescription }}
-                        </div>
-                    </div>
-
-                    <div class="flex items-center gap-2 flex-wrap">
-                        <a href="{{ route('assets.show', ['asset' => $asset, 'scope' => 'project']) }}"
-                        class="px-4 py-2 rounded-md border font-semibold whitespace-nowrap
-                        {{ $scope === 'project'
-                                ? 'bg-[#1A428A] text-white border-[#1A428A]'
-                                : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
-                            Normativa de proyecto
-                        </a>
-
-                        <a href="{{ route('assets.show', ['asset' => $asset, 'scope' => 'operation']) }}"
-                        class="px-4 py-2 rounded-md border font-semibold whitespace-nowrap
-                        {{ $scope === 'operation'
-                                ? 'bg-[#1A428A] text-white border-[#1A428A]'
-                                : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
-                            Normativa de operación
-                        </a>
-                    </div>
-                </div>
-
-                <div class="font-semibold text-[#1A428A] text-base">
-                    {{ $scopeTitle }}
-                </div>
-
-                <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
-                    <form method="GET" action="{{ route('assets.show', $asset) }}" class="flex items-center gap-3 flex-wrap">
-                        <input type="hidden" name="scope" value="{{ $scope }}">
-
-                        <input
-                            type="text"
-                            name="search"
-                            value="{{ request('search') }}"
-                            placeholder="Buscar requerimiento..."
-                            class="w-72 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 placeholder-gray-400 focus:border-[#1A428A] focus:ring-[#1A428A]"
-                        >
-
-                        <button
-                            type="submit"
-                            class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d] whitespace-nowrap"
-                        >
-                            Buscar
-                        </button>
-
-                        @if(request()->filled('search'))
-                            <a
-                                href="{{ route('assets.show', ['asset' => $asset, 'scope' => $scope]) }}"
-                                class="px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50 whitespace-nowrap"
-                            >
-                                Limpiar
-                            </a>
-                        @endif
-                    </form>
-
-                    @if($requirements->hasPages())
-                        <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 xl:justify-end">
-                            <div class="text-sm text-gray-500 whitespace-nowrap">
-                                {{ $requirements->firstItem() }} a {{ $requirements->lastItem() }}
-                                de {{ $requirements->total() }} requerimientos
+            <form method="GET" action="{{ route('assets.show', $asset) }}">
+                <div class="p-6 border-b space-y-5">
+                    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                        <div>
+                            <div class="font-semibold text-[#1A428A] text-lg">
+                                Cumplimiento normativo
                             </div>
+                            <div class="text-sm text-gray-500">
+                                {{ $scopeDescription }}
+                            </div>
+                        </div>
 
-                            <div class="flex items-center gap-2">
-                                @if($requirements->onFirstPage())
-                                    <span class="px-3 py-2 rounded-md border border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed">
-                                        ←
-                                    </span>
-                                @else
-                                    <a href="{{ $requirements->previousPageUrl() }}"
-                                    class="px-3 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
-                                        ←
-                                    </a>
-                                @endif
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <a href="{{ route('assets.show', ['asset' => $asset, 'scope' => 'project']) }}"
+                            class="px-4 py-2 rounded-md border font-semibold whitespace-nowrap
+                            {{ $scope === 'project'
+                                    ? 'bg-[#1A428A] text-white border-[#1A428A]'
+                                    : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
+                                Normativa de proyecto
+                            </a>
 
-                                @php
-                                    $current = $requirements->currentPage();
-                                    $last = $requirements->lastPage();
-                                    $start = max(1, $current - 1);
-                                    $end = min($last, $current + 1);
-                                @endphp
+                            <a href="{{ route('assets.show', ['asset' => $asset, 'scope' => 'operation']) }}"
+                            class="px-4 py-2 rounded-md border font-semibold whitespace-nowrap
+                            {{ $scope === 'operation'
+                                    ? 'bg-[#1A428A] text-white border-[#1A428A]'
+                                    : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
+                                Normativa de operación
+                            </a>
+                        </div>
+                    </div>
 
-                                @if($start > 1)
-                                    <a href="{{ $requirements->url(1) }}"
-                                    class="px-4 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
-                                        1
-                                    </a>
+                    <div class="font-semibold text-[#1A428A] text-base">
+                        {{ $scopeTitle }}
+                    </div>
 
-                                    @if($start > 2)
-                                        <span class="px-2 text-gray-400">…</span>
-                                    @endif
-                                @endif
+                    <input type="hidden" name="scope" value="{{ $scope }}">
+                    <input type="hidden" name="show_filters" value="{{ $showFilters ? 1 : 0 }}" id="show_filters_input">
 
-                                @for($page = $start; $page <= $end; $page++)
-                                    @if($page == $current)
-                                        <span class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold border border-[#1A428A]">
-                                            {{ $page }}
+                    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4">
+                        <div class="flex items-center gap-3 flex-wrap">
+                            <input
+                                type="text"
+                                name="search"
+                                value="{{ $activeSearch }}"
+                                placeholder="Buscar requerimiento..."
+                                class="w-72 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 placeholder-gray-400 focus:border-[#1A428A] focus:ring-[#1A428A]"
+                            >
+
+                            <button
+                                type="submit"
+                                class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d] whitespace-nowrap"
+                            >
+                                Buscar
+                            </button>
+
+                            <button
+                                type="button"
+                                onclick="toggleRequirementFilters()"
+                                class="px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold hover:bg-blue-50 whitespace-nowrap"
+                            >
+                                Filtros
+                            </button>
+
+                            @if($hasActiveFilters)
+                                <a
+                                    href="{{ route('assets.show', ['asset' => $asset, 'scope' => $scope]) }}"
+                                    class="px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50 whitespace-nowrap"
+                                >
+                                    Limpiar
+                                </a>
+                            @endif
+                        </div>
+
+                        @if($requirements->hasPages())
+                            <div class="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 xl:justify-end">
+                                <div class="text-sm text-gray-500 whitespace-nowrap">
+                                    {{ $requirements->firstItem() }} a {{ $requirements->lastItem() }}
+                                    de {{ $requirements->total() }} requerimientos
+                                </div>
+
+                                <div class="flex items-center gap-2">
+                                    @if($requirements->onFirstPage())
+                                        <span class="px-3 py-2 rounded-md border border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed">
+                                            ←
                                         </span>
                                     @else
-                                        <a href="{{ $requirements->url($page) }}"
-                                        class="px-4 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
-                                            {{ $page }}
+                                        <a href="{{ $requirements->previousPageUrl() }}"
+                                        class="px-3 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                                            ←
                                         </a>
                                     @endif
-                                @endfor
 
-                                @if($end < $last)
-                                    @if($end < $last - 1)
-                                        <span class="px-2 text-gray-400">…</span>
+                                    @php
+                                        $current = $requirements->currentPage();
+                                        $last = $requirements->lastPage();
+                                        $start = max(1, $current - 1);
+                                        $end = min($last, $current + 1);
+                                    @endphp
+
+                                    @if($start > 1)
+                                        <a href="{{ $requirements->url(1) }}"
+                                        class="px-4 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                                            1
+                                        </a>
+
+                                        @if($start > 2)
+                                            <span class="px-2 text-gray-400">…</span>
+                                        @endif
                                     @endif
 
-                                    <a href="{{ $requirements->url($last) }}"
-                                    class="px-4 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
-                                        {{ $last }}
-                                    </a>
-                                @endif
+                                    @for($page = $start; $page <= $end; $page++)
+                                        @if($page == $current)
+                                            <span class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold border border-[#1A428A]">
+                                                {{ $page }}
+                                            </span>
+                                        @else
+                                            <a href="{{ $requirements->url($page) }}"
+                                            class="px-4 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                                                {{ $page }}
+                                            </a>
+                                        @endif
+                                    @endfor
 
-                                @if($requirements->hasMorePages())
-                                    <a href="{{ $requirements->nextPageUrl() }}"
-                                    class="px-3 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
-                                        →
-                                    </a>
-                                @else
-                                    <span class="px-3 py-2 rounded-md border border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed">
-                                        →
-                                    </span>
-                                @endif
+                                    @if($end < $last)
+                                        @if($end < $last - 1)
+                                            <span class="px-2 text-gray-400">…</span>
+                                        @endif
+
+                                        <a href="{{ $requirements->url($last) }}"
+                                        class="px-4 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                                            {{ $last }}
+                                        </a>
+                                    @endif
+
+                                    @if($requirements->hasMorePages())
+                                        <a href="{{ $requirements->nextPageUrl() }}"
+                                        class="px-3 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                                            →
+                                        </a>
+                                    @else
+                                        <span class="px-3 py-2 rounded-md border border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed">
+                                            →
+                                        </span>
+                                    @endif
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+
+                    <div
+                        id="requirement-filters-panel"
+                        class="{{ $showFilters ? '' : 'hidden' }} rounded-xl border border-gray-200 bg-gray-50 p-4"
+                    >
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Entidad
+                                </label>
+
+                                <select
+                                    name="authority"
+                                    class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-[#1A428A] focus:ring-[#1A428A]"
+                                >
+                                    <option value="">Todas</option>
+                                    @foreach($authorities as $item)
+                                        <option value="{{ $item }}" {{ $activeAuthority === $item ? 'selected' : '' }}>
+                                            {{ $item }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Riesgo
+                                </label>
+
+                                <select
+                                    name="risk"
+                                    class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-[#1A428A] focus:ring-[#1A428A]"
+                                >
+                                    <option value="">Todos</option>
+                                    <option value="normal" {{ $activeRisk === 'normal' ? 'selected' : '' }}>Normal</option>
+                                    <option value="warning" {{ $activeRisk === 'warning' ? 'selected' : '' }}>Crítico</option>
+                                    <option value="danger" {{ $activeRisk === 'danger' ? 'selected' : '' }}>Peligro</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Estado
+                                </label>
+
+                                <select
+                                    name="status"
+                                    class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-[#1A428A] focus:ring-[#1A428A]"
+                                >
+                                    <option value="">Todos</option>
+                                    <option value="pending" {{ $activeStatus === 'pending' ? 'selected' : '' }}>Pendiente</option>
+                                    <option value="in_progress" {{ $activeStatus === 'in_progress' ? 'selected' : '' }}>En progreso</option>
+                                    <option value="completed" {{ $activeStatus === 'completed' ? 'selected' : '' }}>Completado</option>
+                                    <option value="expired" {{ $activeStatus === 'expired' ? 'selected' : '' }}>Vencido</option>
+                                </select>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </form>
+
+            @if($hasActiveFilters)
+                <div class="px-6 py-3 bg-blue-50 border-t border-b text-sm text-[#1A428A]">
+                    @if(filled($activeSearch))
+                        <span>
+                            Búsqueda: <span class="font-semibold">{{ $activeSearch }}</span>
+                        </span>
+                    @endif
+
+                    @if(filled($activeAuthority))
+                        <span class="ml-4">
+                            Entidad: <span class="font-semibold">{{ $activeAuthority }}</span>
+                        </span>
+                    @endif
+
+                    @if(filled($activeRisk))
+                        <span class="ml-4">
+                            Riesgo: <span class="font-semibold">
+                                {{ $activeRisk === 'warning' ? 'Crítico' : ($activeRisk === 'danger' ? 'Peligro' : 'Normal') }}
+                            </span>
+                        </span>
+                    @endif
+
+                    @if(filled($activeStatus))
+                        <span class="ml-4">
+                            Estado: <span class="font-semibold">
+                                {{ match($activeStatus) {
+                                    'pending' => 'Pendiente',
+                                    'in_progress' => 'En progreso',
+                                    'completed' => 'Completado',
+                                    'expired' => 'Vencido',
+                                    default => $activeStatus,
+                                } }}
+                            </span>
+                        </span>
                     @endif
                 </div>
-            </div>
-            @if(request()->filled('search'))
-                <div class="px-6 py-3 bg-blue-50 border-b text-sm text-[#1A428A]">
-                    Mostrando resultados para:
-                    <span class="font-semibold">{{ request('search') }}</span>
-                </div>
             @endif
+
             <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
-
                     <thead class="bg-gray-50 text-gray-600">
                         <tr>
                             <th class="text-left px-6 py-4 font-semibold">Carpeta</th>
@@ -297,7 +397,6 @@
                             @endphp
 
                             <tr class="hover:bg-gray-50">
-
                                 <td class="px-6 py-4 font-semibold text-gray-800">
                                     {{ $title }}
                                 </td>
@@ -306,7 +405,6 @@
                                     {{ $due }}
                                 </td>
 
-                                {{-- Riesgo --}}
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     @if($riskVal === 'danger')
                                         <span class="text-xs px-3 py-1 rounded border bg-red-50 text-red-700 border-red-200">PELIGRO</span>
@@ -317,14 +415,12 @@
                                     @endif
                                 </td>
 
-                                {{-- Estado --}}
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <span class="text-xs px-3 py-1 rounded border bg-gray-50 text-gray-800">
                                         {{ $statusLabel }}
                                     </span>
                                 </td>
 
-                                {{-- Progreso --}}
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <div class="flex items-center gap-3">
                                         <div class="w-32 bg-gray-200 rounded-full h-2 overflow-hidden">
@@ -336,30 +432,27 @@
                                     </div>
                                 </td>
 
-                                {{-- Tareas --}}
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     {{ $tasksDone }}/{{ $tasksTotal }}
                                 </td>
 
-                                {{-- Acciones --}}
                                 <td class="px-6 py-4 text-right whitespace-nowrap space-x-4">
                                     <a href="{{ route('assets.requirements.show', [$asset, $req]) }}"
-                                       class="text-blue-600 hover:underline font-semibold">
+                                    class="text-blue-600 hover:underline font-semibold">
                                         Abrir
                                     </a>
 
                                     <a href="{{ route('assets.requirements.documents.index', [$asset, $req]) }}"
-                                       class="text-blue-600 hover:underline font-semibold">
+                                    class="text-blue-600 hover:underline font-semibold">
                                         Documentos
                                     </a>
                                 </td>
-
                             </tr>
                         @empty
                             <tr>
                                 <td colspan="7" class="px-6 py-10 text-center text-gray-500">
-                                    @if(request('search'))
-                                        No se encontraron requerimientos para “{{ request('search') }}”.
+                                    @if($hasActiveFilters)
+                                        No se encontraron requerimientos con los filtros aplicados.
                                     @else
                                         No hay requerimientos de {{ $scope === 'operation' ? 'operación' : 'proyecto' }} todavía.
                                     @endif
@@ -367,10 +460,17 @@
                             </tr>
                         @endforelse
                     </tbody>
-
                 </table>
             </div>
         </div>
 
-    </div>
+    <script>
+        function toggleRequirementFilters() {
+            const panel = document.getElementById('requirement-filters-panel');
+            const hiddenInput = document.getElementById('show_filters_input');
+
+            panel.classList.toggle('hidden');
+            hiddenInput.value = panel.classList.contains('hidden') ? '0' : '1';
+        }
+    </script>
 </x-layouts.vigia>

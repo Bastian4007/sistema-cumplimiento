@@ -76,6 +76,7 @@ class ComercializacionRequirementTemplateSeeder extends Seeder
                 [
                     'asset_type_id' => $assetType->id,
                     'compliance_scope' => 'project',
+                    'authority' => $this->normalizeAuthority($rowData['autoridad'] ?? null),
                     'description' => $this->buildDescription($rowData),
                 ]
             );
@@ -160,5 +161,16 @@ class ComercializacionRequirementTemplateSeeder extends Seeder
         }
 
         return true;
+    }
+
+    private function normalizeAuthority(?string $value): ?string
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        return mb_strtoupper($value);
     }
 }

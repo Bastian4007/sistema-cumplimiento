@@ -14,6 +14,8 @@ use App\Models\RequirementTemplate;
 use App\Models\AssetRequirement;
 use Illuminate\Support\Facades\DB;
 use App\Enums\TaskStatus;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 
 class AssetController extends Controller
 {
@@ -215,8 +217,26 @@ class AssetController extends Controller
         $scope = request()->get('scope', 'project');
 
         $search = trim((string) request('search'));
+        $authority = trim((string) request('authority'));
+        $risk = trim((string) request('risk'));
+        $status = trim((string) request('status'));
+        $showFilters = request()->boolean('show_filters')
+            || $authority !== ''
+            || $risk !== ''
+            || $status !== '';
 
-        $requirements = AssetRequirement::query()
+        $assetInactive = ($asset->status ?? null) === \App\Models\Asset::STATUS_INACTIVE
+            || (method_exists($asset, 'isInactive') && $asset->isInactive());
+
+        $scopeTitle = $scope === 'operation'
+            ? 'Normativa de operación'
+            : 'Normativa de proyecto';
+
+        $scopeDescription = $scope === 'operation'
+            ? 'Visualiza el avance, riesgo y estado de cada carpeta de cumplimiento en operación.'
+            : 'Visualiza el avance, riesgo y estado de cada carpeta de cumplimiento del proyecto.';
+
+        $requirementsQuery = AssetRequirement::query()
             ->with(['template'])
             ->where('asset_id', $asset->id)
             ->where('compliance_scope', $scope)
@@ -227,13 +247,83 @@ class AssetController extends Controller
                     })->orWhere('type', 'ilike', "%{$search}%");
                 });
             })
+            ->when($authority !== '', function ($query) use ($authority) {
+                $query->whereHas('template', function ($templateQuery) use ($authority) {
+                    $templateQuery->where('authority', $authority);
+                });
+            })
             ->withCount([
                 'tasks as tasks_total',
-                'tasks as tasks_done' => fn ($q) => $q->where('status', \App\Enums\TaskStatus::COMPLETED),
+                'tasks as tasks_done' => fn ($q) => $q->where('status', TaskStatus::COMPLETED),
             ])
-            ->orderBy('id')
-            ->paginate(10)
-            ->withQueryString();
+            ->orderBy('id');
+
+        $requirementsCollection = $requirementsQuery->get()->map(function ($requirement) {
+            $expiresAt = $requirement->expires_at ?? $requirement->due_date;
+
+            $riskLevel = 'normal';
+
+            if ($expiresAt) {
+                $daysToExpire = now()->startOfDay()->diffInDays($expiresAt->startOfDay(), false);
+
+                if ($daysToExpire < 0) {
+                    $riskLevel = 'danger';
+                } elseif ($daysToExpire <= 30) {
+                    $riskLevel = 'warning';
+                }
+            }
+
+            $tasksTotal = (int) ($requirement->tasks_total ?? 0);
+            $tasksDone = (int) ($requirement->tasks_done ?? 0);
+
+            $computedStatus = $requirement->status?->value ?? $requirement->status ?? 'pending';
+
+            // Estado visual más útil para UI
+            if ($tasksTotal > 0 && $tasksDone === $tasksTotal) {
+                $computedStatus = 'completed';
+            } elseif ($tasksDone > 0 && $tasksDone < $tasksTotal) {
+                $computedStatus = 'in_progress';
+            } elseif ($riskLevel === 'danger') {
+                $computedStatus = 'expired';
+            }
+
+            $requirement->risk_level = $riskLevel;
+            $requirement->computed_status = $computedStatus;
+
+            return $requirement;
+        });
+
+        $requirementsCollection = $requirementsCollection
+            ->when($risk !== '', function (Collection $collection) use ($risk) {
+                return $collection->filter(fn ($item) => ($item->risk_level ?? '') === $risk);
+            })
+            ->when($status !== '', function (Collection $collection) use ($status) {
+                return $collection->filter(fn ($item) => ($item->computed_status ?? '') === $status);
+            })
+            ->values();
+
+        $perPage = 10;
+        $currentPage = LengthAwarePaginator::resolveCurrentPage();
+        $currentItems = $requirementsCollection->slice(($currentPage - 1) * $perPage, $perPage)->values();
+
+        $requirements = new LengthAwarePaginator(
+            $currentItems,
+            $requirementsCollection->count(),
+            $perPage,
+            $currentPage,
+            [
+                'path' => request()->url(),
+                'query' => request()->query(),
+            ]
+        );
+
+        $authorities = RequirementTemplate::query()
+            ->where('asset_type_id', $asset->asset_type_id)
+            ->whereNotNull('authority')
+            ->where('authority', '!=', '')
+            ->distinct()
+            ->orderBy('authority')
+            ->pluck('authority');
 
         $navContext = [
             'asset' => $asset,
@@ -242,7 +332,21 @@ class AssetController extends Controller
             'documentSection' => false,
         ];
 
-        return view('assets.show', compact('asset', 'navContext', 'scope', 'requirements'));
+        return view('assets.show', compact(
+            'asset',
+            'requirements',
+            'scope',
+            'scopeTitle',
+            'scopeDescription',
+            'assetInactive',
+            'navContext',
+            'search',
+            'authority',
+            'risk',
+            'status',
+            'authorities',
+            'showFilters'
+        ));
     }
 
     public function edit(Request $request, Asset $asset)
