@@ -276,19 +276,42 @@ class AssetController extends Controller
             $tasksTotal = (int) ($requirement->tasks_total ?? 0);
             $tasksDone = (int) ($requirement->tasks_done ?? 0);
 
+            $hasOfficialDocument = ! is_null($requirement->current_document_id);
+
             $computedStatus = $requirement->status?->value ?? $requirement->status ?? 'pending';
 
-            // Estado visual más útil para UI
-            if ($tasksTotal > 0 && $tasksDone === $tasksTotal) {
+            if (! $hasOfficialDocument) {
+                $computedStatus = 'missing_document';
+            } elseif ($riskLevel === 'danger') {
+                $computedStatus = 'expired';
+            } elseif ($tasksTotal > 0 && $tasksDone === $tasksTotal) {
                 $computedStatus = 'completed';
             } elseif ($tasksDone > 0 && $tasksDone < $tasksTotal) {
                 $computedStatus = 'in_progress';
-            } elseif ($riskLevel === 'danger') {
-                $computedStatus = 'expired';
+            } else {
+                $computedStatus = $computedStatus ?: 'pending';
+            }
+
+            $progress = 0;
+
+            if ($hasOfficialDocument) {
+                if ($tasksTotal > 0) {
+                    $progress = (int) round(($tasksDone / max($tasksTotal, 1)) * 100);
+                } else {
+                    $progress = 100;
+                }
+            } else {
+                if ($tasksTotal > 0 && $tasksDone > 0) {
+                    $progress = min((int) round(($tasksDone / max($tasksTotal, 1)) * 100), 80);
+                } else {
+                    $progress = 0;
+                }
             }
 
             $requirement->risk_level = $riskLevel;
             $requirement->computed_status = $computedStatus;
+            $requirement->computed_progress = $progress;
+            $requirement->has_official_document = $hasOfficialDocument;
 
             return $requirement;
         });

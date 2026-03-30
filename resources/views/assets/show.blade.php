@@ -316,6 +316,7 @@
                                     class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-[#1A428A] focus:ring-[#1A428A]"
                                 >
                                     <option value="">Todos</option>
+                                    <option value="missing_document" {{ $activeStatus === 'missing_document' ? 'selected' : '' }}>Falta documento oficial</option>
                                     <option value="pending" {{ $activeStatus === 'pending' ? 'selected' : '' }}>Pendiente</option>
                                     <option value="in_progress" {{ $activeStatus === 'in_progress' ? 'selected' : '' }}>En progreso</option>
                                     <option value="completed" {{ $activeStatus === 'completed' ? 'selected' : '' }}>Completado</option>
@@ -353,6 +354,7 @@
                         <span class="ml-4">
                             Estado: <span class="font-semibold">
                                 {{ match($activeStatus) {
+                                    'missing_document' => 'Falta documento oficial',
                                     'pending' => 'Pendiente',
                                     'in_progress' => 'En progreso',
                                     'completed' => 'Completado',
@@ -383,17 +385,25 @@
                         @forelse($requirements as $req)
                             @php
                                 $title = $req->template?->name ?? $req->type;
-                                $due = $req->due_date?->format('Y-m-d') ?? '-';
+                                $due = ($req->expires_at ?? $req->due_date)?->format('Y-m-d') ?? '-';
 
                                 $tasksTotal = (int) ($req->tasks_total ?? 0);
                                 $tasksDone  = (int) ($req->tasks_done ?? 0);
-                                $progress   = $tasksTotal > 0 ? (int) round(($tasksDone / $tasksTotal) * 100) : 0;
 
+                                $progress = (int) ($req->computed_progress ?? 0);
                                 $riskVal = strtolower($req->risk_level ?? 'normal');
+                                $statusVal = $req->computed_status ?? 'pending';
 
-                                $statusLabel = \App\Enums\RequirementStatus::tryFrom($req->computed_status ?? '')?->label()
-                                    ?? $req->status?->label()
-                                    ?? 'Pendiente';
+                                $statusLabel = match ($statusVal) {
+                                    'missing_document' => 'Falta documento oficial',
+                                    'pending' => 'Pendiente',
+                                    'in_progress' => 'En progreso',
+                                    'completed' => 'Completado',
+                                    'expired' => 'Vencido',
+                                    default => \App\Enums\RequirementStatus::tryFrom($statusVal)?->label()
+                                        ?? $req->status?->label()
+                                        ?? 'Pendiente',
+                                };
                             @endphp
 
                             <tr class="hover:bg-gray-50">
@@ -416,7 +426,17 @@
                                 </td>
 
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <span class="text-xs px-3 py-1 rounded border bg-gray-50 text-gray-800">
+                                    @php
+                                        $statusClasses = match ($statusVal) {
+                                            'missing_document' => 'bg-red-50 text-red-700 border-red-200',
+                                            'expired' => 'bg-red-50 text-red-700 border-red-200',
+                                            'completed' => 'bg-green-50 text-green-700 border-green-200',
+                                            'in_progress' => 'bg-yellow-50 text-yellow-700 border-yellow-200',
+                                            default => 'bg-gray-50 text-gray-800 border-gray-200',
+                                        };
+                                    @endphp
+
+                                    <span class="text-xs px-3 py-1 rounded border {{ $statusClasses }}">
                                         {{ $statusLabel }}
                                     </span>
                                 </td>

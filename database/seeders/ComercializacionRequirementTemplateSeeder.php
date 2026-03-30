@@ -45,11 +45,8 @@ class ComercializacionRequirementTemplateSeeder extends Seeder
         $headers = $this->normalizeHeaders($headers);
 
         $imported = 0;
-        $rowNumber = 1;
 
         while (($row = fgetcsv($handle, 0, ',')) !== false) {
-            $rowNumber++;
-
             if ($this->isEmptyRow($row)) {
                 continue;
             }
@@ -57,31 +54,28 @@ class ComercializacionRequirementTemplateSeeder extends Seeder
             $rowData = $this->mapRowToHeaders($headers, $row);
 
             $documentName = trim((string) ($rowData['documento'] ?? ''));
-            $requiredValue = $this->normalizeValue($rowData['aplica_para'] ?? '');
 
             if ($documentName === '') {
                 continue;
             }
 
-            // Si quieres importar todo sin filtro, deja esto comentado.
-            // Si luego agregas una columna tipo "Requerido en Comercialización", aquí se filtra.
-            // if ($requiredValue === '') {
-            //     continue;
-            // }
+            $scopes = $this->extractScopes($rowData['aplica_para'] ?? null);
 
-            RequirementTemplate::updateOrCreate(
-                [
-                    'name' => $documentName,
-                ],
-                [
-                    'asset_type_id' => $assetType->id,
-                    'compliance_scope' => 'project',
-                    'authority' => $this->normalizeAuthority($rowData['autoridad'] ?? null),
-                    'description' => $this->buildDescription($rowData),
-                ]
-            );
+            foreach ($scopes as $scope) {
+                RequirementTemplate::updateOrCreate(
+                    [
+                        'name' => $documentName,
+                        'asset_type_id' => $assetType->id,
+                        'compliance_scope' => $scope,
+                    ],
+                    [
+                        'authority' => $this->normalizeAuthority($rowData['autoridad'] ?? null),
+                        'description' => $this->buildDescription($rowData),
+                    ]
+                );
 
-            $imported++;
+                $imported++;
+            }
         }
 
         fclose($handle);
@@ -96,7 +90,7 @@ class ComercializacionRequirementTemplateSeeder extends Seeder
                 ->replace("\xEF\xBB\xBF", '')
                 ->lower()
                 ->ascii()
-                ->replace(['#', '.', ',', ';', ':', '(', ')', '/'], ' ')
+                ->replace(['#', '.', ',', ';', ':', '(', ')'], ' ')
                 ->replaceMatches('/\s+/', ' ')
                 ->trim()
                 ->value();
@@ -131,6 +125,39 @@ class ComercializacionRequirementTemplateSeeder extends Seeder
             ->replaceMatches('/\s+/', ' ')
             ->trim()
             ->value();
+    }
+
+    private function extractScopes(?string $value): array
+    {
+        $value = Str::of((string) $value)
+            ->lower()
+            ->ascii()
+            ->replace(['/', ';', '|'], ',')
+            ->replace(' y ', ',')
+            ->replaceMatches('/\s+/', ' ')
+            ->trim()
+            ->value();
+
+        if ($value === '') {
+            return ['project'];
+        }
+
+        $scopes = collect(explode(',', $value))
+            ->map(fn ($item) => trim($item))
+            ->filter()
+            ->map(function ($item) {
+                return match ($item) {
+                    'cn', 'proyecto', 'project' => 'project',
+                    'op', 'operacion', 'operation' => 'operation',
+                    default => null,
+                };
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        return empty($scopes) ? ['project'] : $scopes;
     }
 
     private function buildDescription(array $rowData): ?string

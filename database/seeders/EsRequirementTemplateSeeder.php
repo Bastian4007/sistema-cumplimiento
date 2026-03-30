@@ -45,11 +45,8 @@ class EsRequirementTemplateSeeder extends Seeder
         $headers = $this->normalizeHeaders($headers);
 
         $imported = 0;
-        $rowNumber = 1;
 
         while (($row = fgetcsv($handle, 0, ',')) !== false) {
-            $rowNumber++;
-
             if ($this->isEmptyRow($row)) {
                 continue;
             }
@@ -67,19 +64,22 @@ class EsRequirementTemplateSeeder extends Seeder
                 continue;
             }
 
-            RequirementTemplate::updateOrCreate(
-                [
-                    'name' => $permissionName,
-                ],
-                [
-                    'asset_type_id' => $assetType->id,
-                    'compliance_scope' => 'project',
-                    'authority' => $this->normalizeAuthority($rowData['autoridad'] ?? null),
-                    'description' => $this->buildDescription($rowData),
-                ]
-            );
+            $scopes = $this->extractScopes($rowData['aplica_para'] ?? null);
 
-            $imported++;
+            foreach ($scopes as $scope) {
+                    RequirementTemplate::updateOrCreate(
+                        [
+                            'name' => $permissionName,
+                            'asset_type_id' => $assetType->id,
+                            'compliance_scope' => $scope,
+                        ],
+                        [
+                            'authority' => $this->normalizeAuthority($rowData['autoridad'] ?? null),
+                            'description' => $this->buildDescription($rowData),
+                        ]
+                    );
+                $imported++;
+            }
         }
 
         fclose($handle);
@@ -94,7 +94,7 @@ class EsRequirementTemplateSeeder extends Seeder
                 ->replace("\xEF\xBB\xBF", '')
                 ->lower()
                 ->ascii()
-                ->replace(['#', '.', ',', ';', ':', '(', ')', '/'], ' ')
+                ->replace(['#', '.', ',', ';', ':', '(', ')'], ' ')
                 ->replaceMatches('/\s+/', ' ')
                 ->trim()
                 ->value();
@@ -132,6 +132,39 @@ class EsRequirementTemplateSeeder extends Seeder
             ->value();
     }
 
+    private function extractScopes(?string $value): array
+    {
+        $value = Str::of((string) $value)
+            ->lower()
+            ->ascii()
+            ->replace(['/', ';', '|'], ',')
+            ->replace(' y ', ',')
+            ->replaceMatches('/\s+/', ' ')
+            ->trim()
+            ->value();
+
+        if ($value === '') {
+            return ['project'];
+        }
+
+        $scopes = collect(explode(',', $value))
+            ->map(fn ($item) => trim($item))
+            ->filter()
+            ->map(function ($item) {
+                return match ($item) {
+                    'cn', 'proyecto', 'project' => 'project',
+                    'op', 'operacion', 'operation' => 'operation',
+                    default => null,
+                };
+            })
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        return empty($scopes) ? ['project'] : $scopes;
+    }
+
     private function buildDescription(array $rowData): ?string
     {
         $parts = [];
@@ -151,6 +184,13 @@ class EsRequirementTemplateSeeder extends Seeder
         return empty($parts) ? null : implode(' | ', $parts);
     }
 
+    private function normalizeNullable(?string $value): ?string
+    {
+        $value = trim((string) $value);
+
+        return $value === '' ? null : $value;
+    }
+
     private function isEmptyRow(array $row): bool
     {
         foreach ($row as $value) {
@@ -161,6 +201,7 @@ class EsRequirementTemplateSeeder extends Seeder
 
         return true;
     }
+
     private function normalizeAuthority(?string $value): ?string
     {
         $value = trim((string) $value);
