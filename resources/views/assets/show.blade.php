@@ -115,6 +115,111 @@
             </div>
         </div>
 
+        {{-- ================= RELACIÓN CON OTROS ACTIVOS ================= --}}
+        @php
+            $assetTypeName = \Illuminate\Support\Str::lower(trim($asset->assetType->name ?? ''));
+            $isParentType = in_array($assetTypeName, ['plantas', 'transporte']);
+            $hasParent = !is_null($asset->parent);
+            $childrenCount = $asset->children->count();
+        @endphp
+
+        @if($hasParent || $isParentType)
+            <div class="bg-white border rounded-xl p-6 space-y-4">
+                <div>
+                    <div class="font-semibold text-[#1A428A] text-lg">
+                        Relación con otros activos
+                    </div>
+                    <div class="text-sm text-gray-500">
+                        Consulta la relación de este activo con otros activos del sistema.
+                    </div>
+                </div>
+
+                {{-- Si es hijo, mostrar solo padre --}}
+                @if($hasParent)
+                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-5">
+                        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                            Activo principal relacionado
+                        </div>
+
+                        <div class="mt-3">
+                            <a href="{{ route('assets.show', $asset->parent) }}"
+                            class="text-base font-semibold text-[#1A428A] hover:underline">
+                                {{ $asset->parent->name }}
+                            </a>
+
+                            <div class="text-sm text-gray-500 mt-1">
+                                {{ $asset->parent->assetType->name ?? '-' }}
+                            </div>
+                        </div>
+                    </div>
+
+                {{-- Si es padre, mostrar solo hijos --}}
+                @elseif($isParentType)
+                    <div class="rounded-xl border border-gray-200 bg-gray-50 p-5">
+                        <div class="flex items-center justify-between gap-4 flex-wrap">
+                            <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                Activos relacionados
+                            </div>
+
+                            <div class="text-xs px-3 py-1 rounded border bg-blue-50 text-[#1A428A] border-blue-200">
+                                {{ $childrenCount }} {{ \Illuminate\Support\Str::plural('activo', $childrenCount) }}
+                            </div>
+                        </div>
+
+                        @if($childrenCount > 0)
+                            <div class="mt-4 overflow-x-auto">
+                                <table class="min-w-full text-sm">
+                                    <thead class="bg-white text-gray-600">
+                                        <tr>
+                                            <th class="text-left px-4 py-3 font-semibold">Activo</th>
+                                            <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Tipo</th>
+                                            <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Código</th>
+                                            <th class="text-left px-4 py-3 font-semibold whitespace-nowrap">Responsable</th>
+                                            <th class="text-right px-4 py-3 font-semibold whitespace-nowrap">Acción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-200">
+                                        @foreach($asset->children->take(10) as $child)
+                                            <tr class="bg-gray-50 hover:bg-gray-100">
+                                                <td class="px-4 py-3 font-medium text-[#1A428A]">
+                                                    {{ $child->name }}
+                                                </td>
+                                                <td class="px-4 py-3 text-gray-700 whitespace-nowrap">
+                                                    {{ $child->assetType->name ?? '-' }}
+                                                </td>
+                                                <td class="px-4 py-3 text-gray-500 whitespace-nowrap">
+                                                    {{ $child->code ?? '-' }}
+                                                </td>
+                                                <td class="px-4 py-3 text-gray-500 whitespace-nowrap">
+                                                    {{ $child->responsible->name ?? '-' }}
+                                                </td>
+                                                <td class="px-4 py-3 text-right whitespace-nowrap">
+                                                    <a href="{{ route('assets.show', $child) }}"
+                                                    class="text-blue-600 hover:underline font-semibold">
+                                                        Abrir
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+
+                                @if($childrenCount > 10)
+                                    <div class="mt-3 text-sm text-gray-500">
+                                        Y {{ $childrenCount - 10 }} más...
+                                    </div>
+                                @endif
+                            </div>
+                        @else
+                            <div class="mt-3 text-sm text-gray-500">
+                                Este activo no tiene activos relacionados todavía.
+                            </div>
+                        @endif
+                    </div>
+                @endif
+            </div>
+        @endif
+
         {{-- ================= REQUERIMIENTOS ================= --}}
         <div class="bg-white border rounded-xl overflow-hidden">
 
@@ -483,6 +588,7 @@
                 </table>
             </div>
         </div>
+    </div>
 
     <script>
         function toggleRequirementFilters() {

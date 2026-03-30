@@ -75,6 +75,15 @@ class AssetController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
+        $parentAssets = Asset::query()
+            ->where('company_id', auth()->user()->company_id)
+            ->whereHas('assetType', function ($query) {
+                $query->whereIn('name', ['Plantas', 'Transporte']);
+            })
+            ->with('assetType')
+            ->orderBy('name')
+            ->get();
+
         $responsibles = \App\Models\User::query()
             ->where('company_id', $companyId)
             ->orderBy('name')
@@ -115,7 +124,7 @@ class AssetController extends Controller
             'Zacatecas',
         ];
 
-        return view('assets.create', compact('assetTypes', 'responsibles', 'mexicoStates'));
+        return view('assets.create', compact('assetTypes', 'responsibles', 'mexicoStates', 'parentAssets'));
     }
 
     public function store(StoreAssetRequest $request)
@@ -123,7 +132,7 @@ class AssetController extends Controller
         $data = $request->validated();
         $companyId = (int) $request->user()->company_id;
 
-        if (!empty($data['code'])) {
+        if (! empty($data['code'])) {
             $data['code'] = Str::upper(trim($data['code']));
         }
 
@@ -213,6 +222,11 @@ class AssetController extends Controller
     public function show(Asset $asset)
     {
         $this->authorize('view', $asset);
+
+        $asset->load([
+            'parent.assetType',
+            'children.assetType',
+        ]);
 
         $scope = request()->get('scope', 'project');
 
@@ -381,6 +395,16 @@ class AssetController extends Controller
         $assetTypes = AssetType::query()
             ->orderBy('name')
             ->get(['id', 'name']);
+        
+        $parentAssets = Asset::query()
+            ->where('company_id', auth()->user()->company_id)
+            ->where('id', '!=', $asset->id)
+            ->whereHas('assetType', function ($query) {
+                $query->whereIn('name', ['Plantas', 'Transporte']);
+            })
+            ->with('assetType')
+            ->orderBy('name')
+            ->get();
 
         $responsibles = User::query()
             ->where('company_id', $request->user()->company_id)
@@ -422,7 +446,7 @@ class AssetController extends Controller
             'Zacatecas',
         ];
 
-        return view('assets.edit', compact('asset', 'responsibles', 'assetTypes', 'mexicoStates'));
+        return view('assets.edit', compact('asset', 'responsibles', 'assetTypes', 'mexicoStates', 'parentAssets'));
     }
 
     public function update(UpdateAssetRequest $request, Asset $asset)

@@ -29,6 +29,11 @@ class StoreAssetRequest extends FormRequest
                 'max:255',
             ],
 
+            'parent_asset_id' => [
+                'nullable', 
+                'exists:assets,id'
+            ],
+
             'code' => [
                 'nullable',
                 'string',

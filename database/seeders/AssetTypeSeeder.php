@@ -17,6 +17,11 @@ class AssetTypeSeeder extends Seeder
             'Importación',
             'Plantas',
             'Transporte',
+            'Tracto',
+            'Semirremolque',
+            'ATQ',
+            'Cilindrera',
+            'Carro tanque',
         ];
 
         foreach ($types as $name) {

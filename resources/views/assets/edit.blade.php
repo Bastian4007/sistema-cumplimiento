@@ -1,18 +1,21 @@
 {{-- resources/views/assets/edit.blade.php --}}
 <x-layouts.vigia :title="'Editar: ' . $asset->name">
     <x-slot name="breadcrumb">
-        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">Activos y Actividades</a>
+        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">
+            Activos y Actividades
+        </a>
         <span class="text-gray-400">›</span>
-        <a href="{{ route('assets.show', $asset) }}" class="text-gray-600 hover:underline">{{ $asset->name }}</a>
+        <a href="{{ route('assets.show', $asset) }}" class="text-gray-600 hover:underline">
+            {{ $asset->name }}
+        </a>
         <span class="text-gray-400">›</span>
         <span class="text-gray-700 font-medium">Editar</span>
     </x-slot>
 
-    {{-- Select2 CSS (si ya lo metes global en el layout, quítalo de aquí) --}}
+    {{-- Select2 CSS --}}
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
     <div class="bg-white rounded-xl shadow p-6">
-
         <div class="flex items-center justify-between gap-4">
             <h1 class="text-2xl font-semibold text-[#1A428A]">Editar activo</h1>
 
@@ -41,11 +44,13 @@
                 {{-- Nombre --}}
                 <div>
                     <label class="block text-sm font-semibold text-gray-700">Nombre</label>
-                    <input type="text"
+                    <input
+                        type="text"
                         name="name"
                         value="{{ old('name', $asset->name) }}"
                         class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
-                        required>
+                        required
+                    >
                     @error('name')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
@@ -54,13 +59,19 @@
                 {{-- Tipo --}}
                 <div>
                     <label class="block text-sm font-semibold text-gray-700">Tipo</label>
-                    <select name="asset_type_id"
-                            class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
-                            required>
+                    <select
+                        name="asset_type_id"
+                        id="asset_type_id"
+                        class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                        required
+                    >
                         <option value="">-- Selecciona tipo --</option>
                         @foreach($assetTypes as $type)
-                            <option value="{{ $type->id }}"
-                                @selected(old('asset_type_id', $asset->asset_type_id) == $type->id)>
+                            <option
+                                value="{{ $type->id }}"
+                                data-name="{{ \Illuminate\Support\Str::lower(trim($type->name)) }}"
+                                @selected(old('asset_type_id', $asset->asset_type_id) == $type->id)
+                            >
                                 {{ $type->name }}
                             </option>
                         @endforeach
@@ -94,10 +105,12 @@
                 {{-- Código --}}
                 <div>
                     <label class="block text-sm font-semibold text-gray-700">Código</label>
-                    <input type="text"
+                    <input
+                        type="text"
                         name="code"
                         value="{{ old('code', $asset->code) }}"
-                        class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm">
+                        class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                    >
                     <p class="mt-1 text-xs text-gray-500">
                         Si lo dejas igual, se mantiene.
                     </p>
@@ -109,14 +122,18 @@
                 {{-- Responsable --}}
                 <div>
                     <label class="block text-sm font-semibold text-gray-700">Responsable</label>
-                    <select id="responsible_user_id"
-                            name="responsible_user_id"
-                            class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm">
+                    <select
+                        id="responsible_user_id"
+                        name="responsible_user_id"
+                        class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                    >
                         <option value="">-- Ninguno --</option>
                         @foreach($responsibles as $u)
-                            <option value="{{ $u->id }}"
-                                @selected((int) old('responsible_user_id', $asset->responsible_user_id) === (int) $u->id)>
-                                {{ $u->name }} ({{ $u->email ?? '' }})
+                            <option
+                                value="{{ $u->id }}"
+                                @selected((int) old('responsible_user_id', $asset->responsible_user_id) === (int) $u->id)
+                            >
+                                {{ $u->name }}{{ $u->email ? ' (' . $u->email . ')' : '' }}
                             </option>
                         @endforeach
                     </select>
@@ -143,11 +160,43 @@
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>
+
+                {{-- Activo principal relacionado --}}
+                <div id="parent-asset-wrapper">
+                    <label for="parent_asset_id" class="block text-sm font-medium text-gray-700 mb-1">
+                        Activo principal relacionado
+                    </label>
+
+                    <select
+                        name="parent_asset_id"
+                        id="parent_asset_id"
+                        class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-[#1A428A] focus:ring-[#1A428A]"
+                    >
+                        <option value="">Sin relación</option>
+
+                        @foreach($parentAssets as $parent)
+                            <option
+                                value="{{ $parent->id }}"
+                                {{ old('parent_asset_id', $asset->parent_asset_id ?? '') == $parent->id ? 'selected' : '' }}
+                            >
+                                {{ $parent->name }} ({{ $parent->assetType->name ?? '-' }})
+                            </option>
+                        @endforeach
+                    </select>
+
+                    <p class="mt-1 text-xs text-gray-500">
+                        Disponible solo para activos tipo tracto, semirremolque, ATQ, cilindrera y carro tanque.
+                    </p>
+
+                    @error('parent_asset_id')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
             </div>
 
             <div class="mt-8 flex justify-end gap-3 border-t pt-6">
                 <a href="{{ route('assets.show', $asset) }}"
-                class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">
+                   class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">
                     Cancelar
                 </a>
 
@@ -164,12 +213,45 @@
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', function () {
             $('#responsible_user_id').select2({
                 width: '100%',
                 placeholder: '-- Ninguno --',
                 allowClear: true
             });
+
+            const assetTypeSelect = document.getElementById('asset_type_id');
+            const parentAssetSelect = document.getElementById('parent_asset_id');
+            const parentAssetWrapper = document.getElementById('parent-asset-wrapper');
+
+            const allowedTypes = [
+                'tracto',
+                'semirremolque',
+                'atq',
+                'cilindrera',
+                'carro tanque',
+                'carros tanque'
+            ];
+
+            function toggleParentAssetField() {
+                const selectedOption = assetTypeSelect.options[assetTypeSelect.selectedIndex];
+                const selectedTypeName = (selectedOption?.dataset?.name || '').trim().toLowerCase();
+
+                const shouldEnable = allowedTypes.includes(selectedTypeName);
+
+                parentAssetSelect.disabled = !shouldEnable;
+
+                if (!shouldEnable) {
+                    parentAssetSelect.value = '';
+                    parentAssetWrapper.classList.add('opacity-60');
+                } else {
+                    parentAssetWrapper.classList.remove('opacity-60');
+                }
+            }
+
+            assetTypeSelect.addEventListener('change', toggleParentAssetField);
+
+            toggleParentAssetField();
         });
     </script>
 </x-layouts.vigia>

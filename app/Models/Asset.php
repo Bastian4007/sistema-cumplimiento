@@ -16,6 +16,7 @@ class Asset extends Model
     protected $fillable = [
         'company_id',
         'asset_type_id',
+        'parent_asset_id',
         'name',
         'code',
         'location',
@@ -92,6 +93,16 @@ class Asset extends Model
     public function responsibleUser()
     {
         return $this->belongsTo(\App\Models\User::class, 'responsible_user_id');
+    }
+
+    public function parent()
+    {
+        return $this->belongsTo(Asset::class, 'parent_asset_id');
+    }
+
+    public function children()
+    {
+        return $this->hasMany(Asset::class, 'parent_asset_id');
     }
 }
 

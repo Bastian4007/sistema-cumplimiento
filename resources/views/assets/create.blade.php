@@ -1,10 +1,13 @@
 {{-- resources/views/assets/create.blade.php --}}
 <x-layouts.vigia :title="'Crear un activo'">
     <x-slot name="breadcrumb">
-        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">Activos y Actividades</a>
+        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">
+            Activos y Actividades
+        </a>
         <span class="text-gray-400">›</span>
         <span class="text-gray-700 font-medium">Crear un activo</span>
     </x-slot>
+
     @php
         $selectClass = "mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm";
     @endphp
@@ -29,8 +32,11 @@
             @csrf
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {{-- Nombre --}}
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Nombre de activo</label>
+                    <label class="block text-sm font-medium text-gray-700">
+                        Nombre de activo
+                    </label>
                     <input
                         type="text"
                         name="name"
@@ -42,27 +48,45 @@
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>
+
+                {{-- Código --}}
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Código del activo</label>
-                    <input type="text" 
-                            name="code" 
-                            id="code" 
-                            placeholder="Ej. LP/26139/ALM/2024"
-                            value="{{ old('code') }}"
-                            class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
-                            required>
+                    <label class="block text-sm font-medium text-gray-700">
+                        Código del activo
+                    </label>
+                    <input
+                        type="text"
+                        name="code"
+                        id="code"
+                        placeholder="Ej. LP/26139/ALM/2024"
+                        value="{{ old('code') }}"
+                        class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                    />
+                    @error('code')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
                 </div>
+
+                {{-- Tipo --}}
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Selecciona un tipo</label>
+                    <label class="block text-sm font-medium text-gray-700">
+                        Selecciona un tipo
+                    </label>
+
                     <select
                         name="asset_type_id"
+                        id="asset_type_id"
                         class="{{ $selectClass }}"
                         required
                     >
                         <option value="">-- Selecciona tipo --</option>
 
                         @foreach($assetTypes as $type)
-                            <option value="{{ $type->id }}" @selected((string) old('asset_type_id') === (string) $type->id)>
+                            <option
+                                value="{{ $type->id }}"
+                                data-name="{{ \Illuminate\Support\Str::lower(trim($type->name)) }}"
+                                @selected((string) old('asset_type_id') === (string) $type->id)
+                            >
                                 {{ $type->name }}
                             </option>
                         @endforeach
@@ -73,13 +97,17 @@
                     @enderror
                 </div>
 
+                {{-- Responsable --}}
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Selecciona un responsable</label>
+                    <label class="block text-sm font-medium text-gray-700">
+                        Selecciona un responsable
+                    </label>
                     <select
                         id="responsible_user_id"
                         name="responsible_user_id"
                         class="{{ $selectClass }}"
-                        required>
+                        required
+                    >
                         <option value="">-- Selecciona un responsable --</option>
 
                         @foreach($responsibles as $u)
@@ -94,8 +122,11 @@
                     @enderror
                 </div>
 
+                {{-- Ubicación --}}
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Selecciona ubicación</label>
+                    <label class="block text-sm font-medium text-gray-700">
+                        Selecciona ubicación
+                    </label>
                     <select
                         name="location"
                         class="{{ $selectClass }}"
@@ -114,6 +145,8 @@
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>
+
+                {{-- Bóveda documental --}}
                 <div>
                     <label for="vault_location" class="block text-sm font-medium text-gray-700">
                         Bóveda documental
@@ -131,8 +164,11 @@
                     @enderror
                 </div>
 
+                {{-- Fecha inicio --}}
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Fecha de inicio de operaciones</label>
+                    <label class="block text-sm font-medium text-gray-700">
+                        Fecha de inicio de operaciones
+                    </label>
                     <input
                         type="date"
                         name="compliance_start_date"
@@ -145,8 +181,11 @@
                     @enderror
                 </div>
 
+                {{-- Fecha límite --}}
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Fecha límite para cumplir los requerimientos</label>
+                    <label class="block text-sm font-medium text-gray-700">
+                        Fecha límite para cumplir los requerimientos
+                    </label>
                     <input
                         type="date"
                         name="compliance_due_date"
@@ -158,35 +197,98 @@
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
                 </div>
+
+                {{-- Activo principal relacionado --}}
+                <div id="parent-asset-wrapper">
+                    <label for="parent_asset_id" class="block text-sm font-medium text-gray-700 mb-1">
+                        Activo principal relacionado
+                    </label>
+
+                    <select
+                        name="parent_asset_id"
+                        id="parent_asset_id"
+                        class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-[#1A428A] focus:ring-[#1A428A]"
+                    >
+                        <option value="">Sin relación</option>
+
+                        @foreach($parentAssets as $parent)
+                            <option
+                                value="{{ $parent->id }}"
+                                {{ old('parent_asset_id') == $parent->id ? 'selected' : '' }}
+                            >
+                                {{ $parent->name }} ({{ $parent->assetType->name ?? '-' }})
+                            </option>
+                        @endforeach
+                    </select>
+
+                    @error('parent_asset_id')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
             </div>
 
             <div class="mt-6 flex justify-end gap-3">
-                <a href="{{ route('assets.index') }}"
-                class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">
+                <a
+                    href="{{ route('assets.index') }}"
+                    class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50"
+                >
                     Cancelar
                 </a>
 
-                <button type="submit"
-                        class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
+                <button
+                    type="submit"
+                    class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]"
+                >
                     Crear activo
                 </button>
             </div>
         </form>
     </div>
 
-    {{-- Select2 JS (requiere jQuery) --}}
+    {{-- Select2 JS --}}
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
     <script>
-    document.addEventListener('DOMContentLoaded', () => {
-    new TomSelect('#responsible_user_id', {
-        create: false,
-        placeholder: '-- Selecciona un responsable --',
-        allowEmptyOption: true,
-        closeAfterSelect: true,
-        sortField: { field: "text", direction: "asc" }
-    });
-    });
+        document.addEventListener('DOMContentLoaded', function () {
+            $('#responsible_user_id').select2({
+                placeholder: '-- Selecciona un responsable --',
+                allowClear: true,
+                width: '100%'
+            });
+
+            const assetTypeSelect = document.getElementById('asset_type_id');
+            const parentAssetSelect = document.getElementById('parent_asset_id');
+            const parentAssetWrapper = document.getElementById('parent-asset-wrapper');
+
+            const allowedTypes = [
+                'tracto',
+                'semirremolque',
+                'atq',
+                'cilindrera',
+                'carro tanque',
+                'carros tanque'
+            ];
+
+            function toggleParentAssetField() {
+                const selectedOption = assetTypeSelect.options[assetTypeSelect.selectedIndex];
+                const selectedTypeName = (selectedOption?.dataset?.name || '').trim().toLowerCase();
+
+                const shouldEnable = allowedTypes.includes(selectedTypeName);
+
+                parentAssetSelect.disabled = !shouldEnable;
+
+                if (!shouldEnable) {
+                    parentAssetSelect.value = '';
+                    parentAssetWrapper.classList.add('opacity-60');
+                } else {
+                    parentAssetWrapper.classList.remove('opacity-60');
+                }
+            }
+
+            assetTypeSelect.addEventListener('change', toggleParentAssetField);
+
+            toggleParentAssetField();
+        });
     </script>
 </x-layouts.vigia>

@@ -22,6 +22,12 @@ class UpdateAssetRequest extends FormRequest
             ],
             'name' => ['required', 'string', 'max:255'],
             'code' => ['nullable', 'string', 'max:100'],
+
+            'parent_asset_id' => [
+                'nullable', 
+                'exists:assets,id'
+            ],
+            
             'location' => ['nullable', 'string', 'max:255'],
 
             'vault_location' => ['nullable', 'string', 'max:255'],
