@@ -136,19 +136,37 @@
 
                 {{-- Si es hijo, mostrar solo padre --}}
                 @if($hasParent)
+                    @php
+                        $parentInactive = !is_null($asset->parent->inactive_at);
+                    @endphp
+
                     <div class="rounded-xl border border-gray-200 bg-gray-50 p-5">
-                        <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                            Activo principal relacionado
-                        </div>
+                        <div class="flex items-start justify-between gap-4 flex-wrap">
+                            <div>
+                                <div class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                    Activo principal
+                                </div>
 
-                        <div class="mt-3">
-                            <a href="{{ route('assets.show', $asset->parent) }}"
-                            class="text-base font-semibold text-[#1A428A] hover:underline">
-                                {{ $asset->parent->name }}
-                            </a>
+                                <div class="mt-3 flex items-center gap-3 flex-wrap">
+                                    <a href="{{ route('assets.show', $asset->parent) }}"
+                                    class="text-lg font-semibold text-[#1A428A] hover:underline">
+                                        {{ $asset->parent->name }}
+                                    </a>
 
-                            <div class="text-sm text-gray-500 mt-1">
-                                {{ $asset->parent->assetType->name ?? '-' }}
+                                    <span class="text-xs px-3 py-1 rounded border
+                                        {{ $parentInactive
+                                            ? 'bg-gray-100 text-gray-700 border-gray-300'
+                                            : 'bg-green-50 text-green-700 border-green-200' }}">
+                                        {{ $parentInactive ? 'SIN OPERACIÓN' : 'OPERANDO' }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <a href="{{ route('assets.show', $asset->parent) }}"
+                                class="inline-flex items-center px-4 py-2 rounded-md border border-[#1A428A] text-[#1A428A] font-semibold hover:bg-blue-50 whitespace-nowrap">
+                                    Abrir activo principal
+                                </a>
                             </div>
                         </div>
                     </div>

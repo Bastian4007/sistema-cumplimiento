@@ -99,13 +99,13 @@
 
                 {{-- Responsable --}}
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
                         Selecciona un responsable
                     </label>
                     <select
                         id="responsible_user_id"
                         name="responsible_user_id"
-                        class="{{ $selectClass }}"
+                        class="{{ $selectClass }} searchable-select"
                         required
                     >
                         <option value="">-- Selecciona un responsable --</option>
@@ -254,7 +254,8 @@
             $('#responsible_user_id').select2({
                 placeholder: '-- Selecciona un responsable --',
                 allowClear: true,
-                width: '100%'
+                width: '100%',
+                dropdownParent: $('#responsible_user_id').closest('div')
             });
 
             const assetTypeSelect = document.getElementById('asset_type_id');
@@ -287,8 +288,102 @@
             }
 
             assetTypeSelect.addEventListener('change', toggleParentAssetField);
-
             toggleParentAssetField();
         });
     </script>
+    <style>
+        .select2-container {
+            width: 100% !important;
+        }
+
+        .select2-container--default .select2-selection--single {
+            height: 42px !important;
+            border: 1px solid rgb(209 213 219) !important;
+            border-radius: 0.375rem !important;
+            background-color: #fff !important;
+            display: flex !important;
+            align-items: center !important;
+            padding: 0 0.75rem !important;
+            box-shadow: none !important;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__rendered {
+            color: rgb(55 65 81) !important;
+            font-size: 0.875rem !important;
+            line-height: 40px !important;
+            padding-left: 0 !important;
+            padding-right: 2rem !important;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__placeholder {
+            color: rgb(156 163 175) !important;
+        }
+
+        .select2-container--default .select2-selection--single .select2-selection__arrow {
+            height: 40px !important;
+            right: 10px !important;
+        }
+
+        .select2-container--default.select2-container--open .select2-selection--single,
+        .select2-container--default.select2-container--focus .select2-selection--single {
+            border-color: #2563eb !important;
+            box-shadow: 0 0 0 1px #2563eb !important;
+        }
+
+        .select2-dropdown {
+            border: 1px solid rgb(209 213 219) !important;
+            border-radius: 0.375rem !important;
+            overflow: hidden !important;
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1) !important;
+        }
+
+        /* Importante: NO forzar width:100% aquí */
+        .select2-container--open .select2-dropdown {
+            left: 0 !important;
+        }
+
+        .select2-search--dropdown {
+            padding: 0.5rem !important;
+            box-sizing: border-box !important;
+        }
+
+        .select2-container--default .select2-search--dropdown .select2-search__field {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            box-sizing: border-box !important;
+            border: 1px solid rgb(209 213 219) !important;
+            border-radius: 0.375rem !important;
+            padding: 0.5rem 0.75rem !important;
+            font-size: 0.875rem !important;
+            outline: none !important;
+        }
+
+        .select2-container--default .select2-search--dropdown .select2-search__field:focus {
+            border-color: #2563eb !important;
+            box-shadow: 0 0 0 1px #2563eb !important;
+        }
+
+        .select2-results__options {
+            max-height: 240px !important;
+            overflow-y: auto !important;
+        }
+
+        .select2-results__option {
+            padding: 0.625rem 0.75rem !important;
+            font-size: 0.875rem !important;
+            color: rgb(55 65 81) !important;
+        }
+
+        .select2-container--default .select2-results__option--highlighted[aria-selected] {
+            background-color: rgb(239 246 255) !important;
+            color: #1A428A !important;
+        }
+
+        .select2-container--default .select2-results__option[aria-selected=true] {
+            background-color: rgb(249 250 251) !important;
+            color: rgb(17 24 39) !important;
+        }
+    </style>
 </x-layouts.vigia>
