@@ -21,18 +21,18 @@ class AssetPolicy
 
     public function create(User $user): bool
     {
-        return $user->isOperative();
+        return $user->isAdmin() || $user->isOperative();
     }
 
     public function update(User $user, Asset $asset): bool
     {
-        return $user->isOperative()
+        return ($user->isAdmin() || $user->isOperative())
             && $asset->company_id === $user->company_id;
     }
 
     public function delete(User $user, Asset $asset): bool
     {
-        return $user->isOperative()
+        return ($user->isAdmin() || $user->isOperative())
             && $asset->company_id === $user->company_id;
     }
 }

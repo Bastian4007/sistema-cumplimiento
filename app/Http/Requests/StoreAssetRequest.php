@@ -9,7 +9,7 @@ class StoreAssetRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->isOperative() === true;
+        return $this->user()->isAdmin() || $this->user()->isOperative();
     }
 
     public function rules(): array

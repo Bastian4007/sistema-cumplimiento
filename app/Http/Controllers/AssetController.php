@@ -469,13 +469,4 @@ class AssetController extends Controller
 
         return back()->with('success', 'Activo reactivado.');
     }
-
-    protected function prepareForValidation()
-    {
-        if ($this->has('location')) {
-            $this->merge([
-                'location' => strtoupper(trim($this->location)),
-            ]);
-        }
-    }
 }
