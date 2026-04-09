@@ -2,24 +2,24 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\TaskStatus;
 use App\Http\Requests\StoreAssetRequest;
 use App\Http\Requests\UpdateAssetRequest;
 use App\Models\Asset;
-use App\Models\AssetType;
-use App\Models\User;
-use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-use App\Enums\RequirementStatus;
-use App\Models\RequirementTemplate;
 use App\Models\AssetRequirement;
-use Illuminate\Support\Facades\DB;
-use App\Enums\TaskStatus;
+use App\Models\AssetType;
+use App\Models\RequirementTemplate;
+use App\Models\User;
+use App\Services\SyncAssetRequirementsService;
+use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class AssetController extends Controller
 {
-    public function __construct()
+    public function __construct(private SyncAssetRequirementsService $syncAssetRequirementsService)
     {
         $this->authorizeResource(Asset::class, 'asset');
     }
@@ -168,7 +168,7 @@ class AssetController extends Controller
                 ...$data,
             ]);
 
-            $this->createRequirementsFromTemplates($asset);
+            $this->syncAssetRequirementsService->handle($asset);
 
             return $asset;
         });
@@ -176,34 +176,6 @@ class AssetController extends Controller
         return redirect()
             ->route('assets.show', $asset)
             ->with('status', 'Activo creado.');
-    }
-
-    private function createRequirementsFromTemplates(Asset $asset): void
-    {
-        $templates = RequirementTemplate::query()
-            ->where('asset_type_id', $asset->asset_type_id)
-            ->orderBy('id')
-            ->get();
-
-        foreach ($templates as $template) {
-            $requirement = AssetRequirement::firstOrCreate(
-                [
-                    'asset_id' => $asset->id,
-                    'requirement_template_id' => $template->id,
-                ],
-                [
-                    'company_id' => $asset->company_id,
-                    'status' => RequirementStatus::PENDING,
-                    'due_date' => $asset->compliance_due_date,
-                    'compliance_scope' => $template->compliance_scope ?? 'project',
-                    'completed_at' => null,
-                    'issued_at' => null,
-                    'expires_at' => null,
-                    'type' => 'initial',
-                    'current_document_id' => null,
-                ]
-            );
-        }
     }
 
     private function generateAssetCode(int $companyId): string
@@ -451,7 +423,15 @@ class AssetController extends Controller
 
     public function update(UpdateAssetRequest $request, Asset $asset)
     {
-        $asset->update($request->validated());
+        $oldAssetTypeId = (int) $asset->asset_type_id;
+
+        DB::transaction(function () use ($request, $asset, $oldAssetTypeId) {
+            $asset->update($request->validated());
+
+            if ($oldAssetTypeId !== (int) $asset->asset_type_id) {
+                $this->syncAssetRequirementsService->handle($asset, removeObsolete: true);
+            }
+        });
 
         return redirect()
             ->route('assets.show', $asset)

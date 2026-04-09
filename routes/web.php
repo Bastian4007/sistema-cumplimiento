@@ -12,6 +12,8 @@ use App\Http\Controllers\AssetRequirementDocumentController;
 use App\Http\Controllers\RequirementAuditLogController;
 use App\Http\Controllers\RequirementHistoryController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\UserInvitationController;
 
 Route::get('/', function () {
     return auth()->check()
@@ -29,6 +31,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+
+    // Users
+    Route::get('/users', [UserController::class, 'index'])->name('users.index');
+    Route::get('/users/create', [UserController::class, 'create'])->name('users.create');
+    Route::post('/users', [UserController::class, 'store'])->name('users.store');
+    Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
 
     // Assets CRUD
     Route::resource('assets', AssetController::class);
@@ -123,5 +131,11 @@ Route::middleware('auth')->group(function () {
         [RequirementHistoryController::class, 'task']
     )->name('assets.requirements.tasks.history');
 });
+
+Route::get('/invitation/{token}', [UserInvitationController::class, 'show'])
+    ->name('invitation.accept');
+
+Route::post('/invitation/{token}', [UserInvitationController::class, 'store'])
+    ->name('invitation.store');
 
 require __DIR__ . '/auth.php';

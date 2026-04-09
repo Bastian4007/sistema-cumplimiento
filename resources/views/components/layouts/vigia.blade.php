@@ -189,6 +189,14 @@
                             Activos y Actividades
                         </a>
 
+                        @if(auth()->user()?->isAdmin())
+                            <a href="{{ route('users.index') }}"
+                            class="block rounded-lg px-3 py-2 text-sm font-medium
+                            {{ request()->routeIs('users.*') ? 'bg-gray-100 text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                Usuarios
+                            </a>
+                        @endif
+
                         @if(!empty($navContext['asset']))
                             <a href="{{ route('assets.show', $navContext['asset']) }}"
                                class="ml-4 block rounded-md px-3 py-2 {{ empty($navContext['requirement']) ? 'bg-blue-50 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">

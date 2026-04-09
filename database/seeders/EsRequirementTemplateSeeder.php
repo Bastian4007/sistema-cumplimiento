@@ -34,81 +34,125 @@ class EsRequirementTemplateSeeder extends Seeder
             return;
         }
 
-        $headers = fgetcsv($handle, 0, ',');
-
-        if (! $headers) {
-            fclose($handle);
-            $this->command?->error('El CSV no contiene encabezados.');
-            return;
-        }
-
-        $headers = $this->normalizeHeaders($headers);
-
-        $imported = 0;
+        $headers = null;
+        $createdOrUpdated = [];
+        $currentAuthority = null;
 
         while (($row = fgetcsv($handle, 0, ',')) !== false) {
             if ($this->isEmptyRow($row)) {
                 continue;
             }
 
-            $rowData = $this->mapRowToHeaders($headers, $row);
+            $trimmedRow = array_map(fn ($value) => trim((string) $value), $row);
 
-            $permissionName = trim((string) ($rowData['permiso'] ?? ''));
-            $requiredInEs = $this->normalizeValue($rowData['requerido_en_es'] ?? '');
+            if ($headers === null) {
+                $candidateHeaders = $this->normalizeHeaders($trimmedRow);
 
-            if ($permissionName === '') {
+                if ($this->looksLikeHeaderRow($candidateHeaders)) {
+                    $headers = $candidateHeaders;
+                }
+
                 continue;
             }
 
-            if ($requiredInEs !== 'si') {
+            if ($this->isRepeatedHeaderRow($trimmedRow)) {
+                $headers = $this->normalizeHeaders($trimmedRow);
+                continue;
+            }
+
+            $rowData = $this->mapRowToHeaders($headers, $trimmedRow);
+
+            $dependencyValue = trim((string) ($rowData['dependencia'] ?? ''));
+            if ($dependencyValue !== '') {
+                $currentAuthority = $dependencyValue;
+            }
+
+            $documentName = trim((string) ($rowData['documento'] ?? ''));
+
+            if ($documentName === '') {
+                continue;
+            }
+
+            $documentName = $this->normalizeRequirementName($documentName);
+
+            if ($documentName === '') {
                 continue;
             }
 
             $scopes = $this->extractScopes($rowData['aplica_para'] ?? null);
 
             foreach ($scopes as $scope) {
-                    RequirementTemplate::updateOrCreate(
-                        [
-                            'name' => $permissionName,
-                            'asset_type_id' => $assetType->id,
-                            'compliance_scope' => $scope,
-                        ],
-                        [
-                            'authority' => $this->normalizeAuthority($rowData['autoridad'] ?? null),
-                            'description' => $this->buildDescription($rowData),
-                        ]
-                    );
-                $imported++;
+                $template = RequirementTemplate::updateOrCreate(
+                    [
+                        'name' => $documentName,
+                        'asset_type_id' => $assetType->id,
+                        'compliance_scope' => $scope,
+                    ],
+                    [
+                        'authority' => $this->normalizeRegulatoryEntity($currentAuthority),
+                        'description' => $this->buildDescription($rowData),
+                    ]
+                );
+
+                $createdOrUpdated[$template->id] = true;
             }
         }
 
         fclose($handle);
 
-        $this->command?->info("Templates ES importados/actualizados: {$imported}");
+        if ($headers === null) {
+            $this->command?->error('No se encontró una fila válida de encabezados en el CSV.');
+            return;
+        }
+
+        $count = count($createdOrUpdated);
+
+        $this->command?->info("Templates ES importados/actualizados: {$count}");
     }
 
     private function normalizeHeaders(array $headers): array
     {
         return collect($headers)->map(function ($header) {
-            $header = Str::of((string) $header)
+            $raw = trim((string) $header);
+
+            if ($raw === '#') {
+                return 'dependencia_numero';
+            }
+
+            $normalized = Str::of($raw)
                 ->replace("\xEF\xBB\xBF", '')
                 ->lower()
                 ->ascii()
-                ->replace(['#', '.', ',', ';', ':', '(', ')'], ' ')
+                ->replace(['.', ',', ';', ':', '(', ')'], ' ')
                 ->replaceMatches('/\s+/', ' ')
                 ->trim()
                 ->value();
 
-            return match ($header) {
-                'permiso' => 'permiso',
-                'frecuencia del permiso' => 'frecuencia_permiso',
-                'aplica para' => 'aplica_para',
-                'autoridad' => 'autoridad',
-                'requerido en es' => 'requerido_en_es',
+            return match ($normalized) {
+                'dependencia' => 'dependencia',
+                'documento' => 'documento',
+                'frecuencia', 'frecuencia del permiso' => 'frecuencia_permiso',
+                'aplica para', 'aplica' => 'aplica_para',
+                'tipo de documento', 'tipo documento', 'autoridad' => 'tipo_documento',
                 'area responsable tramite' => 'area_responsable_tramite',
-                default => $header,
+                default => $normalized,
             };
         })->toArray();
+    }
+
+    private function looksLikeHeaderRow(array $headers): bool
+    {
+        $headers = collect($headers);
+
+        return $headers->contains('dependencia')
+            && $headers->contains('documento')
+            && $headers->contains('frecuencia_permiso')
+            && $headers->contains('aplica_para');
+    }
+
+    private function isRepeatedHeaderRow(array $row): bool
+    {
+        return $this->looksLikeHeaderRow($this->normalizeHeaders($row));
     }
 
     private function mapRowToHeaders(array $headers, array $row): array
@@ -116,20 +160,16 @@ class EsRequirementTemplateSeeder extends Seeder
         $result = [];
 
         foreach ($headers as $index => $header) {
-            $result[$header] = $row[$index] ?? null;
+            if ($header === '') {
+                continue;
+            }
+
+            $result[$header] = isset($row[$index])
+                ? trim((string) $row[$index])
+                : null;
         }
 
         return $result;
-    }
-
-    private function normalizeValue(mixed $value): string
-    {
-        return Str::of((string) $value)
-            ->lower()
-            ->ascii()
-            ->replaceMatches('/\s+/', ' ')
-            ->trim()
-            ->value();
     }
 
     private function extractScopes(?string $value): array
@@ -169,12 +209,16 @@ class EsRequirementTemplateSeeder extends Seeder
     {
         $parts = [];
 
-        if (! empty($rowData['autoridad'])) {
-            $parts[] = 'Autoridad: ' . trim((string) $rowData['autoridad']);
+        if (! empty($rowData['dependencia_numero'])) {
+            $parts[] = 'Dependencia #: ' . trim((string) $rowData['dependencia_numero']);
         }
 
         if (! empty($rowData['frecuencia_permiso'])) {
             $parts[] = 'Frecuencia: ' . trim((string) $rowData['frecuencia_permiso']);
+        }
+
+        if (! empty($rowData['tipo_documento'])) {
+            $parts[] = 'Tipo documento: ' . trim((string) $rowData['tipo_documento']);
         }
 
         if (! empty($rowData['area_responsable_tramite'])) {
@@ -182,13 +226,6 @@ class EsRequirementTemplateSeeder extends Seeder
         }
 
         return empty($parts) ? null : implode(' | ', $parts);
-    }
-
-    private function normalizeNullable(?string $value): ?string
-    {
-        $value = trim((string) $value);
-
-        return $value === '' ? null : $value;
     }
 
     private function isEmptyRow(array $row): bool
@@ -202,7 +239,25 @@ class EsRequirementTemplateSeeder extends Seeder
         return true;
     }
 
-    private function normalizeAuthority(?string $value): ?string
+    private function normalizeRequirementName(string $name): string
+    {
+        return Str::of($name)
+            ->replace("\xC2\xA0", ' ')
+            ->replaceMatches('/\b(19|20)\d{2}\b/u', '')
+            ->replace(' + hoja de ayuda + acuse de cumplimiento autoridad', '')
+            ->replace('+ hoja de ayuda + acuse de cumplimiento autoridad', '')
+            ->replace(' + acuse de cumplimiento autoridad', '')
+            ->replace('+ acuse de cumplimiento autoridad', '')
+            ->replaceMatches('/\bOPE\/CRE\b/u', '')
+            ->replaceMatches('/\bOPE\/CNE\b/u', '')
+            ->replaceMatches('/\bCRE\b/u', '')
+            ->replaceMatches('/\bCNE\b/u', '')
+            ->replaceMatches('/\s+/', ' ')
+            ->trim()
+            ->value();
+    }
+
+    private function normalizeRegulatoryEntity(?string $value): ?string
     {
         $value = trim((string) $value);
 
@@ -210,6 +265,39 @@ class EsRequirementTemplateSeeder extends Seeder
             return null;
         }
 
-        return mb_strtoupper($value);
+        $normalized = Str::of($value)
+            ->lower()
+            ->ascii()
+            ->replaceMatches('/\s+/', ' ')
+            ->trim()
+            ->value();
+        
+        if (in_array($normalized, [
+            'numero de permiso',
+            'domicilio cre cne',
+            'marca del petrolifero',
+            'tipo de petrolifero glp',
+            'tipo de petrolifero/glp',
+        ])) {
+            return null;
+        }
+
+        return match (true) {
+            str_contains($normalized, 'secretaria de energia') => 'SENER',
+            str_contains($normalized, 'comision nacional de energia') => 'CNE',
+            str_contains($normalized, 'cne') => 'CNE',
+            str_contains($normalized, 'cre') => 'CRE',
+            str_contains($normalized, 'sat') => 'SAT',
+            str_contains($normalized, 'servicio de administracion tributaria') => 'SAT',
+            str_contains($normalized, 'stps') => 'STPS',
+            str_contains($normalized, 'salud') => 'SALUD',
+            str_contains($normalized, 'sict') => 'SICT',
+            str_contains($normalized, 'infraestructura comunicaciones y transportes') => 'SICT',
+            str_contains($normalized, 'cofepris') => 'COFEPRIS',
+            str_contains($normalized, 'asea') => 'ASEA',
+            str_contains($normalized, 'semarnat') => 'SEMARNAT',
+            str_contains($normalized, 'proteccion civil') => 'PROTECCION CIVIL',
+            default => mb_strtoupper($value),
+        };
     }
 }

@@ -63,4 +63,13 @@ class StoreAssetRequest extends FormRequest
             'compliance_due_date'   => ['required', 'date', 'after_or_equal:compliance_start_date'],
         ];
     }
+
+    protected function prepareForValidation()
+    {
+        if ($this->has('location')) {
+            $this->merge([
+                'location' => strtoupper(trim($this->location)),
+            ]);
+        }
+    }
 }

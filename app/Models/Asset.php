@@ -104,5 +104,10 @@ class Asset extends Model
     {
         return $this->hasMany(Asset::class, 'parent_asset_id');
     }
+
+    public function assetRequirements()
+    {
+        return $this->hasMany(\App\Models\AssetRequirement::class);
+    }
 }
 

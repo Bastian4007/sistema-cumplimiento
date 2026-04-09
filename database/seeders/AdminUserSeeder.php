@@ -36,44 +36,26 @@ class ComercializacionRequirementTemplateSeeder extends Seeder
 
         $headers = null;
         $createdOrUpdated = [];
-        $currentAuthority = null;
 
         while (($row = fgetcsv($handle, 0, ',')) !== false) {
             if ($this->isEmptyRow($row)) {
                 continue;
             }
 
-            $trimmedRow = array_map(fn ($value) => trim((string) $value), $row);
-
             if ($headers === null) {
-                $candidateHeaders = $this->normalizeHeaders($trimmedRow);
+                $candidateHeaders = $this->normalizeHeaders($row);
 
-                if ($this->looksLikeHeaderRow($candidateHeaders)) {
-                    $headers = $candidateHeaders;
+                if (! $this->looksLikeHeaderRow($candidateHeaders)) {
+                    continue;
                 }
 
+                $headers = $candidateHeaders;
                 continue;
             }
 
-            if ($this->isRepeatedHeaderRow($trimmedRow)) {
-                $headers = $this->normalizeHeaders($trimmedRow);
-                continue;
-            }
-
-            $rowData = $this->mapRowToHeaders($headers, $trimmedRow);
-
-            $dependencyValue = trim((string) ($rowData['dependencia'] ?? ''));
-            if ($dependencyValue !== '') {
-                $currentAuthority = $dependencyValue;
-            }
+            $rowData = $this->mapRowToHeaders($headers, $row);
 
             $documentName = trim((string) ($rowData['documento'] ?? ''));
-
-            if ($documentName === '') {
-                continue;
-            }
-
-            $documentName = $this->normalizeRequirementName($documentName);
 
             if ($documentName === '') {
                 continue;
@@ -89,7 +71,7 @@ class ComercializacionRequirementTemplateSeeder extends Seeder
                         'compliance_scope' => $scope,
                     ],
                     [
-                        'authority' => $this->normalizeRegulatoryEntity($currentAuthority),
+                        'authority' => $this->normalizeAuthority($rowData['autoridad'] ?? null),
                         'description' => $this->buildDescription($rowData),
                     ]
                 );
@@ -113,27 +95,21 @@ class ComercializacionRequirementTemplateSeeder extends Seeder
     private function normalizeHeaders(array $headers): array
     {
         return collect($headers)->map(function ($header) {
-            $raw = trim((string) $header);
-
-            if ($raw === '#') {
-                return 'dependencia_numero';
-            }
-
-            $normalized = Str::of($raw)
+            $normalized = Str::of((string) $header)
                 ->replace("\xEF\xBB\xBF", '')
                 ->lower()
                 ->ascii()
-                ->replace(['.', ',', ';', ':', '(', ')'], ' ')
+                ->replace(['#', '.', ',', ';', ':', '(', ')'], ' ')
                 ->replaceMatches('/\s+/', ' ')
                 ->trim()
                 ->value();
 
             return match ($normalized) {
-                'dependencia' => 'dependencia',
+                'dependencia', 'dependencia no', 'dependencia numero' => 'dependencia_numero',
                 'documento' => 'documento',
                 'frecuencia', 'frecuencia del permiso' => 'frecuencia_permiso',
                 'aplica para', 'aplica' => 'aplica_para',
-                'autoridad', 'tipo de documento', 'tipo documento' => 'tipo_documento',
+                'autoridad' => 'autoridad',
                 'area responsable tramite' => 'area_responsable_tramite',
                 default => $normalized,
             };
@@ -144,15 +120,10 @@ class ComercializacionRequirementTemplateSeeder extends Seeder
     {
         $headers = collect($headers);
 
-        return $headers->contains('dependencia')
-            && $headers->contains('documento')
+        return $headers->contains('documento')
             && $headers->contains('frecuencia_permiso')
-            && $headers->contains('aplica_para');
-    }
-
-    private function isRepeatedHeaderRow(array $row): bool
-    {
-        return $this->looksLikeHeaderRow($this->normalizeHeaders($row));
+            && $headers->contains('aplica_para')
+            && $headers->contains('autoridad');
     }
 
     private function mapRowToHeaders(array $headers, array $row): array
@@ -160,10 +131,6 @@ class ComercializacionRequirementTemplateSeeder extends Seeder
         $result = [];
 
         foreach ($headers as $index => $header) {
-            if ($header === '') {
-                continue;
-            }
-
             $result[$header] = isset($row[$index])
                 ? trim((string) $row[$index])
                 : null;
@@ -217,8 +184,8 @@ class ComercializacionRequirementTemplateSeeder extends Seeder
             $parts[] = 'Frecuencia: ' . trim((string) $rowData['frecuencia_permiso']);
         }
 
-        if (! empty($rowData['tipo_documento'])) {
-            $parts[] = 'Tipo documento: ' . trim((string) $rowData['tipo_documento']);
+        if (! empty($rowData['autoridad'])) {
+            $parts[] = 'Autoridad: ' . trim((string) $rowData['autoridad']);
         }
 
         if (! empty($rowData['area_responsable_tramite'])) {
@@ -239,25 +206,7 @@ class ComercializacionRequirementTemplateSeeder extends Seeder
         return true;
     }
 
-    private function normalizeRequirementName(string $name): string
-    {
-        return Str::of($name)
-            ->replace("\xC2\xA0", ' ')
-            ->replaceMatches('/\b(19|20)\d{2}\b/u', '')
-            ->replace(' + hoja de ayuda + acuse de cumplimiento autoridad', '')
-            ->replace('+ hoja de ayuda + acuse de cumplimiento autoridad', '')
-            ->replace(' + acuse de cumplimiento autoridad', '')
-            ->replace('+ acuse de cumplimiento autoridad', '')
-            ->replaceMatches('/\bOPE\/CRE\b/u', '')
-            ->replaceMatches('/\bOPE\/CNE\b/u', '')
-            ->replaceMatches('/\bCRE\b/u', '')
-            ->replaceMatches('/\bCNE\b/u', '')
-            ->replaceMatches('/\s+/', ' ')
-            ->trim()
-            ->value();
-    }
-
-    private function normalizeRegulatoryEntity(?string $value): ?string
+    private function normalizeAuthority(?string $value): ?string
     {
         $value = trim((string) $value);
 
@@ -265,39 +214,6 @@ class ComercializacionRequirementTemplateSeeder extends Seeder
             return null;
         }
 
-        $normalized = Str::of($value)
-            ->lower()
-            ->ascii()
-            ->replaceMatches('/\s+/', ' ')
-            ->trim()
-            ->value();
-
-        if (in_array($normalized, [
-            'numero de permiso',
-            'domicilio cre cne',
-            'marca del petrolifero',
-            'tipo de petrolifero glp',
-            'tipo de petrolifero/glp',
-        ], true)) {
-            return null;
-        }
-
-        return match (true) {
-            str_contains($normalized, 'secretaria de energia') => 'SENER',
-            str_contains($normalized, 'comision nacional de energia') => 'CNE',
-            str_contains($normalized, 'cne') => 'CNE',
-            str_contains($normalized, 'cre') => 'CRE',
-            str_contains($normalized, 'sat') => 'SAT',
-            str_contains($normalized, 'servicio de administracion tributaria') => 'SAT',
-            str_contains($normalized, 'stps') => 'STPS',
-            str_contains($normalized, 'salud') => 'SALUD',
-            str_contains($normalized, 'sict') => 'SICT',
-            str_contains($normalized, 'infraestructura comunicaciones y transportes') => 'SICT',
-            str_contains($normalized, 'cofepris') => 'COFEPRIS',
-            str_contains($normalized, 'asea') => 'ASEA',
-            str_contains($normalized, 'semarnat') => 'SEMARNAT',
-            str_contains($normalized, 'proteccion civil') => 'PROTECCION CIVIL',
-            default => mb_strtoupper($value),
-        };
+        return mb_strtoupper($value);
     }
 }

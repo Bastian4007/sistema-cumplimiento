@@ -39,4 +39,13 @@ class UpdateAssetRequest extends FormRequest
             ],
         ];
     }
+
+    protected function prepareForValidation()
+    {
+        if ($this->has('location')) {
+            $this->merge([
+                'location' => strtoupper(trim($this->location)),
+            ]);
+        }
+    }
 }

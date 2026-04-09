@@ -11,6 +11,11 @@ class RoleSeeder extends Seeder
     public function run(): void
     {
         Role::updateOrCreate(
+            ['slug' => 'admin'],
+            ['name' => 'administrador']
+        );
+
+        Role::updateOrCreate(
             ['slug' => 'operative'],
             ['name' => 'Operativo']
         );

@@ -12,36 +12,38 @@ class User extends Authenticatable
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'name',
         'email',
         'password',
         'company_id',
         'role_id',
+        'status',
+        'invite_token',
+        'invite_expires_at',
+        'invitation_accepted_at',
+        'invited_by',
+        'email_verified_at',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
+        'invite_token',
     ];
 
     protected $with = ['role', 'company'];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'invite_expires_at' => 'datetime',
+            'invitation_accepted_at' => 'datetime',
+            'password' => 'hashed',
+        ];
+    }
+
     public function company()
     {
         return $this->belongsTo(Company::class);
@@ -57,6 +59,11 @@ class User extends Authenticatable
         return $this->belongsToMany(Task::class);
     }
 
+    public function isAdmin(): bool
+    {
+        return $this->role?->slug === 'admin';
+    }
+
     public function isOperative(): bool
     {
         return $this->role?->slug === 'operative';
@@ -67,11 +74,18 @@ class User extends Authenticatable
         return $this->role?->slug === 'readonly';
     }
 
-    protected function casts(): array
+    public function invitedBy()
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return $this->belongsTo(User::class, 'invited_by');
+    }
+
+    public function isInvited(): bool
+    {
+        return $this->status === 'invited';
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === 'active';
     }
 }

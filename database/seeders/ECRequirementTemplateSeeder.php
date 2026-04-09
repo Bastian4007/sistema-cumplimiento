@@ -7,11 +7,11 @@ use App\Models\RequirementTemplate;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
-class ComercializacionRequirementTemplateSeeder extends Seeder
+class ECRequirementTemplateSeeder extends Seeder
 {
     public function run(): void
     {
-        $filePath = database_path('seeders/data/comercializacion_checklist.csv');
+        $filePath = database_path('seeders/data/ec_checklist.csv');
 
         if (! file_exists($filePath)) {
             $this->command?->error("No se encontró el archivo: {$filePath}");
@@ -19,11 +19,11 @@ class ComercializacionRequirementTemplateSeeder extends Seeder
         }
 
         $assetType = AssetType::query()
-            ->where('name', 'Comercialización')
+            ->where('name', 'EC')
             ->first();
 
         if (! $assetType) {
-            $this->command?->error('No existe el asset type Comercialización.');
+            $this->command?->error('No existe el asset type EC.');
             return;
         }
 
@@ -107,7 +107,7 @@ class ComercializacionRequirementTemplateSeeder extends Seeder
 
         $count = count($createdOrUpdated);
 
-        $this->command?->info("Templates de Comercialización importados/actualizados: {$count}");
+        $this->command?->info("Templates de Estación de Carburación importados/actualizados: {$count}");
     }
 
     private function normalizeHeaders(array $headers): array
@@ -133,7 +133,7 @@ class ComercializacionRequirementTemplateSeeder extends Seeder
                 'documento' => 'documento',
                 'frecuencia', 'frecuencia del permiso' => 'frecuencia_permiso',
                 'aplica para', 'aplica' => 'aplica_para',
-                'autoridad', 'tipo de documento', 'tipo documento' => 'tipo_documento',
+                'tipo doc', 'tipo de documento', 'tipo documento', 'autoridad' => 'tipo_documento',
                 'area responsable tramite' => 'area_responsable_tramite',
                 default => $normalized,
             };
@@ -278,7 +278,7 @@ class ComercializacionRequirementTemplateSeeder extends Seeder
             'marca del petrolifero',
             'tipo de petrolifero glp',
             'tipo de petrolifero/glp',
-        ], true)) {
+        ])) {
             return null;
         }
 
