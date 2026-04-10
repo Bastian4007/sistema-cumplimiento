@@ -9,14 +9,13 @@ class AssetPolicy
 {
     public function viewAny(User $user): bool
     {
-        // Operativo y Solo Vista pueden listar
         return true;
     }
 
     public function view(User $user, Asset $asset): bool
     {
-        // Solo puede ver assets de su empresa
-        return $asset->company_id === $user->company_id;
+        return $user->isAdmin()
+            || $asset->company_id === $user->company_id;
     }
 
     public function create(User $user): bool
@@ -26,13 +25,25 @@ class AssetPolicy
 
     public function update(User $user, Asset $asset): bool
     {
-        return ($user->isAdmin() || $user->isOperative())
-            && $asset->company_id === $user->company_id;
+        return $user->isAdmin()
+            || ($user->isOperative() && $asset->company_id === $user->company_id);
     }
 
     public function delete(User $user, Asset $asset): bool
     {
-        return ($user->isAdmin() || $user->isOperative())
-            && $asset->company_id === $user->company_id;
+        return $user->isAdmin()
+            || ($user->isOperative() && $asset->company_id === $user->company_id);
+    }
+
+    public function activate(User $user, Asset $asset): bool
+    {
+        return $user->isAdmin()
+            || ($user->isOperative() && $asset->company_id === $user->company_id);
+    }
+
+    public function deactivate(User $user, Asset $asset): bool
+    {
+        return $user->isAdmin()
+            || ($user->isOperative() && $asset->company_id === $user->company_id);
     }
 }

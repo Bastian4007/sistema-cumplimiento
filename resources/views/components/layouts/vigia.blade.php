@@ -10,6 +10,10 @@
     ],
 ])
 
+@php
+    $user = auth()->user();
+@endphp
+
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -17,20 +21,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $title ? $title . ' · Vigia' : 'Vigia' }}</title>
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-
-    {{-- Alpine para drawer móvil --}}
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 
 <body class="h-screen overflow-hidden bg-gray-50 text-gray-900">
     <div x-data="{ mobileMenuOpen: false }" class="flex h-screen flex-col">
-        {{-- Topbar --}}
         <header class="shrink-0 bg-[#1A428A] text-white">
             <div class="mx-auto flex max-w-[1680px] items-center justify-between px-4 py-3 sm:px-6">
                 <div class="flex items-center gap-3">
-                    {{-- Botón móvil --}}
                     <button
                         type="button"
                         class="inline-flex items-center justify-center rounded-md p-2 hover:bg-white/10 lg:hidden"
@@ -51,7 +49,7 @@
 
                 <div class="flex items-center gap-3">
                     <div class="hidden text-sm opacity-90 sm:block">
-                        {{ auth()->user()?->name }}
+                        {{ $user?->name }}
                     </div>
 
                     <form method="POST" action="{{ route('logout') }}">
@@ -64,7 +62,6 @@
             </div>
         </header>
 
-        {{-- Drawer móvil --}}
         <div
             x-show="mobileMenuOpen"
             x-transition.opacity
@@ -168,9 +165,7 @@
             </div>
         </aside>
 
-        {{-- Page --}}
         <div class="mx-auto flex min-h-0 w-full max-w-[1680px] flex-1 gap-8 px-4 py-4 sm:px-6 sm:py-6">
-            {{-- Sidebar desktop --}}
             <aside class="hidden shrink-0 lg:block lg:w-[280px] xl:w-[250px]">
                 <div class="h-full rounded-xl bg-white p-4 shadow">
                     <div class="mb-3 flex items-center gap-2 text-sm font-semibold text-[#1A428A]">
@@ -189,10 +184,9 @@
                             Activos y Actividades
                         </a>
 
-                        @if(auth()->user()?->isAdmin())
+                        @if($user?->isAdmin())
                             <a href="{{ route('users.index') }}"
-                            class="block rounded-lg px-3 py-2 text-sm font-medium
-                            {{ request()->routeIs('users.*') ? 'bg-gray-100 text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                               class="block rounded-lg px-3 py-2 text-sm font-medium {{ request()->routeIs('users.*') ? 'bg-gray-100 text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
                                 Usuarios
                             </a>
                         @endif
@@ -240,7 +234,6 @@
                 </div>
             </aside>
 
-            {{-- Main content --}}
             <div class="min-h-0 flex-1 overflow-y-auto pr-0 sm:pr-1">
                 @isset($breadcrumb)
                     <div class="mb-4 overflow-x-auto text-sm text-gray-500">
@@ -265,7 +258,5 @@
             </div>
         </div>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 </body>
 </html>

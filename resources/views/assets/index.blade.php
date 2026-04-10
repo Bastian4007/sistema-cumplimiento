@@ -4,157 +4,215 @@
     </x-slot>
 
     <div class="flex items-center justify-between">
-    <h1 class="text-2xl font-semibold text-[#1A428A]">Lista de activos</h1>
+        <h1 class="text-2xl font-semibold text-[#1A428A]">Lista de activos</h1>
 
-    <a href="{{ route('assets.create') }}"
-        class="bg-[#1A428A] text-white px-4 py-2 rounded-md font-semibold hover:bg-[#15356d]">
-        + Nuevo activo
-    </a>
+        <a href="{{ route('assets.create') }}"
+           class="bg-[#1A428A] text-white px-4 py-2 rounded-md font-semibold hover:bg-[#15356d]">
+            + Nuevo activo
+        </a>
     </div>
 
-        <form method="GET"
-            action="{{ route('assets.index') }}"
-            class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+    <form method="GET"
+          action="{{ route('assets.index') }}"
+          class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
 
-            {{-- Estatus --}}
-            <div>
-                <label class="block text-xs text-gray-500 mb-1">Estatus</label>
-                <select name="status"
-                        class="w-full rounded-md border-gray-300 text-sm">
-                    <option value="">Todos</option>
-                    <option value="active" @selected(request('status')==='active')>Operación</option>
-                    <option value="inactive" @selected(request('status')==='inactive')>Sin operación</option>
-                </select>
-            </div>
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">Estatus</label>
+            <select name="status" class="w-full rounded-md border-gray-300 text-sm">
+                <option value="">Todos</option>
+                <option value="active" @selected(request('status') === 'active')>Operación</option>
+                <option value="inactive" @selected(request('status') === 'inactive')>Sin operación</option>
+            </select>
+        </div>
 
-            {{-- Tipo --}}
-            <div>
-                <label class="block text-xs text-gray-500 mb-1">Tipo</label>
-                <select name="asset_type_id"
-                        class="w-full rounded-md border-gray-300 text-sm">
-                    <option value="">Todos</option>
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">Tipo</label>
+            <select name="asset_type_id" class="w-full rounded-md border-gray-300 text-sm">
+                <option value="">Todos</option>
 
-                    @foreach($assetTypes as $type)
-                        <option value="{{ $type->id }}"
-                            @selected((string)request('asset_type_id') === (string)$type->id)>
-                            {{ $type->name }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
+                @foreach($assetTypes as $type)
+                    <option value="{{ $type->id }}"
+                        @selected((string) request('asset_type_id') === (string) $type->id)>
+                        {{ $type->name }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
 
-            {{-- Ubicación --}}
-            <div>
-                <label class="block text-xs text-gray-500 mb-1">Ubicación</label>
-                <select name="location"
-                        class="w-full rounded-md border-gray-300 text-sm">
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">Ubicación</label>
+            <select name="location" class="w-full rounded-md border-gray-300 text-sm">
+                <option value="">Todas</option>
 
-                    <option value="">Todas</option>
+                @foreach($locations as $loc)
+                    <option value="{{ $loc }}" @selected(request('location') === $loc)>
+                        {{ $loc }}
+                    </option>
+                @endforeach
+            </select>
+        </div>
 
-                    @foreach($locations as $loc)
-                        <option value="{{ $loc }}"
-                            {{ request('location') === $loc ? 'selected' : '' }}>
-                            {{ $loc }}
-                        </option>
-                    @endforeach
+        <div>
+            <label class="block text-xs text-gray-500 mb-1">Buscar</label>
+            <input type="text"
+                   name="q"
+                   value="{{ request('q') }}"
+                   placeholder="Nombre del activo..."
+                   class="w-full rounded-md border-gray-300 text-sm">
+        </div>
 
-                </select>
-            </div>
+        <div>
+            <a href="{{ route('assets.index') }}"
+               class="w-full inline-flex justify-center px-4 py-2 rounded-md border bg-white text-gray-700 font-semibold hover:bg-gray-50">
+                Limpiar
+            </a>
+        </div>
 
-            {{-- Buscar --}}
-            <div>
-                <label class="block text-xs text-gray-500 mb-1">Buscar</label>
-                <input type="text"
-                    name="q"
-                    value="{{ request('q') }}"
-                    placeholder="Nombre del activo..."
-                    class="w-full rounded-md border-gray-300 text-sm">
-            </div>
+        <div>
+            <button type="submit"
+                    class="w-full px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
+                Filtrar
+            </button>
+        </div>
+    </form>
 
-            {{-- Limpiar --}}
-            <div>
-                <a href="{{ route('assets.index') }}"
-                class="w-full inline-flex justify-center px-4 py-2 rounded-md border bg-white text-gray-700 font-semibold hover:bg-gray-50">
-                    Limpiar
-                </a>
-            </div>
+    <div class="mt-6 bg-white border rounded-lg shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 text-gray-600">
+                    <tr>
+                        <th class="text-left px-6 py-3 font-semibold">Nombre</th>
+                        <th class="text-left px-6 py-3 font-semibold">Tipo</th>
+                        <th class="text-left px-6 py-3 font-semibold">Responsable</th>
+                        <th class="text-left px-6 py-3 font-semibold">Creado</th>
+                        <th class="text-left px-6 py-3 font-semibold">Ubicación</th>
+                        <th class="text-left px-6 py-3 font-semibold">Fecha de Creación</th>
+                        <th class="text-right px-6 py-3 font-semibold"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($assets as $asset)
+                        <tr class="border-t">
+                            <td class="px-6 py-3">
+                                <div class="font-semibold text-gray-800">{{ $asset->name }}</div>
+                                <div class="text-xs text-gray-500">
+                                    {{ $asset->status === 'active' ? 'OPERACIÓN' : 'SIN OPERACIÓN' }}
+                                </div>
+                            </td>
 
-            {{-- Filtrar --}}
-            <div>
-                <button type="submit"
-                        class="w-full px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]">
-                    Filtrar
-                </button>
-            </div>
+                            <td class="px-6 py-3 text-gray-700">
+                                {{ $asset->type->name ?? '-' }}
+                            </td>
 
-        </form>
+                            <td class="px-6 py-3 text-gray-700">
+                                {{ $asset->responsibleUser->name ?? '-' }}
+                            </td>
 
-        {{-- Tabla --}}
-        <div class="mt-6 bg-white border rounded-lg shadow-sm overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="bg-gray-50 text-gray-600">
-                        <tr>
-                            <th class="text-left px-6 py-3 font-semibold">Nombre</th>
-                            <th class="text-left px-6 py-3 font-semibold">Tipo</th>
-                            <th class="text-left px-6 py-3 font-semibold">Responsable</th>
-                            <th class="text-left px-6 py-3 font-semibold">Creado</th>
-                            <th class="text-left px-6 py-3 font-semibold">Ubicación</th>
-                            <th class="text-left px-6 py-3 font-semibold">Fecha de Creación</th>
-                            <th class="text-right px-6 py-3 font-semibold"></th>
+                            <td class="px-6 py-3 text-gray-700">
+                                {{ $asset->creator->name ?? 'Sistema' }}
+                            </td>
+
+                            <td class="px-6 py-3 text-gray-600 text-sm">
+                                {{ $asset->location ?? '-' }}
+                            </td>
+
+                            <td class="px-6 py-3 text-gray-600 text-sm">
+                                {{ $asset->created_at?->format('Y-m-d') }}
+                            </td>
+
+                            <td class="px-6 py-3 text-right">
+                                <a href="{{ route('assets.show', $asset) }}"
+                                   class="text-blue-600 hover:underline font-semibold">
+                                    Ver
+                                </a>
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        @forelse($assets as $asset)
-                            <tr class="border-t">
-                                <td class="px-6 py-3">
-                                    <div class="font-semibold text-gray-800">{{ $asset->name }}</div>
-                                    <div class="text-xs text-gray-500">
-                                        {{ $asset->status === 'active' ? 'OPERACIÓN' : 'SIN OPERACIÓN' }}
-                                    </div>
-                                </td>
+                    @empty
+                        <tr class="border-t">
+                            <td colspan="7" class="px-6 py-6 text-center text-gray-500">
+                                No hay activos para este filtro.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
 
-                                <td class="px-6 py-3 text-gray-700">
-                                    {{ $asset->type->name ?? '-' }}
-                                </td>
+    <div class="mt-6">
+        @if($assets->hasPages())
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                <div class="text-sm text-gray-500 whitespace-nowrap">
+                    {{ $assets->firstItem() }} a {{ $assets->lastItem() }}
+                    de {{ $assets->total() }} resultados
+                </div>
 
-                                <td class="px-6 py-3 text-gray-700">
-                                    {{ $asset->responsibleUser->name ?? '-' }}
-                                </td>
+                <div class="flex items-center gap-2">
+                    @if($assets->onFirstPage())
+                        <span class="px-3 py-2 rounded-md border border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed">
+                            ←
+                        </span>
+                    @else
+                        <a href="{{ $assets->previousPageUrl() }}"
+                           class="px-3 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                            ←
+                        </a>
+                    @endif
 
-                                <td class="px-6 py-3 text-gray-700">
-                                    {{ $asset->creator->name ?? 'Sistema' }}
-                                </td>
+                    @php
+                        $current = $assets->currentPage();
+                        $last = $assets->lastPage();
+                        $start = max(1, $current - 1);
+                        $end = min($last, $current + 1);
+                    @endphp
 
-                                <td class="px-6 py-3 text-gray-600 text-sm">
-                                        {{ $asset->location ?? '-' }}
-                                </td>
+                    @if($start > 1)
+                        <a href="{{ $assets->url(1) }}"
+                           class="px-4 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                            1
+                        </a>
 
-                                <td class="px-6 py-3 text-gray-600 text-sm">
-                                    {{ $asset->created_at?->format('Y-m-d') }}
-                                </td>
+                        @if($start > 2)
+                            <span class="px-2 text-gray-400">…</span>
+                        @endif
+                    @endif
 
-                                <td class="px-6 py-3 text-right">
-                                    <a href="{{ route('assets.show', $asset) }}"
-                                    class="text-blue-600 hover:underline font-semibold">
-                                        Ver
-                                    </a>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr class="border-t">
-                                <td colspan="6" class="px-6 py-6 text-center text-gray-500">
-                                    No hay activos para este filtro.
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
+                    @for($page = $start; $page <= $end; $page++)
+                        @if($page == $current)
+                            <span class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold border border-[#1A428A]">
+                                {{ $page }}
+                            </span>
+                        @else
+                            <a href="{{ $assets->url($page) }}"
+                               class="px-4 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                                {{ $page }}
+                            </a>
+                        @endif
+                    @endfor
+
+                    @if($end < $last)
+                        @if($end < $last - 1)
+                            <span class="px-2 text-gray-400">…</span>
+                        @endif
+
+                        <a href="{{ $assets->url($last) }}"
+                           class="px-4 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                            {{ $last }}
+                        </a>
+                    @endif
+
+                    @if($assets->hasMorePages())
+                        <a href="{{ $assets->nextPageUrl() }}"
+                           class="px-3 py-2 rounded-md border border-[#1A428A] text-[#1A428A] bg-white hover:bg-blue-50 font-semibold">
+                            →
+                        </a>
+                    @else
+                        <span class="px-3 py-2 rounded-md border border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed">
+                            →
+                        </span>
+                    @endif
+                </div>
             </div>
-        </div>
-
-        <div class="mt-6">
-            {{ $assets->links() }}
-        </div>
+        @endif
     </div>
 </x-layouts.vigia>

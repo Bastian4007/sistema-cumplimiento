@@ -26,16 +26,22 @@ class AssetController extends Controller
 
     public function index(Request $request)
     {
-        $companyId = $request->user()->company_id;
+        $user = $request->user();
+        $companyId = $user->company_id;
 
         $assetTypes = AssetType::query()
             ->orderBy('name')
-            ->get(['id','name']);
+            ->get(['id', 'name']);
 
         $query = Asset::query()
+            ->with([
+                'type:id,name',
+                'responsibleUser:id,name',
+                'creator:id,name',
+            ])
             ->where('company_id', $companyId);
 
-        if ($request->filled('status') && in_array($request->status, ['active','inactive'], true)) {
+        if ($request->filled('status') && in_array($request->status, ['active', 'inactive'], true)) {
             $query->where('status', $request->status);
         }
 
@@ -57,7 +63,8 @@ class AssetController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        $locations = Asset::where('company_id', auth()->user()->company_id)
+        $locations = Asset::query()
+            ->where('company_id', $companyId)
             ->whereNotNull('location')
             ->where('location', '!=', '')
             ->distinct()
@@ -76,19 +83,19 @@ class AssetController extends Controller
             ->get(['id', 'name']);
 
         $parentAssets = Asset::query()
-            ->where('company_id', auth()->user()->company_id)
-            ->whereHas('assetType', function ($query) {
+            ->where('company_id', $companyId)
+            ->whereHas('type', function ($query) {
                 $query->whereIn('name', ['Plantas', 'Transporte']);
             })
-            ->with('assetType')
+            ->with('type:id,name')
             ->orderBy('name')
             ->get();
 
-        $responsibles = \App\Models\User::query()
+        $responsibles = User::query()
             ->where('company_id', $companyId)
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
-        
+
         $mexicoStates = [
             'Aguascalientes',
             'Baja California',
@@ -180,15 +187,15 @@ class AssetController extends Controller
 
     private function generateAssetCode(int $companyId): string
     {
-        $lastNumeric = \App\Models\Asset::query()
+        $lastNumeric = Asset::query()
             ->where('company_id', $companyId)
             ->whereNotNull('code')
             ->orderByDesc('id')
             ->value('code');
 
-        $n = is_numeric($lastNumeric) ? ((int)$lastNumeric + 1) : 1;
+        $n = is_numeric($lastNumeric) ? ((int) $lastNumeric + 1) : 1;
 
-        return str_pad((string)$n, 3, '0', STR_PAD_LEFT);
+        return str_pad((string) $n, 3, '0', STR_PAD_LEFT);
     }
 
     public function show(Asset $asset)
@@ -360,16 +367,18 @@ class AssetController extends Controller
 
     public function edit(Request $request, Asset $asset)
     {
-        abort_unless($asset->company_id === (int) $request->user()->company_id, 404);
+        $this->authorize('update', $asset);
+
+        $user = $request->user();
 
         $asset->load(['assetType', 'responsible']);
 
         $assetTypes = AssetType::query()
             ->orderBy('name')
             ->get(['id', 'name']);
-        
+
         $parentAssets = Asset::query()
-            ->where('company_id', auth()->user()->company_id)
+            ->where('company_id', $user->company_id)
             ->where('id', '!=', $asset->id)
             ->whereHas('assetType', function ($query) {
                 $query->whereIn('name', ['Plantas', 'Transporte']);
@@ -379,7 +388,7 @@ class AssetController extends Controller
             ->get();
 
         $responsibles = User::query()
-            ->where('company_id', $request->user()->company_id)
+            ->where('company_id', $user->company_id)
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
 
@@ -423,6 +432,8 @@ class AssetController extends Controller
 
     public function update(UpdateAssetRequest $request, Asset $asset)
     {
+        $this->authorize('update', $asset);
+
         $oldAssetTypeId = (int) $asset->asset_type_id;
 
         DB::transaction(function () use ($request, $asset, $oldAssetTypeId) {
@@ -440,7 +451,8 @@ class AssetController extends Controller
 
     public function destroy(Asset $asset)
     {
-        // Recomendación MVP: NO borrar si ya tiene requirements/obligations
+        $this->authorize('delete', $asset);
+
         if ($asset->requirements()->exists() || $asset->obligations()->exists()) {
             return back()->with('status', 'No se puede eliminar: el activo ya tiene obligaciones/requerimientos.');
         }
@@ -454,16 +466,18 @@ class AssetController extends Controller
 
     public function deactivate(Asset $asset)
     {
-        abort_unless($asset->company_id === auth()->user()->company_id, 403);
+        $this->authorize('deactivate', $asset);
 
         $asset->update(['status' => Asset::STATUS_INACTIVE]);
 
-        return redirect()->route('assets.index')->with('success', 'Activo desactivado.');
+        return redirect()
+            ->route('assets.index')
+            ->with('success', 'Activo desactivado.');
     }
 
     public function activate(Asset $asset)
     {
-        abort_unless($asset->company_id === auth()->user()->company_id, 403);
+        $this->authorize('activate', $asset);
 
         $asset->update(['status' => Asset::STATUS_ACTIVE]);
 

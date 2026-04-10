@@ -51,11 +51,11 @@
                 @endif
             </div>
 
-            @if(auth()->user()->isOperative())
+            @can('update', $asset)
                 <div class="flex items-center gap-3">
                     <a href="{{ route('assets.edit', $asset) }}"
-                       class="px-5 py-2 rounded-md border border-[#1A428A] text-[#1A428A] font-semibold hover:bg-blue-50
-                       {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
+                    class="px-5 py-2 rounded-md border border-[#1A428A] text-[#1A428A] font-semibold hover:bg-blue-50
+                    {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
                         Editar
                     </a>
 
@@ -80,7 +80,7 @@
                         </form>
                     @endif
                 </div>
-            @endif
+            @endcan
         </div>
 
         {{-- ================= RESUMEN ================= --}}
