@@ -102,8 +102,7 @@ class TaskDocumentController extends Controller
 
         abort_if($document->task->requirement->company_id !== $request->user()->company_id, 403);
 
-        // (opcional) Solo operativo
-        abort_if(!$request->user()->isOperative(), 403);
+        abort_if(!($request->user()->isAdmin() || $request->user()->isOperative()), 403);
 
         Storage::disk('public')->delete($document->file_path);
         $document->delete();

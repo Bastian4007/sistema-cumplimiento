@@ -106,7 +106,7 @@ $assetInactive = ($asset->status ?? null) === 'inactive'
     <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {{-- Subir evidencia --}}
-        @if(auth()->user()->isOperative())
+        @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
 
         <div class="bg-white border rounded-xl overflow-hidden">
 
@@ -229,7 +229,7 @@ $assetInactive = ($asset->status ?? null) === 'inactive'
                             Descargar
                         </a>
 
-                        @if(auth()->user()->isOperative())
+                        @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
 
                         <form method="POST"
                               action="{{ route('documents.destroy',$doc) }}"

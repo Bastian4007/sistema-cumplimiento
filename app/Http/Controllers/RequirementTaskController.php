@@ -42,8 +42,12 @@ class RequirementTaskController extends Controller
 
     private function guardRequirement(AssetRequirement $requirement): void
     {
-        abort_unless($requirement->company_id === auth()->user()->company_id, 403);
-        abort_unless(auth()->user()->isOperative(), 403);
+        $user = auth()->user();
+
+        abort_unless(
+            $user->isAdmin() || ($user->isOperative() && $requirement->company_id === $user->company_id),
+            403
+        );
 
         $requirement->loadMissing('asset');
         abort_unless($requirement->asset && $requirement->asset->status === 'active', 403);
@@ -312,17 +316,18 @@ class RequirementTaskController extends Controller
 
     public function checkout(Request $request, Asset $asset, AssetRequirement $requirement)
     {
-        abort_unless(auth()->user()->isOperative(), 403);
+        $user = auth()->user();
 
-        if ((int) $requirement->asset_id !== (int) $asset->id) {
-            abort(404);
-        }
+        abort_unless(
+            $user->isAdmin() || ($user->isOperative() && $requirement->company_id === $user->company_id),
+            403
+        );
 
         $hasOfficialDoc = $requirement->documents()->exists();
         abort_unless($hasOfficialDoc, 422);
 
         $data = $request->validate([
-            'return_at' => ['required', 'date', 'after:now'],
+            'return_at' => ['required', 'date', 'after_or_equal:today'],
             'responsible_user_id' => [
                 'required',
                 'integer',

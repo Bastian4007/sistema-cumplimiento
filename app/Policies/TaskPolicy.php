@@ -11,9 +11,14 @@ class TaskPolicy
 {
     use BlocksInactiveAssets;
 
-    // Crear task bajo un requirement (pasamos requirement como 2do arg)
+    protected function canManageTasks(User $user): bool
+    {
+        return $user->isAdmin() || $user->isOperative();
+    }
+
     public function create(User $user, AssetRequirement $requirement): bool
     {
+        if (! $this->canManageTasks($user)) return false;
         if ($requirement->company_id !== $user->company_id) return false;
         if ($this->denyIfAssetInactive($requirement->asset)) return false;
 
@@ -22,6 +27,7 @@ class TaskPolicy
 
     public function update(User $user, Task $task): bool
     {
+        if (! $this->canManageTasks($user)) return false;
         if ($task->requirement->company_id !== $user->company_id) return false;
         if ($this->denyIfAssetInactive($task->requirement->asset)) return false;
 
@@ -30,6 +36,7 @@ class TaskPolicy
 
     public function complete(User $user, Task $task): bool
     {
+        if (! $this->canManageTasks($user)) return false;
         if ($task->requirement->company_id !== $user->company_id) return false;
         if ($this->denyIfAssetInactive($task->requirement->asset)) return false;
 
@@ -38,11 +45,13 @@ class TaskPolicy
 
     public function view(User $user, Task $task): bool
     {
-        return $task->requirement->company_id === $user->company_id;
+        return $user->isAdmin()
+            || $task->requirement->company_id === $user->company_id;
     }
 
     public function delete(User $user, Task $task): bool
     {
+        if (! $this->canManageTasks($user)) return false;
         if ($task->requirement->company_id !== $user->company_id) return false;
         if ($this->denyIfAssetInactive($task->requirement->asset)) return false;
 

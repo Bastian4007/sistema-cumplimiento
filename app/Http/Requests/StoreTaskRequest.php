@@ -8,7 +8,8 @@ class StoreTaskRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return auth()->check() && auth()->user()->isOperative();
+        return auth()->check()
+            && (auth()->user()->isAdmin() || auth()->user()->isOperative());
     }
 
     public function rules(): array

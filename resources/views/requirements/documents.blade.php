@@ -116,7 +116,7 @@
                 </div>
 
                 <div class="p-5">
-                    @if(!auth()->user()->isOperative())
+                    @if(!auth()->user()->isAdmin() || auth()->user()->isOperative())
                         <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-gray-700 text-sm">
                             No tienes permisos para subir documentación oficial.
                         </div>
@@ -246,7 +246,7 @@
                                     Descargar
                                 </a>
 
-                                @if(auth()->user()->isOperative())
+                                @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
                                     <button
                                         type="button"
                                         onclick="openDeleteDocumentModal(
@@ -336,7 +336,7 @@
                                         Descargar
                                     </a>
 
-                                    @if(auth()->user()->isOperative())
+                                    @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
                                         <button
                                             type="button"
                                             onclick="openDeleteDocumentModal(

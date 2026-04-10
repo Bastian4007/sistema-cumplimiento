@@ -173,6 +173,13 @@
                         <span>Menú</span>
                     </div>
 
+                    @if($user?->isAdmin())
+                        <a href="{{ route('users.index') }}"
+                            class="block rounded-lg px-3 py-2 text-sm font-medium {{ request()->routeIs('users.*') ? 'bg-gray-100 text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                            Usuarios
+                        </a>
+                    @endif
+
                     <nav class="space-y-1 text-sm">
                         <a href="{{ route('dashboard') }}"
                            class="block rounded-md px-3 py-2 {{ request()->routeIs('dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
@@ -183,13 +190,6 @@
                            class="block rounded-md px-3 py-2 {{ request()->routeIs('assets.*') || !empty($navContext['asset']) ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
                             Activos y Actividades
                         </a>
-
-                        @if($user?->isAdmin())
-                            <a href="{{ route('users.index') }}"
-                               class="block rounded-lg px-3 py-2 text-sm font-medium {{ request()->routeIs('users.*') ? 'bg-gray-100 text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                                Usuarios
-                            </a>
-                        @endif
 
                         @if(!empty($navContext['asset']))
                             <a href="{{ route('assets.show', $navContext['asset']) }}"

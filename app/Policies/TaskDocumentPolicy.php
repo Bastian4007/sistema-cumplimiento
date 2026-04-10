@@ -11,9 +11,14 @@ class TaskDocumentPolicy
 {
     use BlocksInactiveAssets;
 
-    // Subir doc a una Task (pasamos Task como 2do arg)
+    protected function canManageDocuments(User $user): bool
+    {
+        return $user->isAdmin() || $user->isOperative();
+    }
+
     public function create(User $user, Task $task): bool
     {
+        if (! $this->canManageDocuments($user)) return false;
         if ($task->requirement->company_id !== $user->company_id) return false;
         if ($this->denyIfAssetInactive($task->requirement->asset)) return false;
 
@@ -23,7 +28,6 @@ class TaskDocumentPolicy
     public function view(User $user, TaskDocument $doc): bool
     {
         if ($doc->task->requirement->company_id !== $user->company_id) return false;
-        if ($this->denyIfAssetInactive($doc->task->requirement->asset)) return false;
 
         return true;
     }
@@ -35,6 +39,7 @@ class TaskDocumentPolicy
 
     public function delete(User $user, TaskDocument $doc): bool
     {
+        if (! $this->canManageDocuments($user)) return false;
         if ($doc->task->requirement->company_id !== $user->company_id) return false;
         if ($this->denyIfAssetInactive($doc->task->requirement->asset)) return false;
 

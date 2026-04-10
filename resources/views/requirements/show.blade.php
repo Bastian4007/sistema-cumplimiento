@@ -57,11 +57,11 @@
     <div class="bg-white rounded-xl shadow p-6">
 
         {{-- Header: Titulo + badges + acciones --}}
-        <div class="flex items-start justify-between gap-6 flex-wrap">
-            <div class="space-y-1 max-w-[70%]">
-                <h1 class="text-2xl font-bold text-[#1A428A]">
+        <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+            <div class="space-y-1 min-w-0 flex-1">
+                <h1 class="text-2xl font-bold text-[#1A428A] break-words">
                     {{ $asset->name }} -
-                    <x-truncate max="max-w-[600px]">
+                    <x-truncate max="max-w-[700px]">
                         {{ $requirement->template?->name ?? $requirement->type }}
                     </x-truncate>
                 </h1>
@@ -79,16 +79,15 @@
                 </div>
             </div>
 
-            {{-- Acciones superiores --}}
-            <div class="flex items-center gap-2 shrink-0">
+            <div class="flex items-center gap-2 shrink-0 flex-wrap lg:justify-end">
                 <a href="{{ route('assets.requirements.history', [$asset, $requirement]) }}"
-                   class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
+                class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
                     Ver historial
                 </a>
 
                 @if($canUploadOfficialDocument)
                     <a href="{{ route('assets.requirements.documents.index', [$asset, $requirement]) }}"
-                       class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
+                    class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
                         Documentación oficial
                     </a>
                 @else
@@ -100,7 +99,7 @@
                 @endif
 
                 <a href="{{ route('assets.show', $asset) }}"
-                   class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
+                class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
                     Volver
                 </a>
             </div>
@@ -185,7 +184,7 @@
             <div class="p-5 border-b flex items-center justify-between">
                 <div class="font-semibold text-[#1A428A]">Tareas</div>
 
-                @if(auth()->user()->isOperative() && !$assetInactive)
+                @if((auth()->user()->isAdmin() || auth()->user()->isOperative()) && !$assetInactive)
                     <div class="flex items-center gap-2">
                         @if(!$hasOfficialDocument)
                             <button type="button" disabled
@@ -270,7 +269,7 @@
                             </div>
 
                             {{-- Botones de la tarea --}}
-                            @if(auth()->user()->isOperative())
+                            @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
                                 <div class="mt-4 pt-3 border-t flex flex-wrap justify-end gap-2">
                                     @if($isRenewal)
                                         <a href="{{ route('assets.requirements.documents.index', [$asset, $requirement]) }}"
@@ -366,13 +365,13 @@
 
         <div>
             <label class="block text-xs text-gray-500 mb-1">
-                Fecha y hora de regreso
+                Fecha de regreso
             </label>
 
-            <input type="datetime-local"
-                   name="return_at"
-                   required
-                   class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A]">
+            <input type="date"
+                name="return_at"
+                required
+                class="w-full rounded-md border-gray-300 focus:border-[#1A428A] focus:ring-[#1A428A]">
         </div>
 
         <div>
