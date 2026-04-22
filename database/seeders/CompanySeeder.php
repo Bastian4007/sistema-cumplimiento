@@ -21,7 +21,7 @@ class CompanySeeder extends Seeder
             'MDI',
             'PROPANE',
             'SOLTRACK',
-            'TRONCALNET',
+            'TRONCALNET' ,
             'Terrenos Vigia',
             'MIGAR',
             'KIWI GAS',

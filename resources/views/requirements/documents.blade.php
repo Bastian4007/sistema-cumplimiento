@@ -116,15 +116,15 @@
                 </div>
 
                 <div class="p-5">
-                    @if(!auth()->user()->isAdmin() || auth()->user()->isOperative())
-                        <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-gray-700 text-sm">
-                            No tienes permisos para subir documentación oficial.
-                        </div>
-                    @elseif($assetInactive)
-                        <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-gray-700 text-sm">
-                            Este activo está desactivado. Actívalo para subir documentación oficial.
-                        </div>
-                    @else
+                        @if(!(auth()->user()->isAdmin() || auth()->user()->isOperative()))
+                            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-gray-700 text-sm">
+                                No tienes permisos para subir documentación oficial.
+                            </div>
+                        @elseif($assetInactive)
+                            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-gray-700 text-sm">
+                                Este activo está desactivado. Actívalo para subir documentación oficial.
+                            </div>
+                        @else
                         <form method="POST"
                               action="{{ route('assets.requirements.documents.store', [$asset, $requirement]) }}"
                               enctype="multipart/form-data"

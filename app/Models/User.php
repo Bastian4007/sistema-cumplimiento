@@ -2,14 +2,13 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use App\Models\Group;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
     protected $fillable = [
@@ -17,6 +16,8 @@ class User extends Authenticatable
         'email',
         'password',
         'company_id',
+        'group_id',
+        'scope_level',
         'role_id',
         'status',
         'invite_token',
@@ -54,9 +55,19 @@ class User extends Authenticatable
         return $this->belongsTo(Role::class);
     }
 
+    public function group()
+    {
+        return $this->belongsTo(Group::class);
+    }
+
     public function tasks()
     {
         return $this->belongsToMany(Task::class);
+    }
+
+    public function invitedBy()
+    {
+        return $this->belongsTo(User::class, 'invited_by');
     }
 
     public function isAdmin(): bool
@@ -74,11 +85,6 @@ class User extends Authenticatable
         return $this->role?->slug === 'readonly';
     }
 
-    public function invitedBy()
-    {
-        return $this->belongsTo(User::class, 'invited_by');
-    }
-
     public function isInvited(): bool
     {
         return $this->status === 'invited';
@@ -87,5 +93,29 @@ class User extends Authenticatable
     public function isActive(): bool
     {
         return $this->status === 'active';
+    }
+
+    public function hasGroupScope(): bool
+    {
+        return $this->scope_level === 'group';
+    }
+
+    public function hasCompanyScope(): bool
+    {
+        return $this->scope_level === 'company';
+    }
+
+    public function canAccessCompany(Company $company): bool
+    {
+        if ($this->hasGroupScope()) {
+            return $this->group_id === $company->group_id;
+        }
+
+        return $this->company_id === $company->id;
+    }
+
+    public function canAccessGroup(Group $group): bool
+    {
+        return $this->group_id === $group->id;
     }
 }

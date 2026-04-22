@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Group;
 
 
 class Company extends Model
@@ -40,6 +41,10 @@ class Company extends Model
     public function assetObligations()
     {
         return $this->hasMany(AssetObligation::class);
+    }
+    public function group()
+    {
+        return $this->belongsTo(Group::class);
     }
 }
 

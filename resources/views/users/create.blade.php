@@ -51,6 +51,24 @@
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">
+                    Empresa
+                </label>
+                <select
+                    name="company_id"
+                    class="w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                    required
+                >
+                    <option value="">Selecciona una empresa</option>
+                    @foreach($companies as $company)
+                        <option value="{{ $company->id }}" @selected(old('company_id') == $company->id)>
+                            {{ $company->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
                     Rol
                 </label>
                 <select

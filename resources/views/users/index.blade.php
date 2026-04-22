@@ -7,7 +7,7 @@
         <div class="flex items-center justify-between mb-6">
             <div>
                 <h1 class="text-2xl font-semibold text-[#1A428A]">Usuarios</h1>
-                <p class="text-sm text-gray-500">Administra los accesos de tu empresa.</p>
+                <p class="text-sm text-gray-500">Administra los accesos de los usuarios.</p>
             </div>
 
             @if(auth()->user()->isAdmin())
@@ -30,7 +30,9 @@
                     <tr>
                         <th class="text-left px-4 py-3 font-semibold">Nombre</th>
                         <th class="text-left px-4 py-3 font-semibold">Correo</th>
+                        <th class="text-left px-4 py-3 font-semibold">Empresa</th>
                         <th class="text-left px-4 py-3 font-semibold">Rol</th>
+                        <th class="text-left px-4 py-3 font-semibold">Alcance</th>
                         <th class="text-left px-4 py-3 font-semibold">Estado</th>
 
                         @if(auth()->user()->isAdmin())
@@ -44,7 +46,20 @@
                         <tr>
                             <td class="px-4 py-3">{{ $user->name }}</td>
                             <td class="px-4 py-3">{{ $user->email }}</td>
+                            <td class="px-4 py-3">{{ $user->company->name ?? '-' }}</td>
                             <td class="px-4 py-3">{{ $user->role->name ?? '-' }}</td>
+
+                            <td class="px-4 py-3">
+                                @if($user->scope_level === 'group')
+                                    <span class="text-xs px-3 py-1 rounded border bg-blue-50 text-blue-700 border-blue-200">
+                                        Grupo
+                                    </span>
+                                @else
+                                    <span class="text-xs px-3 py-1 rounded border bg-gray-50 text-gray-700 border-gray-200">
+                                        Empresa
+                                    </span>
+                                @endif
+                            </td>
 
                             <td class="px-4 py-3">
                                 @if($user->status === 'active')
@@ -84,7 +99,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+                            <td colspan="7" class="px-4 py-8 text-center text-gray-500">
                                 No hay usuarios registrados todavía.
                             </td>
                         </tr>
