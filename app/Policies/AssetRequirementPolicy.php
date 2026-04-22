@@ -11,19 +11,17 @@ class AssetRequirementPolicy
 {
     use BlocksInactiveAssets;
 
-    // Crear requirement sobre un Asset (pasamos Asset como 2do arg)
     public function create(User $user, Asset $asset): bool
     {
-        if ($asset->company_id !== $user->company_id) return false;
+        if (! $user->canAccessCompany($asset->company)) return false;
         if ($this->denyIfAssetInactive($asset)) return false;
 
         return true;
     }
 
-    // Acciones sobre un requirement existente
     public function update(User $user, AssetRequirement $requirement): bool
     {
-        if ($requirement->company_id !== $user->company_id) return false;
+        if (! $user->canAccessCompany($requirement->company)) return false;
         if ($this->denyIfAssetInactive($requirement->asset)) return false;
 
         return true;
@@ -31,7 +29,7 @@ class AssetRequirementPolicy
 
     public function complete(User $user, AssetRequirement $requirement): bool
     {
-        if ($requirement->company_id !== $user->company_id) return false;
+        if (! $user->canAccessCompany($requirement->company)) return false;
         if ($this->denyIfAssetInactive($requirement->asset)) return false;
 
         return true;
@@ -39,12 +37,12 @@ class AssetRequirementPolicy
 
     public function view(User $user, AssetRequirement $requirement): bool
     {
-        return $requirement->company_id === $user->company_id;
+        return $user->canAccessCompany($requirement->company);
     }
 
     public function delete(User $user, AssetRequirement $requirement): bool
     {
-        if ($requirement->company_id !== $user->company_id) return false;
+        if (! $user->canAccessCompany($requirement->company)) return false;
         if ($this->denyIfAssetInactive($requirement->asset)) return false;
 
         return true;

@@ -19,7 +19,7 @@ class TaskDocumentPolicy
     public function create(User $user, Task $task): bool
     {
         if (! $this->canManageDocuments($user)) return false;
-        if ($task->requirement->company_id !== $user->company_id) return false;
+        if (! $user->canAccessCompany($task->requirement->company)) return false;
         if ($this->denyIfAssetInactive($task->requirement->asset)) return false;
 
         return true;
@@ -27,9 +27,7 @@ class TaskDocumentPolicy
 
     public function view(User $user, TaskDocument $doc): bool
     {
-        if ($doc->task->requirement->company_id !== $user->company_id) return false;
-
-        return true;
+        return $user->canAccessCompany($doc->task->requirement->company);
     }
 
     public function download(User $user, TaskDocument $doc): bool
@@ -40,7 +38,7 @@ class TaskDocumentPolicy
     public function delete(User $user, TaskDocument $doc): bool
     {
         if (! $this->canManageDocuments($user)) return false;
-        if ($doc->task->requirement->company_id !== $user->company_id) return false;
+        if (! $user->canAccessCompany($doc->task->requirement->company)) return false;
         if ($this->denyIfAssetInactive($doc->task->requirement->asset)) return false;
 
         return true;

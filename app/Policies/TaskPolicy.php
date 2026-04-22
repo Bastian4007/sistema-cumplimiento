@@ -19,7 +19,7 @@ class TaskPolicy
     public function create(User $user, AssetRequirement $requirement): bool
     {
         if (! $this->canManageTasks($user)) return false;
-        if ($requirement->company_id !== $user->company_id) return false;
+        if (! $user->canAccessCompany($requirement->company)) return false;
         if ($this->denyIfAssetInactive($requirement->asset)) return false;
 
         return true;
@@ -28,7 +28,7 @@ class TaskPolicy
     public function update(User $user, Task $task): bool
     {
         if (! $this->canManageTasks($user)) return false;
-        if ($task->requirement->company_id !== $user->company_id) return false;
+        if (! $user->canAccessCompany($task->requirement->company)) return false;
         if ($this->denyIfAssetInactive($task->requirement->asset)) return false;
 
         return true;
@@ -37,7 +37,7 @@ class TaskPolicy
     public function complete(User $user, Task $task): bool
     {
         if (! $this->canManageTasks($user)) return false;
-        if ($task->requirement->company_id !== $user->company_id) return false;
+        if (! $user->canAccessCompany($task->requirement->company)) return false;
         if ($this->denyIfAssetInactive($task->requirement->asset)) return false;
 
         return true;
@@ -45,14 +45,13 @@ class TaskPolicy
 
     public function view(User $user, Task $task): bool
     {
-        return $user->isAdmin()
-            || $task->requirement->company_id === $user->company_id;
+        return $user->canAccessCompany($task->requirement->company);
     }
 
     public function delete(User $user, Task $task): bool
     {
         if (! $this->canManageTasks($user)) return false;
-        if ($task->requirement->company_id !== $user->company_id) return false;
+        if (! $user->canAccessCompany($task->requirement->company)) return false;
         if ($this->denyIfAssetInactive($task->requirement->asset)) return false;
 
         return true;

@@ -105,8 +105,12 @@ class User extends Authenticatable
         return $this->scope_level === 'company';
     }
 
-    public function canAccessCompany(Company $company): bool
+    public function canAccessCompany(?Company $company): bool
     {
+        if (! $company) {
+            return false;
+        }
+
         if ($this->hasGroupScope()) {
             return $this->group_id === $company->group_id;
         }

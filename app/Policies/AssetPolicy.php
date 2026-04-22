@@ -14,8 +14,7 @@ class AssetPolicy
 
     public function view(User $user, Asset $asset): bool
     {
-        return $user->isAdmin()
-            || $asset->company_id === $user->company_id;
+        return $user->canAccessCompany($asset->company);
     }
 
     public function create(User $user): bool
@@ -25,25 +24,25 @@ class AssetPolicy
 
     public function update(User $user, Asset $asset): bool
     {
-        return $user->isAdmin()
-            || ($user->isOperative() && $asset->company_id === $user->company_id);
+        return ($user->isAdmin() || $user->isOperative())
+            && $user->canAccessCompany($asset->company);
     }
 
     public function delete(User $user, Asset $asset): bool
     {
-        return $user->isAdmin()
-            || ($user->isOperative() && $asset->company_id === $user->company_id);
+        return ($user->isAdmin() || $user->isOperative())
+            && $user->canAccessCompany($asset->company);
     }
 
     public function activate(User $user, Asset $asset): bool
     {
-        return $user->isAdmin()
-            || ($user->isOperative() && $asset->company_id === $user->company_id);
+        return ($user->isAdmin() || $user->isOperative())
+            && $user->canAccessCompany($asset->company);
     }
 
     public function deactivate(User $user, Asset $asset): bool
     {
-        return $user->isAdmin()
-            || ($user->isOperative() && $asset->company_id === $user->company_id);
+        return ($user->isAdmin() || $user->isOperative())
+            && $user->canAccessCompany($asset->company);
     }
 }
