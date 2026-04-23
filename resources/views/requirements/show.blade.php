@@ -1,7 +1,8 @@
 <x-layouts.vigia :title="$requirement->template?->name ?? 'Requerimiento'" :nav-context="$navContext">
 
     <x-slot name="breadcrumb">
-        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">
+        <a href="{{ route('assets.index', array_filter(['company_id' => request('company_id', $asset?->company_id)])) }}"
+           class="text-gray-600 hover:underline">
             Activos y Actividades
         </a>
 
@@ -61,6 +62,13 @@
                     </x-truncate>
                 </h1>
 
+                @if(auth()->user()->hasGroupScope() && $asset->company)
+                    <div class="text-sm text-gray-500">
+                        Empresa:
+                        <span class="font-semibold text-gray-700">{{ $asset->company->name }}</span>
+                    </div>
+                @endif
+
                 <div class="mt-2 flex items-center gap-2 flex-wrap">
                     <span class="text-xs px-3 py-1 rounded border
                         {{ $assetInactive ? 'bg-gray-100 text-gray-700 border-gray-300' : 'bg-green-50 text-green-700 border-green-200' }}">
@@ -82,7 +90,7 @@
 
                 @if($canUploadOfficialDocument)
                     <a href="{{ route('assets.requirements.documents.index', [$asset, $requirement]) }}"
-                    class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
+                       class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50">
                         Documentación oficial
                     </a>
                 @else
@@ -133,6 +141,9 @@
                     <div>
                         <strong>Bóveda:</strong> {{ $asset->vault_location ?: 'No asignada' }}
                     </div>
+                    @if(auth()->user()->hasGroupScope() && $asset->company)
+                        <div><strong>Empresa:</strong> {{ $asset->company->name }}</div>
+                    @endif
                 </div>
 
                 <div class="space-y-1">
@@ -286,8 +297,7 @@
                                         </form>
                                     @else
                                         <a href="{{ route('tasks.documents.index', $task) }}"
-                                           class="px-4 py-2 rounded-md border font-semibold
-                                           {{ $assetInactive ? 'opacity-50 pointer-events-none bg-gray-100 text-gray-500 border-gray-300' : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
+                                           class="px-4 py-2 rounded-md border font-semibold bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
                                             {{ $hasDocs ? 'Ver evidencias (' . ($task->documents_count ?? 0) . ')' : 'Subir evidencia' }}
                                         </a>
 
@@ -309,7 +319,7 @@
                                                 <button type="submit"
                                                     class="px-4 py-2 rounded-md border bg-white text-[#1A428A] border-[#1A428A] font-semibold hover:bg-blue-50
                                                     {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
-                                                        Reabrir
+                                                    Reabrir
                                                 </button>
                                             </form>
                                         @endif

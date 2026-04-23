@@ -3,10 +3,16 @@
         <span class="text-gray-700 font-medium">Activos y Actividades</span>
     </x-slot>
 
+    @php
+        $user = auth()->user();
+        $showCompanyColumn = $user->hasGroupScope();
+        $filtersGridClass = $showCompanyColumn ? 'md:grid-cols-7' : 'md:grid-cols-6';
+    @endphp
+
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-semibold text-[#1A428A]">Lista de activos</h1>
 
-        <a href="{{ route('assets.create') }}"
+        <a href="{{ route('assets.create', array_filter(['company_id' => request('company_id', $selectedCompanyId ?? null)])) }}"
            class="bg-[#1A428A] text-white px-4 py-2 rounded-md font-semibold hover:bg-[#15356d]">
             + Nuevo activo
         </a>
@@ -14,7 +20,23 @@
 
     <form method="GET"
           action="{{ route('assets.index') }}"
-          class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+          class="grid grid-cols-1 {{ $filtersGridClass }} gap-4 items-end">
+
+        @if($showCompanyColumn)
+            <div>
+                <label class="block text-xs text-gray-500 mb-1">Empresa</label>
+                <select name="company_id" class="w-full rounded-md border-gray-300 text-sm">
+                    <option value="">Todas</option>
+
+                    @foreach($companies as $company)
+                        <option value="{{ $company->id }}"
+                            @selected((string) request('company_id', $selectedCompanyId) === (string) $company->id)>
+                            {{ $company->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+        @endif
 
         <div>
             <label class="block text-xs text-gray-500 mb-1">Estatus</label>
@@ -82,6 +104,11 @@
                 <thead class="bg-gray-50 text-gray-600">
                     <tr>
                         <th class="text-left px-6 py-3 font-semibold">Nombre</th>
+
+                        @if($showCompanyColumn)
+                            <th class="text-left px-6 py-3 font-semibold">Empresa</th>
+                        @endif
+
                         <th class="text-left px-6 py-3 font-semibold">Tipo</th>
                         <th class="text-left px-6 py-3 font-semibold">Responsable</th>
                         <th class="text-left px-6 py-3 font-semibold">Creado</th>
@@ -99,6 +126,12 @@
                                     {{ $asset->status === 'active' ? 'OPERACIÓN' : 'SIN OPERACIÓN' }}
                                 </div>
                             </td>
+
+                            @if($showCompanyColumn)
+                                <td class="px-6 py-3 text-gray-700">
+                                    {{ $asset->company->name ?? '-' }}
+                                </td>
+                            @endif
 
                             <td class="px-6 py-3 text-gray-700">
                                 {{ $asset->type->name ?? '-' }}
@@ -129,7 +162,7 @@
                         </tr>
                     @empty
                         <tr class="border-t">
-                            <td colspan="7" class="px-6 py-6 text-center text-gray-500">
+                            <td colspan="{{ $showCompanyColumn ? 8 : 7 }}" class="px-6 py-6 text-center text-gray-500">
                                 No hay activos para este filtro.
                             </td>
                         </tr>

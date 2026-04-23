@@ -10,6 +10,8 @@
 
     @php
         $selectClass = "mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm";
+        $user = auth()->user();
+        $nameFieldClass = $user->hasGroupScope() ? '' : 'md:col-span-2';
     @endphp
 
     {{-- Select2 CSS --}}
@@ -32,8 +34,44 @@
             @csrf
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {{-- Nombre --}}
                 <div>
+                    @php
+                        $user = auth()->user();
+                    @endphp
+
+                    {{-- Empresa --}}
+                    @if($user->hasGroupScope())
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700">
+                                Empresa
+                            </label>
+
+                            <select
+                                name="company_id"
+                                class="{{ $selectClass }}"
+                                required
+                            >
+                                <option value="">Selecciona una empresa</option>
+
+                                @foreach($companies as $company)
+                                    <option value="{{ $company->id }}"
+                                        @selected(old('company_id', $selectedCompanyId) == $company->id)>
+                                        {{ $company->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+
+                            @error('company_id')
+                                <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    @else
+                        <input type="hidden" name="company_id" value="{{ $selectedCompanyId }}">
+                    @endif
+                </div>
+                
+                {{-- Nombre --}}
+                <div class="{{ $nameFieldClass }}">
                     <label class="block text-sm font-medium text-gray-700">
                         Nombre de activo
                     </label>

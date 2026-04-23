@@ -7,6 +7,7 @@ use App\Application\Compliance\ComplianceDashboardService;
 use App\Models\Asset;
 use App\Models\Task;
 use App\Models\AssetRequirement;
+use App\Models\Company;
 use App\Enums\RequirementStatus;
 use Carbon\Carbon;
 
@@ -15,18 +16,31 @@ class ComplianceDashboardController extends Controller
     public function index(Request $request, ComplianceDashboardService $service)
     {
         $user = $request->user();
-        $companyId = (int) $user->company_id;
+
+        $companies = Company::query()
+            ->when($user->hasGroupScope(), function ($query) use ($user) {
+                $query->where('group_id', $user->group_id);
+            }, function ($query) use ($user) {
+                $query->where('id', $user->company_id);
+            })
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $companyId = $request->filled('company_id')
+            ? (int) $request->company_id
+            : (int) $user->company_id;
+
+        $company = Company::findOrFail($companyId);
+
+        abort_unless($user->canAccessCompany($company), 403);
 
         $today = Carbon::today();
         $soonLimit = Carbon::today()->addDays(30);
 
-        // ✅ Por defecto: solo mis tareas
         $showAllTasks = $request->boolean('all_tasks', false);
 
-        // KPIs (vienen del service)
         $metrics = $service->metricsForCompany($companyId);
 
-        // Query base de tareas
         $tasksBaseQuery = Task::query()
             ->whereHas('requirement', fn ($q) => $q->where('company_id', $companyId));
 
@@ -34,23 +48,18 @@ class ComplianceDashboardController extends Controller
             $tasksBaseQuery->whereHas('users', fn ($q) => $q->where('users.id', $user->id));
         }
 
-        // Stats para las cards
         $stats = [
-            'assets'   => Asset::query()
+            'assets' => Asset::query()
                 ->where('company_id', $companyId)
                 ->count(),
 
-            'tasks'    => (clone $tasksBaseQuery)
+            'tasks' => (clone $tasksBaseQuery)
                 ->whereNull('completed_at')
                 ->count(),
 
             'due_soon' => $metrics['kpis']['warning'] + $metrics['kpis']['danger'],
-            'overdue'  => $metrics['kpis']['expired'],
+            'overdue' => $metrics['kpis']['expired'],
         ];
-
-        // =========================
-        // Requerimientos
-        // =========================
 
         $upcoming = AssetRequirement::query()
             ->whereHas('asset', fn ($q) => $q->where('company_id', $companyId))
@@ -82,10 +91,6 @@ class ComplianceDashboardController extends Controller
                 $r->risk_level = $r->due_date && $r->due_date->lt($today) ? 'expired' : 'warning';
                 return $r;
             });
-
-        // =========================
-        // Tareas
-        // =========================
 
         $tasksQuery = Task::query()
             ->with([
@@ -130,7 +135,9 @@ class ComplianceDashboardController extends Controller
             'tasksPending',
             'tasksDueSoon',
             'tasksOverdue',
-            'showAllTasks'
+            'showAllTasks',
+            'companies',
+            'companyId'
         ));
     }
 }

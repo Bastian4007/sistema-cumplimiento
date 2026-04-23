@@ -7,7 +7,8 @@
 <x-layouts.vigia title="Nueva tarea" :nav-context="$navContext">
 
     <x-slot name="breadcrumb">
-        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">
+        <a href="{{ route('assets.index', array_filter(['company_id' => request('company_id', $asset?->company_id)])) }}"
+           class="text-gray-600 hover:underline">
             Activos y Actividades
         </a>
 
@@ -21,9 +22,9 @@
 
         <a href="{{ route('assets.requirements.show', [$requirement->asset_id, $requirement->id]) }}"
            class="text-gray-600 hover:underline">
-                <x-truncate max="max-w-[400px]" class="font-semibold text-gray-700">
-                    {{ $requirement->template?->name ?? $requirement->type }}
-                </x-truncate>
+            <x-truncate max="max-w-[400px]" class="font-semibold text-gray-700">
+                {{ $requirement->template?->name ?? $requirement->type }}
+            </x-truncate>
         </a>
 
         <span class="text-gray-400">›</span>
@@ -42,6 +43,9 @@
                     Carpeta: <span class="font-semibold text-gray-700">{{ $title }}</span>
                     @if($asset)
                         · Activo: <span class="font-semibold text-gray-700">{{ $asset->name }}</span>
+                    @endif
+                    @if(auth()->user()->hasGroupScope() && $asset?->company)
+                        · Empresa: <span class="font-semibold text-gray-700">{{ $asset->company->name }}</span>
                     @endif
                 </div>
             </div>
@@ -185,6 +189,7 @@
             </div>
         </form>
     </div>
+
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
@@ -198,6 +203,7 @@
             });
         });
     </script>
+
     <style>
         .select2-container {
             width: 100% !important;

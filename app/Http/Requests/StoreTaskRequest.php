@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreTaskRequest extends FormRequest
 {
@@ -14,11 +15,26 @@ class StoreTaskRequest extends FormRequest
 
     public function rules(): array
     {
+        $user = $this->user();
+
         return [
             'title' => ['required', 'string', 'max:160'],
+
             'description' => ['nullable', 'string', 'max:2000'],
+
             'due_date' => ['nullable', 'date'],
-            'responsible_user_id' => ['required', 'integer', 'exists:users,id'],
+
+            'responsible_user_id' => [
+                'required',
+                'integer',
+                Rule::exists('users', 'id')->where(function ($query) use ($user) {
+                    if ($user->hasGroupScope()) {
+                        $query->where('group_id', $user->group_id);
+                    } else {
+                        $query->where('company_id', $user->company_id);
+                    }
+                }),
+            ],
         ];
     }
 }

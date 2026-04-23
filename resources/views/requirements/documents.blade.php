@@ -5,7 +5,8 @@
     :nav-context="$navContext"
 >
     <x-slot name="breadcrumb">
-        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">
+        <a href="{{ route('assets.index', array_filter(['company_id' => request('company_id', $asset?->company_id)])) }}"
+           class="text-gray-600 hover:underline">
             Activos y Actividades
         </a>
 
@@ -65,6 +66,13 @@
                     <span class="font-semibold text-gray-700">
                         {{ $asset->name }}
                     </span>
+
+                    @if(auth()->user()->hasGroupScope() && $asset->company)
+                        · Empresa:
+                        <span class="font-semibold text-gray-700">
+                            {{ $asset->company->name }}
+                        </span>
+                    @endif
                 </div>
 
                 @if($assetInactive)
@@ -116,15 +124,15 @@
                 </div>
 
                 <div class="p-5">
-                        @if(!(auth()->user()->isAdmin() || auth()->user()->isOperative()))
-                            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-gray-700 text-sm">
-                                No tienes permisos para subir documentación oficial.
-                            </div>
-                        @elseif($assetInactive)
-                            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-gray-700 text-sm">
-                                Este activo está desactivado. Actívalo para subir documentación oficial.
-                            </div>
-                        @else
+                    @if(!(auth()->user()->isAdmin() || auth()->user()->isOperative()))
+                        <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-gray-700 text-sm">
+                            No tienes permisos para subir documentación oficial.
+                        </div>
+                    @elseif($assetInactive)
+                        <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-gray-700 text-sm">
+                            Este activo está desactivado. Actívalo para subir documentación oficial.
+                        </div>
+                    @else
                         <form method="POST"
                               action="{{ route('assets.requirements.documents.store', [$asset, $requirement]) }}"
                               enctype="multipart/form-data"
@@ -235,14 +243,12 @@
                             <div class="flex items-center gap-2 shrink-0">
                                 <a href="{{ route('assets.requirements.documents.preview', [$asset, $requirement, $currentDoc]) }}"
                                    target="_blank"
-                                   class="px-3 py-2 rounded-md border font-semibold text-sm
-                                   {{ $assetInactive ? 'bg-gray-100 text-gray-500 border-gray-300 pointer-events-none' : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
+                                   class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
                                     Ver
                                 </a>
 
                                 <a href="{{ route('assets.requirements.documents.download', [$asset, $requirement, $currentDoc]) }}"
-                                   class="px-3 py-2 rounded-md border font-semibold text-sm
-                                   {{ $assetInactive ? 'bg-gray-100 text-gray-500 border-gray-300 pointer-events-none' : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
+                                   class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
                                     Descargar
                                 </a>
 
@@ -255,7 +261,7 @@
                                             '{{ $currentDoc->version_number ?? '—' }}'
                                         )"
                                         class="px-3 py-2 rounded-md font-semibold text-sm
-                                        {{ $assetInactive ? 'bg-gray-100 text-gray-500 border border-gray-300 pointer-events-none' : 'bg-[#DB0000] text-white hover:bg-red-700' }}"
+                                        {{ $assetInactive ? 'bg-gray-100 text-gray-500 border border-gray-300 cursor-not-allowed' : 'bg-[#DB0000] text-white hover:bg-red-700' }}"
                                         {{ $assetInactive ? 'disabled' : '' }}
                                     >
                                         Eliminar
@@ -272,6 +278,7 @@
             </div>
 
         </div>
+
         <div class="mt-8 bg-white border rounded-xl overflow-hidden">
             <div class="p-5 border-b">
                 <div class="font-semibold text-[#1A428A]">Histórico documental</div>
@@ -324,15 +331,13 @@
 
                                 <div class="flex items-center gap-2 shrink-0">
                                     <a href="{{ route('assets.requirements.documents.preview', [$asset, $requirement, $historyDoc]) }}"
-                                    target="_blank"
-                                    class="px-3 py-2 rounded-md border font-semibold text-sm
-                                    {{ $assetInactive ? 'bg-gray-100 text-gray-500 border-gray-300 pointer-events-none' : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
+                                       target="_blank"
+                                       class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
                                         Ver
                                     </a>
 
                                     <a href="{{ route('assets.requirements.documents.download', [$asset, $requirement, $historyDoc]) }}"
-                                    class="px-3 py-2 rounded-md border font-semibold text-sm
-                                    {{ $assetInactive ? 'bg-gray-100 text-gray-500 border-gray-300 pointer-events-none' : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
+                                       class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
                                         Descargar
                                     </a>
 
@@ -345,7 +350,7 @@
                                                 '{{ $historyDoc->version_number ?? '—' }}'
                                             )"
                                             class="px-3 py-2 rounded-md font-semibold text-sm
-                                            {{ $assetInactive ? 'bg-gray-100 text-gray-500 border border-gray-300 pointer-events-none' : 'bg-[#DB0000] text-white hover:bg-red-700' }}"
+                                            {{ $assetInactive ? 'bg-gray-100 text-gray-500 border border-gray-300 cursor-not-allowed' : 'bg-[#DB0000] text-white hover:bg-red-700' }}"
                                             {{ $assetInactive ? 'disabled' : '' }}
                                         >
                                             Eliminar
@@ -363,120 +368,121 @@
             </div>
         </div>
     </div>
-<div
-    id="deleteDocumentModal"
-    class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 px-4"
->
-    <div class="w-full max-w-lg rounded-xl bg-white shadow-2xl">
-        <div class="p-6 border-b">
-            <h3 class="text-lg font-bold text-gray-900">
-                Confirmar eliminación
-            </h3>
-            <p class="mt-2 text-sm text-gray-600">
-                Vas a eliminar un documento del historial oficial. Esta acción debe usarse solo para archivos cargados por error.
-            </p>
-        </div>
 
-        <div class="p-6 space-y-4">
-            <div class="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-[#1A428A]">
-                Esta acción eliminará el documento seleccionado. Úsala solo si el archivo fue cargado por error.
-            </div>
-
-            <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-                <div>
-                    <span class="font-semibold">Archivo:</span>
-                    <span id="deleteDocumentName">—</span>
-                </div>
-                <div class="mt-1">
-                    <span class="font-semibold">Versión:</span>
-                    <span id="deleteDocumentVersion">—</span>
-                </div>
-            </div>
-
-            <div>
-                <label for="delete_document_confirmation" class="block text-sm font-medium text-gray-700 mb-1">
-                    Escribe <span class="font-bold">ELIMINAR</span> para confirmar
-                </label>
-
-                <input
-                    id="delete_document_confirmation"
-                    type="text"
-                    class="block w-full rounded-md border-gray-300 focus:border-red-600 focus:ring-red-600 text-sm"
-                    placeholder="ELIMINAR"
-                    oninput="validateDeleteDocumentConfirmation()"
-                >
-            </div>
-
-            <form id="deleteDocumentForm" method="POST" class="flex items-center justify-end gap-3">
-                @csrf
-                @method('DELETE')
-
-                <button
-                    type="button"
-                    onclick="closeDeleteDocumentModal()"
-                    class="px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50"
-                >
-                    Cancelar
-                </button>
-
-                <button
-                    id="deleteDocumentSubmitButton"
-                    type="submit"
-                    disabled
-                    class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold opacity-50 cursor-not-allowed disabled:opacity-50 disabled:cursor-not-allowed"
-                >
+    <div
+        id="deleteDocumentModal"
+        class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 px-4"
+    >
+        <div class="w-full max-w-lg rounded-xl bg-white shadow-2xl">
+            <div class="p-6 border-b">
+                <h3 class="text-lg font-bold text-gray-900">
                     Confirmar eliminación
-                </button>
-            </form>
+                </h3>
+                <p class="mt-2 text-sm text-gray-600">
+                    Vas a eliminar un documento del historial oficial. Esta acción debe usarse solo para archivos cargados por error.
+                </p>
+            </div>
+
+            <div class="p-6 space-y-4">
+                <div class="rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-[#1A428A]">
+                    Esta acción eliminará el documento seleccionado. Úsala solo si el archivo fue cargado por error.
+                </div>
+
+                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
+                    <div>
+                        <span class="font-semibold">Archivo:</span>
+                        <span id="deleteDocumentName">—</span>
+                    </div>
+                    <div class="mt-1">
+                        <span class="font-semibold">Versión:</span>
+                        <span id="deleteDocumentVersion">—</span>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="delete_document_confirmation" class="block text-sm font-medium text-gray-700 mb-1">
+                        Escribe <span class="font-bold">ELIMINAR</span> para confirmar
+                    </label>
+
+                    <input
+                        id="delete_document_confirmation"
+                        type="text"
+                        class="block w-full rounded-md border-gray-300 focus:border-red-600 focus:ring-red-600 text-sm"
+                        placeholder="ELIMINAR"
+                        oninput="validateDeleteDocumentConfirmation()"
+                    >
+                </div>
+
+                <form id="deleteDocumentForm" method="POST" class="flex items-center justify-end gap-3">
+                    @csrf
+                    @method('DELETE')
+
+                    <button
+                        type="button"
+                        onclick="closeDeleteDocumentModal()"
+                        class="px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50"
+                    >
+                        Cancelar
+                    </button>
+
+                    <button
+                        id="deleteDocumentSubmitButton"
+                        type="submit"
+                        disabled
+                        class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold opacity-50 cursor-not-allowed disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        Confirmar eliminación
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
-</div>
 
-<script>
-    function openDeleteDocumentModal(actionUrl, fileName, versionNumber) {
-        const modal = document.getElementById('deleteDocumentModal');
-        const form = document.getElementById('deleteDocumentForm');
-        const nameLabel = document.getElementById('deleteDocumentName');
-        const versionLabel = document.getElementById('deleteDocumentVersion');
-        const input = document.getElementById('delete_document_confirmation');
-        const submitButton = document.getElementById('deleteDocumentSubmitButton');
+    <script>
+        function openDeleteDocumentModal(actionUrl, fileName, versionNumber) {
+            const modal = document.getElementById('deleteDocumentModal');
+            const form = document.getElementById('deleteDocumentForm');
+            const nameLabel = document.getElementById('deleteDocumentName');
+            const versionLabel = document.getElementById('deleteDocumentVersion');
+            const input = document.getElementById('delete_document_confirmation');
+            const submitButton = document.getElementById('deleteDocumentSubmitButton');
 
-        form.action = actionUrl;
-        nameLabel.textContent = fileName || '—';
-        versionLabel.textContent = versionNumber || '—';
-        input.value = '';
-        submitButton.disabled = true;
-        submitButton.classList.add('opacity-50', 'cursor-not-allowed');
-
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
-        input.focus();
-    }
-
-    function closeDeleteDocumentModal() {
-        const modal = document.getElementById('deleteDocumentModal');
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    }
-
-    function validateDeleteDocumentConfirmation() {
-        const input = document.getElementById('delete_document_confirmation');
-        const submitButton = document.getElementById('deleteDocumentSubmitButton');
-        const valid = input.value.trim() === 'ELIMINAR';
-
-        submitButton.disabled = !valid;
-
-        if (valid) {
-            submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
-        } else {
+            form.action = actionUrl;
+            nameLabel.textContent = fileName || '—';
+            versionLabel.textContent = versionNumber || '—';
+            input.value = '';
+            submitButton.disabled = true;
             submitButton.classList.add('opacity-50', 'cursor-not-allowed');
-        }
-    }
 
-    document.addEventListener('keydown', function (event) {
-        if (event.key === 'Escape') {
-            closeDeleteDocumentModal();
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            input.focus();
         }
-    });
-</script>
+
+        function closeDeleteDocumentModal() {
+            const modal = document.getElementById('deleteDocumentModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function validateDeleteDocumentConfirmation() {
+            const input = document.getElementById('delete_document_confirmation');
+            const submitButton = document.getElementById('deleteDocumentSubmitButton');
+            const valid = input.value.trim() === 'ELIMINAR';
+
+            submitButton.disabled = !valid;
+
+            if (valid) {
+                submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                submitButton.classList.add('opacity-50', 'cursor-not-allowed');
+            }
+        }
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                closeDeleteDocumentModal();
+            }
+        });
+    </script>
 </x-layouts.vigia>

@@ -5,13 +5,13 @@ namespace App\Http\Controllers;
 use App\Enums\TaskStatus;
 use App\Http\Requests\StoreTaskRequest;
 use App\Http\Requests\UpdateTaskRequest;
+use App\Models\Asset;
 use App\Models\AssetRequirement;
 use App\Models\Task;
-use App\Models\Asset;
 use App\Models\User;
+use App\Services\AuditLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use App\Services\AuditLogger;
 
 class RequirementTaskController extends Controller
 {
@@ -44,18 +44,23 @@ class RequirementTaskController extends Controller
     {
         $user = auth()->user();
 
+        $requirement->loadMissing([
+            'company',
+            'asset',
+        ]);
+
         abort_unless(
-            $user->isAdmin() || ($user->isOperative() && $requirement->company_id === $user->company_id),
+            ($user->isAdmin() || $user->isOperative())
+            && $user->canAccessCompany($requirement->company),
             403
         );
 
-        $requirement->loadMissing('asset');
         abort_unless($requirement->asset && $requirement->asset->status === 'active', 403);
     }
 
     private function guardTaskScope(AssetRequirement $requirement, Task $task): void
     {
-        abort_unless($task->asset_requirement_id === $requirement->id, 404);
+        abort_unless((int) $task->asset_requirement_id === (int) $requirement->id, 404);
     }
 
     public function create(AssetRequirement $requirement)
@@ -68,7 +73,7 @@ class RequirementTaskController extends Controller
         ]);
 
         $responsibles = User::query()
-            ->where('company_id', auth()->user()->company_id)
+            ->where('company_id', $requirement->company_id)
             ->orderBy('name')
             ->get();
 
@@ -104,7 +109,6 @@ class RequirementTaskController extends Controller
             'completed_by' => null,
         ]);
 
-        // ✅ Asignar responsable a la tarea
         $responsibleUserId = (int) $request->responsible_user_id;
         $task->users()->sync([$responsibleUserId]);
 
@@ -143,7 +147,7 @@ class RequirementTaskController extends Controller
         $task->loadMissing('users');
 
         $responsibles = User::query()
-            ->where('company_id', auth()->user()->company_id)
+            ->where('company_id', $requirement->company_id)
             ->orderBy('name')
             ->get();
 
@@ -180,7 +184,6 @@ class RequirementTaskController extends Controller
             'requires_document' => true,
         ]);
 
-        // ✅ Actualizar responsable
         $responsibleUserId = (int) $request->responsible_user_id;
         $task->users()->sync([$responsibleUserId]);
 
@@ -241,7 +244,7 @@ class RequirementTaskController extends Controller
         if ($isRenewal) {
             $hasOfficialDocument = $requirement->documents()->exists();
 
-            if (!$hasOfficialDocument) {
+            if (! $hasOfficialDocument) {
                 return back()->withErrors([
                     'task' => 'Debes subir primero la documentación oficial para completar esta tarea de renovación.',
                 ]);
@@ -316,12 +319,11 @@ class RequirementTaskController extends Controller
 
     public function checkout(Request $request, Asset $asset, AssetRequirement $requirement)
     {
-        $user = auth()->user();
+        abort_unless((int) $requirement->asset_id === (int) $asset->id, 404);
 
-        abort_unless(
-            $user->isAdmin() || ($user->isOperative() && $requirement->company_id === $user->company_id),
-            403
-        );
+        $this->guardRequirement($requirement);
+
+        $requirement->loadMissing('template');
 
         $hasOfficialDoc = $requirement->documents()->exists();
         abort_unless($hasOfficialDoc, 422);
@@ -337,13 +339,14 @@ class RequirementTaskController extends Controller
 
         $responsibleUser = User::query()
             ->where('id', $data['responsible_user_id'])
-            ->where('company_id', auth()->user()->company_id)
+            ->where('company_id', $requirement->company_id)
             ->firstOrFail();
 
         $titleReq = $requirement->template?->name ?? $requirement->type;
         $title = "Check in - {$titleReq}";
 
-        $alreadyOpen = Task::where('asset_requirement_id', $requirement->id)
+        $alreadyOpen = Task::query()
+            ->where('asset_requirement_id', $requirement->id)
             ->where('title', $title)
             ->whereNull('completed_at')
             ->whereHas('users', fn ($q) => $q->where('users.id', $responsibleUser->id))

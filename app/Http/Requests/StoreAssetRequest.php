@@ -14,9 +14,31 @@ class StoreAssetRequest extends FormRequest
 
     public function rules(): array
     {
-        $companyId = (int) $this->user()->company_id;
+        $user = $this->user();
+
+        $companyId = $this->filled('company_id')
+            ? (int) $this->input('company_id')
+            : (int) $user->company_id;
+
+        $companyRule = Rule::exists('companies', 'id');
+
+        if ($user->hasGroupScope()) {
+            $companyRule = $companyRule->where(function ($query) use ($user) {
+                $query->where('group_id', $user->group_id);
+            });
+        } else {
+            $companyRule = $companyRule->where(function ($query) use ($user) {
+                $query->where('id', $user->company_id);
+            });
+        }
 
         return [
+            'company_id' => [
+                'required',
+                'integer',
+                $companyRule,
+            ],
+
             'asset_type_id' => [
                 'required',
                 'integer',
@@ -30,15 +52,20 @@ class StoreAssetRequest extends FormRequest
             ],
 
             'parent_asset_id' => [
-                'nullable', 
-                'exists:assets,id'
+                'nullable',
+                'integer',
+                Rule::exists('assets', 'id')->where(function ($query) use ($companyId) {
+                    $query->where('company_id', $companyId);
+                }),
             ],
 
             'code' => [
                 'nullable',
                 'string',
                 'max:100',
-                Rule::unique('assets', 'code')->where(fn ($q) => $q->where('company_id', $companyId)),
+                Rule::unique('assets', 'code')->where(function ($query) use ($companyId) {
+                    $query->where('company_id', $companyId);
+                }),
             ],
 
             'location' => [
@@ -48,28 +75,38 @@ class StoreAssetRequest extends FormRequest
             ],
 
             'vault_location' => [
-                'nullable', 
-                'string', 
-                'max:255'
+                'nullable',
+                'string',
+                'max:255',
             ],
 
             'responsible_user_id' => [
                 'nullable',
                 'integer',
-                Rule::exists('users', 'id')->where(fn ($q) => $q->where('company_id', $companyId)),
+                Rule::exists('users', 'id')->where(function ($query) use ($companyId) {
+                    $query->where('company_id', $companyId);
+                }),
             ],
 
             'compliance_start_date' => ['required', 'date'],
-            'compliance_due_date'   => ['required', 'date', 'after_or_equal:compliance_start_date'],
+            'compliance_due_date' => ['required', 'date', 'after_or_equal:compliance_start_date'],
         ];
     }
 
-    protected function prepareForValidation()
+    protected function prepareForValidation(): void
     {
+        $data = [];
+
         if ($this->has('location')) {
-            $this->merge([
-                'location' => strtoupper(trim($this->location)),
-            ]);
+            $data['location'] = strtoupper(trim((string) $this->location));
+        }
+
+        if (! $this->filled('company_id') && $this->user()) {
+            $data['company_id'] = (int) $this->user()->company_id;
+        }
+
+        if ($data !== []) {
+            $this->merge($data);
         }
     }
 }

@@ -3,14 +3,12 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rules\Enum;
-use App\Enums\RequirementStatus;
 
 class StoreAssetRequirementRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true; 
+        return $this->user()?->isAdmin() || $this->user()?->isOperative();
     }
 
     public function rules(): array
@@ -18,7 +16,6 @@ class StoreAssetRequirementRequest extends FormRequest
         return [
             'requirement_template_id' => ['required', 'integer', 'exists:requirement_templates,id'],
             'type' => ['required', 'string', 'max:255'],
-            'status' => ['required', new Enum(RequirementStatus::class)],
             'due_date' => ['required', 'date'],
 
             'recurrence_interval' => ['nullable', 'integer', 'min:1'],
@@ -33,8 +30,11 @@ class StoreAssetRequirementRequest extends FormRequest
             $interval = $this->input('recurrence_interval');
             $unit = $this->input('recurrence_unit');
 
-            if (($interval && !$unit) || (!$interval && $unit)) {
-                $validator->errors()->add('recurrence_unit', 'recurrence_interval y recurrence_unit deben venir juntos.');
+            if (($interval && ! $unit) || (! $interval && $unit)) {
+                $validator->errors()->add(
+                    'recurrence_unit',
+                    'recurrence_interval y recurrence_unit deben venir juntos.'
+                );
             }
         });
     }

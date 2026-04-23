@@ -6,14 +6,16 @@ use App\Models\Asset;
 use App\Models\AssetRequirement;
 use App\Models\Task;
 use App\Models\AuditLog;
-use Illuminate\Http\Request;
 
 class RequirementHistoryController extends Controller
 {
     private function guard(Asset $asset, AssetRequirement $requirement): void
     {
-        abort_unless($requirement->asset_id === $asset->id, 404);
-        abort_unless($asset->company_id === auth()->user()->company_id, 403);
+        abort_unless((int) $requirement->asset_id === (int) $asset->id, 404);
+
+        $asset->loadMissing('company');
+
+        abort_unless(auth()->user()->canAccessCompany($asset->company), 403);
     }
 
     public function index(Asset $asset, AssetRequirement $requirement)
@@ -38,7 +40,8 @@ class RequirementHistoryController extends Controller
     public function task(Asset $asset, AssetRequirement $requirement, Task $task)
     {
         $this->guard($asset, $requirement);
-        abort_unless($task->asset_requirement_id === $requirement->id, 404);
+
+        abort_unless((int) $task->asset_requirement_id === (int) $requirement->id, 404);
 
         $logs = AuditLog::query()
             ->where('company_id', $asset->company_id)

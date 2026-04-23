@@ -2,7 +2,8 @@
 <x-layouts.vigia :title="$asset->name" :nav-context="$navContext">
 
     <x-slot name="breadcrumb">
-        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">
+        <a href="{{ route('assets.index', array_filter(['company_id' => request('company_id', $asset->company_id)])) }}"
+        class="text-gray-600 hover:underline">
             Activos y Actividades
         </a>
 
@@ -53,7 +54,7 @@
 
             @can('update', $asset)
                 <div class="flex items-center gap-3">
-                    <a href="{{ route('assets.edit', $asset) }}"
+                    <a href="{{ route('assets.edit', array_merge(['asset' => $asset], array_filter(['company_id' => request('company_id', $asset->company_id)]))) }}"
                     class="px-5 py-2 rounded-md border border-[#1A428A] text-[#1A428A] font-semibold hover:bg-blue-50
                     {{ $assetInactive ? 'opacity-50 pointer-events-none' : '' }}">
                         Editar

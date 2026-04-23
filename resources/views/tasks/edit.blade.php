@@ -17,7 +17,8 @@
 <x-layouts.vigia title="Editar tarea" :nav-context="$navContext">
 
     <x-slot name="breadcrumb">
-        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">
+        <a href="{{ route('assets.index', array_filter(['company_id' => request('company_id', $asset?->company_id)])) }}"
+           class="text-gray-600 hover:underline">
             Activos y Actividades
         </a>
 
@@ -52,6 +53,9 @@
                     Carpeta: <span class="font-semibold text-gray-700">{{ $folderTitle }}</span>
                     @if($asset)
                         · Activo: <span class="font-semibold text-gray-700">{{ $asset->name }}</span>
+                    @endif
+                    @if(auth()->user()->hasGroupScope() && $asset?->company)
+                        · Empresa: <span class="font-semibold text-gray-700">{{ $asset->company->name }}</span>
                     @endif
                 </div>
 
@@ -134,6 +138,7 @@
                         name="responsible_user_id"
                         class="{{ $selectClass }} searchable-select"
                         required
+                        {{ $assetInactive ? 'disabled' : '' }}
                     >
                         <option value="">-- Selecciona un responsable --</option>
 
@@ -200,6 +205,7 @@
             </div>
         </form>
     </div>
+
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
@@ -213,6 +219,7 @@
             });
         });
     </script>
+
     <style>
         .select2-container {
             width: 100% !important;

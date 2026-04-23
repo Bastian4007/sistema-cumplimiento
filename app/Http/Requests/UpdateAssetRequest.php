@@ -14,37 +14,69 @@ class UpdateAssetRequest extends FormRequest
 
     public function rules(): array
     {
+        $asset = $this->route('asset');
+        $companyId = (int) $asset->company_id;
+
         return [
             'asset_type_id' => [
                 'required',
                 'integer',
                 Rule::exists('asset_types', 'id'),
             ],
-            'name' => ['required', 'string', 'max:255'],
-            'code' => ['nullable', 'string', 'max:100'],
+
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+            ],
+
+            'code' => [
+                'nullable',
+                'string',
+                'max:100',
+                Rule::unique('assets', 'code')
+                    ->ignore($asset->id)
+                    ->where(function ($query) use ($companyId) {
+                        $query->where('company_id', $companyId);
+                    }),
+            ],
 
             'parent_asset_id' => [
-                'nullable', 
-                'exists:assets,id'
+                'nullable',
+                'integer',
+                Rule::exists('assets', 'id')->where(function ($query) use ($companyId, $asset) {
+                    $query->where('company_id', $companyId)
+                          ->where('id', '!=', $asset->id);
+                }),
             ],
-            
-            'location' => ['nullable', 'string', 'max:255'],
 
-            'vault_location' => ['nullable', 'string', 'max:255'],
+            'location' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
+
+            'vault_location' => [
+                'nullable',
+                'string',
+                'max:255',
+            ],
 
             'responsible_user_id' => [
-            'nullable',
-            'integer',
-            Rule::exists('users', 'id')->where('company_id', $this->user()->company_id),
+                'nullable',
+                'integer',
+                Rule::exists('users', 'id')->where(function ($query) use ($companyId) {
+                    $query->where('company_id', $companyId);
+                }),
             ],
         ];
     }
 
-    protected function prepareForValidation()
+    protected function prepareForValidation(): void
     {
         if ($this->has('location')) {
             $this->merge([
-                'location' => strtoupper(trim($this->location)),
+                'location' => strtoupper(trim((string) $this->location)),
             ]);
         }
     }

@@ -10,7 +10,7 @@ class UpdateAssetRequirementRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        return $this->user()?->isAdmin() || $this->user()?->isOperative();
     }
 
     public function rules(): array
@@ -33,8 +33,11 @@ class UpdateAssetRequirementRequest extends FormRequest
             $interval = $this->input('recurrence_interval');
             $unit = $this->input('recurrence_unit');
 
-            if (($interval && !$unit) || (!$interval && $unit)) {
-                $validator->errors()->add('recurrence_unit', 'recurrence_interval y recurrence_unit deben venir juntos.');
+            if (($interval && ! $unit) || (! $interval && $unit)) {
+                $validator->errors()->add(
+                    'recurrence_unit',
+                    'recurrence_interval y recurrence_unit deben venir juntos.'
+                );
             }
         });
     }

@@ -6,10 +6,14 @@ use App\Models\Asset;
 
 trait ValidatesCompany
 {
-    protected function assertSameCompany(Asset $asset): void
+    protected function assertSameCompany($model): void
     {
-        if ((int) $asset->company_id !== (int) auth()->user()->company_id) {
-            abort(403, 'Not allowed.');
+        $user = auth()->user();
+
+        $company = $model->company ?? $model->asset?->company;
+
+        if (! $company || ! $user->canAccessCompany($company)) {
+            abort(403);
         }
     }
 }

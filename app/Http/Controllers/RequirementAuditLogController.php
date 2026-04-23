@@ -11,12 +11,17 @@ class RequirementAuditLogController extends Controller
 {
     public function index(Request $request, Asset $asset, AssetRequirement $requirement)
     {
-        // Jerarquía
-        abort_unless($requirement->asset_id === $asset->id, 404);
+        abort_unless((int) $requirement->asset_id === (int) $asset->id, 404);
 
-        // Multiempresa + rol
-        abort_unless($asset->company_id === auth()->user()->company_id, 403);
-        abort_unless(auth()->user()->isOperative(), 403);
+        $asset->loadMissing('company');
+
+        $user = $request->user();
+
+        abort_unless(
+            ($user->isAdmin() || $user->isOperative())
+            && $user->canAccessCompany($asset->company),
+            403
+        );
 
         $logs = AuditLog::query()
             ->where('company_id', $asset->company_id)

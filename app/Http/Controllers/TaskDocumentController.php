@@ -6,19 +6,18 @@ use App\Models\Task;
 use App\Models\TaskDocument;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Symfony\Component\HttpFoundation\Response;
 
 class TaskDocumentController extends Controller
 {
     public function index(Task $task, Request $request)
     {
         $task->loadMissing([
+            'requirement.company',
             'requirement.asset',
             'requirement.template',
         ]);
 
-        // Seguridad multiempresa
-        abort_if($task->requirement->company_id !== $request->user()->company_id, 403);
+        abort_if(! $request->user()->canAccessCompany($task->requirement->company), 403);
 
         $task->load([
             'documents.uploader',
@@ -46,7 +45,9 @@ class TaskDocumentController extends Controller
 
     public function store(Task $task, Request $request)
     {
-        abort_if($task->requirement->company_id !== $request->user()->company_id, 403);
+        $task->loadMissing('requirement.company');
+
+        abort_if(! $request->user()->canAccessCompany($task->requirement->company), 403);
 
         if ($task->type === Task::TYPE_RENEWAL) {
             return back()->withErrors([
@@ -58,7 +59,6 @@ class TaskDocumentController extends Controller
             'file' => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
         ]);
 
-        // 1) Si ya hay documento, bórralo (BD + archivo)
         $existing = TaskDocument::where('task_id', $task->id)->latest()->first();
 
         if ($existing) {
@@ -66,7 +66,6 @@ class TaskDocumentController extends Controller
             $existing->delete();
         }
 
-        // 2) Guardar nuevo archivo
         $file = $request->file('file');
         $originalName = $file->getClientOriginalName();
 
@@ -76,7 +75,6 @@ class TaskDocumentController extends Controller
             'public'
         );
 
-        // 3) Crear registro
         TaskDocument::create([
             'task_id' => $task->id,
             'file_path' => $path,
@@ -88,21 +86,19 @@ class TaskDocumentController extends Controller
 
     public function download(TaskDocument $document, Request $request)
     {
-        // cargar task y validar empresa
-        $document->load('task.requirement');
+        $document->load('task.requirement.company');
 
-        abort_if($document->task->requirement->company_id !== $request->user()->company_id, 403);
+        abort_if(! $request->user()->canAccessCompany($document->task->requirement->company), 403);
 
         return Storage::disk('public')->download($document->file_path);
     }
 
     public function destroy(TaskDocument $document, Request $request)
     {
-        $document->load('task.requirement');
+        $document->load('task.requirement.company');
 
-        abort_if($document->task->requirement->company_id !== $request->user()->company_id, 403);
-
-        abort_if(!($request->user()->isAdmin() || $request->user()->isOperative()), 403);
+        abort_if(! $request->user()->canAccessCompany($document->task->requirement->company), 403);
+        abort_if(! ($request->user()->isAdmin() || $request->user()->isOperative()), 403);
 
         Storage::disk('public')->delete($document->file_path);
         $document->delete();
@@ -110,14 +106,17 @@ class TaskDocumentController extends Controller
         return back()->with('status', 'Documento eliminado.');
     }
 
-   public function preview(Task $task, TaskDocument $document)
+    public function preview(Task $task, TaskDocument $document)
     {
-        // ✅ el documento debe pertenecer a la task
         abort_unless($document->task_id === $task->id, 404);
 
-        // ✅ validar company por requirement (porque task no tiene company_id)
-        $companyId = $task->requirement?->company_id;
-        abort_unless($companyId && $companyId === auth()->user()->company_id, 403);
+        $task->loadMissing('requirement.company');
+
+        abort_unless(
+            $task->requirement?->company
+            && auth()->user()->canAccessCompany($task->requirement->company),
+            403
+        );
 
         $path = $document->file_path;
 
@@ -134,7 +133,7 @@ class TaskDocumentController extends Controller
             'image/gif',
         ];
 
-        if (!in_array($mime, $allowed, true)) {
+        if (! in_array($mime, $allowed, true)) {
             return back()->withErrors([
                 'preview' => 'Este tipo de archivo no se puede previsualizar. Descárgalo en su lugar.',
             ]);

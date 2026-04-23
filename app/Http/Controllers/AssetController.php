@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateAssetRequest;
 use App\Models\Asset;
 use App\Models\AssetRequirement;
 use App\Models\AssetType;
+use App\Models\Company;
 use App\Models\RequirementTemplate;
 use App\Models\User;
 use App\Services\SyncAssetRequirementsService;
@@ -27,19 +28,48 @@ class AssetController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $companyId = $user->company_id;
 
         $assetTypes = AssetType::query()
             ->orderBy('name')
             ->get(['id', 'name']);
 
+        $companies = Company::query()
+            ->when($user->hasGroupScope(), function ($query) use ($user) {
+                $query->where('group_id', $user->group_id);
+            }, function ($query) use ($user) {
+                $query->where('id', $user->company_id);
+            })
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $selectedCompanyId = $request->filled('company_id')
+            ? (int) $request->company_id
+            : null;
+
+        if ($selectedCompanyId) {
+            $selectedCompany = Company::findOrFail($selectedCompanyId);
+
+            abort_unless($user->canAccessCompany($selectedCompany), 403);
+        }
+
         $query = Asset::query()
             ->with([
                 'type:id,name',
+                'company:id,name,group_id',
                 'responsibleUser:id,name',
                 'creator:id,name',
             ])
-            ->where('company_id', $companyId);
+            ->when($user->hasGroupScope(), function ($query) use ($user) {
+                $query->whereHas('company', function ($subQuery) use ($user) {
+                    $subQuery->where('group_id', $user->group_id);
+                });
+            }, function ($query) use ($user) {
+                $query->where('company_id', $user->company_id);
+            });
+
+        if ($selectedCompanyId) {
+            $query->where('company_id', $selectedCompanyId);
+        }
 
         if ($request->filled('status') && in_array($request->status, ['active', 'inactive'], true)) {
             $query->where('status', $request->status);
@@ -63,27 +93,56 @@ class AssetController extends Controller
             ->paginate(15)
             ->withQueryString();
 
-        $locations = Asset::query()
-            ->where('company_id', $companyId)
+        $locationsQuery = Asset::query()
+            ->when($user->hasGroupScope(), function ($query) use ($user) {
+                $query->whereHas('company', function ($subQuery) use ($user) {
+                    $subQuery->where('group_id', $user->group_id);
+                });
+            }, function ($query) use ($user) {
+                $query->where('company_id', $user->company_id);
+            });
+
+        if ($selectedCompanyId) {
+            $locationsQuery->where('company_id', $selectedCompanyId);
+        }
+
+        $locations = $locationsQuery
             ->whereNotNull('location')
             ->where('location', '!=', '')
             ->distinct()
             ->orderBy('location')
             ->pluck('location');
 
-        return view('assets.index', compact('assets', 'assetTypes', 'locations'));
+        return view('assets.index', compact('assets', 'assetTypes', 'locations', 'companies', 'selectedCompanyId'));
     }
 
     public function create(Request $request)
     {
-        $companyId = (int) $request->user()->company_id;
+        $user = $request->user();
 
         $assetTypes = AssetType::query()
             ->orderBy('name')
             ->get(['id', 'name']);
 
+        $companies = Company::query()
+            ->when($user->hasGroupScope(), function ($query) use ($user) {
+                $query->where('group_id', $user->group_id);
+            }, function ($query) use ($user) {
+                $query->where('id', $user->company_id);
+            })
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $selectedCompanyId = $request->filled('company_id')
+            ? (int) $request->company_id
+            : (int) $user->company_id;
+
+        $selectedCompany = Company::findOrFail($selectedCompanyId);
+
+        abort_unless($user->canAccessCompany($selectedCompany), 403);
+
         $parentAssets = Asset::query()
-            ->where('company_id', $companyId)
+            ->where('company_id', $selectedCompany->id)
             ->whereHas('type', function ($query) {
                 $query->whereIn('name', ['Plantas', 'Transporte']);
             })
@@ -92,7 +151,7 @@ class AssetController extends Controller
             ->get();
 
         $responsibles = User::query()
-            ->where('company_id', $companyId)
+            ->where('company_id', $selectedCompany->id)
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
 
@@ -131,13 +190,24 @@ class AssetController extends Controller
             'Zacatecas',
         ];
 
-        return view('assets.create', compact('assetTypes', 'responsibles', 'mexicoStates', 'parentAssets'));
+        return view('assets.create', compact(
+            'assetTypes',
+            'responsibles',
+            'mexicoStates',
+            'parentAssets',
+            'companies',
+            'selectedCompanyId'
+        ));
     }
 
     public function store(StoreAssetRequest $request)
     {
         $data = $request->validated();
-        $companyId = (int) $request->user()->company_id;
+        $user = $request->user();
+
+        $company = Company::findOrFail((int) $data['company_id']);
+
+        abort_unless($user->canAccessCompany($company), 403);
 
         if (! empty($data['code'])) {
             $data['code'] = Str::upper(trim($data['code']));
@@ -154,7 +224,7 @@ class AssetController extends Controller
             $prefix = "{$namePart}-{$typePart}-";
 
             $last = Asset::query()
-                ->where('company_id', $companyId)
+                ->where('company_id', $company->id)
                 ->where('code', 'like', $prefix . '%')
                 ->orderBy('code', 'desc')
                 ->value('code');
@@ -169,9 +239,9 @@ class AssetController extends Controller
             $data['code'] = $prefix . str_pad((string) $nextNumber, 3, '0', STR_PAD_LEFT);
         }
 
-        $asset = DB::transaction(function () use ($companyId, $data) {
+        $asset = DB::transaction(function () use ($company, $data) {
             $asset = Asset::create([
-                'company_id' => $companyId,
+                'company_id' => $company->id,
                 ...$data,
             ]);
 
@@ -369,16 +439,14 @@ class AssetController extends Controller
     {
         $this->authorize('update', $asset);
 
-        $user = $request->user();
-
-        $asset->load(['assetType', 'responsible']);
+        $asset->load(['assetType', 'responsible', 'company']);
 
         $assetTypes = AssetType::query()
             ->orderBy('name')
             ->get(['id', 'name']);
 
         $parentAssets = Asset::query()
-            ->where('company_id', $user->company_id)
+            ->where('company_id', $asset->company_id)
             ->where('id', '!=', $asset->id)
             ->whereHas('assetType', function ($query) {
                 $query->whereIn('name', ['Plantas', 'Transporte']);
@@ -388,7 +456,7 @@ class AssetController extends Controller
             ->get();
 
         $responsibles = User::query()
-            ->where('company_id', $user->company_id)
+            ->where('company_id', $asset->company_id)
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
 

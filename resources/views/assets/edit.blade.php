@@ -1,7 +1,8 @@
 {{-- resources/views/assets/edit.blade.php --}}
 <x-layouts.vigia :title="'Editar: ' . $asset->name">
     <x-slot name="breadcrumb">
-        <a href="{{ route('assets.index') }}" class="text-gray-600 hover:underline">
+        <a href="{{ route('assets.index', array_filter(['company_id' => request('company_id', old('company_id', $asset->company_id))])) }}"
+           class="text-gray-600 hover:underline">
             Activos y Actividades
         </a>
         <span class="text-gray-400">›</span>
@@ -12,12 +13,25 @@
         <span class="text-gray-700 font-medium">Editar</span>
     </x-slot>
 
+    @php
+        $user = auth()->user();
+        $selectedCompanyId = old('company_id', $asset->company_id);
+    @endphp
+
     {{-- Select2 CSS --}}
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
     <div class="bg-white rounded-xl shadow p-6">
-        <div class="flex items-center justify-between gap-4">
-            <h1 class="text-2xl font-semibold text-[#1A428A]">Editar activo</h1>
+        <div class="flex items-start justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-semibold text-[#1A428A]">Editar activo</h1>
+
+                @if($user->hasGroupScope() && $asset->company)
+                    <p class="mt-1 text-sm text-gray-500">
+                        Empresa actual: <span class="font-medium text-gray-700">{{ $asset->company->name }}</span>
+                    </p>
+                @endif
+            </div>
 
             <a href="{{ route('assets.show', $asset) }}"
                class="px-4 py-2 rounded-md border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">
@@ -39,6 +53,30 @@
         <form method="POST" action="{{ route('assets.update', $asset) }}" class="mt-6">
             @csrf
             @method('PUT')
+
+            @if($user->hasGroupScope())
+                <div class="mb-6">
+                    <label for="company_id" class="block text-sm font-semibold text-gray-700">Empresa</label>
+                    <select
+                        name="company_id"
+                        id="company_id"
+                        class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                        required
+                    >
+                        <option value="">-- Selecciona empresa --</option>
+                        @foreach($companies as $company)
+                            <option value="{{ $company->id }}" @selected((int) $selectedCompanyId === (int) $company->id)>
+                                {{ $company->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('company_id')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+            @else
+                <input type="hidden" name="company_id" value="{{ $user->company_id }}">
+            @endif
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {{-- Nombre --}}
@@ -255,6 +293,7 @@
             toggleParentAssetField();
         });
     </script>
+
     <style>
         .select2-container {
             width: 100% !important;

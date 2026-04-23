@@ -10,7 +10,9 @@ class TaskController extends Controller
     public function index(AssetRequirement $requirement)
     {
         // Seguridad multiempresa
-        abort_unless($requirement->company_id === auth()->user()->company_id, 403);
+        $requirement->loadMissing('company');
+
+        abort_unless(auth()->user()->canAccessCompany($requirement->company), 403);
 
         $requirement->load([
             'asset',

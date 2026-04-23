@@ -8,16 +8,19 @@ use App\Http\Requests\StoreAssetRequirementRequest;
 use App\Http\Requests\UpdateAssetRequirementRequest;
 use App\Models\Asset;
 use App\Models\AssetRequirement;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Http\Request;
 use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AssetRequirementController extends Controller
 {
     public function show(Asset $asset, AssetRequirement $requirement)
     {
-        abort_unless($requirement->asset_id === $asset->id, 404);
-        abort_unless($asset->company_id === auth()->user()->company_id, 403);
+        abort_unless((int) $requirement->asset_id === (int) $asset->id, 404);
+
+        $asset->loadMissing('company');
+
+        abort_unless(auth()->user()->canAccessCompany($asset->company), 403);
 
         $requirement->load([
             'asset',
@@ -36,7 +39,7 @@ class AssetRequirementController extends Controller
         ]);
 
         $responsibles = User::query()
-            ->where('company_id', auth()->user()->company_id)
+            ->where('company_id', $asset->company_id)
             ->orderBy('name')
             ->get();
 
@@ -57,18 +60,18 @@ class AssetRequirementController extends Controller
 
     public function store(StoreAssetRequirementRequest $request, Asset $asset)
     {
-        abort_unless($asset->company_id === auth()->user()->company_id, 403);
+        $asset->loadMissing('company');
+
+        abort_unless(auth()->user()->canAccessCompany($asset->company), 403);
 
         $data = $request->validated();
 
-        $data['company_id'] = auth()->user()->company_id;
+        $data['company_id'] = $asset->company_id;
         $data['asset_id'] = $asset->id;
         $data['completed_at'] = null;
-
         $data['status'] = RequirementStatus::PENDING;
 
         $requirement = DB::transaction(function () use ($data) {
-
             $requirement = AssetRequirement::create($data);
 
             $requirement->tasks()->create([
@@ -76,7 +79,7 @@ class AssetRequirementController extends Controller
                 'description' => 'Adjunta el documento oficial requerido para esta obligación.',
                 'status' => TaskStatus::PENDING,
                 'due_date' => $requirement->due_date,
-                'requires_document' => true, 
+                'requires_document' => true,
                 'completed_at' => null,
             ]);
 
@@ -90,8 +93,11 @@ class AssetRequirementController extends Controller
 
     public function update(UpdateAssetRequirementRequest $request, Asset $asset, AssetRequirement $requirement)
     {
-        abort_unless($requirement->asset_id === $asset->id, 404);
-        abort_unless($asset->company_id === auth()->user()->company_id, 403);
+        abort_unless((int) $requirement->asset_id === (int) $asset->id, 404);
+
+        $asset->loadMissing('company');
+
+        abort_unless(auth()->user()->canAccessCompany($asset->company), 403);
 
         $beforeStatus = $requirement->status;
 
@@ -99,7 +105,6 @@ class AssetRequirementController extends Controller
         unset($data['company_id'], $data['asset_id']);
 
         DB::transaction(function () use ($requirement, $data, $beforeStatus) {
-
             $requirement->update($data);
 
             $afterStatus = $requirement->fresh()->status;
@@ -122,12 +127,13 @@ class AssetRequirementController extends Controller
 
     private function renewIfRecurrent(AssetRequirement $requirement): ?AssetRequirement
     {
-        if (!$requirement->isRecurrent()) {
+        if (! $requirement->isRecurrent()) {
             return null;
         }
 
         $nextDue = $requirement->nextDueDate();
-        if (!$nextDue) {
+
+        if (! $nextDue) {
             return null;
         }
 
@@ -136,11 +142,9 @@ class AssetRequirementController extends Controller
             'asset_id' => $requirement->asset_id,
             'requirement_template_id' => $requirement->requirement_template_id,
             'type' => $requirement->type,
-
             'status' => RequirementStatus::PENDING,
             'due_date' => $nextDue->toDateString(),
             'completed_at' => null,
-
             'recurrence_interval' => $requirement->recurrence_interval,
             'recurrence_unit' => $requirement->recurrence_unit,
             'recurrence_anchor' => $requirement->recurrence_anchor,
@@ -151,16 +155,14 @@ class AssetRequirementController extends Controller
     {
         $this->authorize('complete', $requirement);
 
-        if ((int) $requirement->asset_id !== (int) $asset->id) {
-            abort(404);
-        }
+        abort_unless((int) $requirement->asset_id === (int) $asset->id, 404);
 
-        if (!$requirement->documents()->exists()) {
+        if (! $requirement->documents()->exists()) {
             return back()->with('error', 'No puedes completar: falta subir la documentación oficial.');
         }
 
         $requirement->update([
-            'status' => \App\Enums\RequirementStatus::COMPLETED,
+            'status' => RequirementStatus::COMPLETED,
             'completed_at' => now(),
         ]);
 
@@ -169,12 +171,14 @@ class AssetRequirementController extends Controller
 
     public function reopen(Asset $asset, AssetRequirement $requirement)
     {
-        if ((int) $requirement->asset_id !== (int) $asset->id) {
-            abort(404);
-        }
+        abort_unless((int) $requirement->asset_id === (int) $asset->id, 404);
+
+        $asset->loadMissing('company');
+
+        abort_unless(auth()->user()->canAccessCompany($asset->company), 403);
 
         $requirement->update([
-            'status' => \App\Enums\RequirementStatus::IN_PROGRESS,
+            'status' => RequirementStatus::IN_PROGRESS,
             'completed_at' => null,
         ]);
 
