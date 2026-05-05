@@ -29,7 +29,7 @@
 
         <a href="{{ route('requirements.tasks.show', [$requirement->id, $task->id]) }}"
            class="text-gray-600 hover:underline">
-            {{ $task->title }}
+            <x-truncate max="max-w-[180px]">{{ $task->title }}</x-truncate>
         </a>
 
         <span class="text-gray-400">›</span>

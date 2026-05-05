@@ -6,29 +6,27 @@
 >
     <x-slot name="breadcrumb">
         <a href="{{ route('assets.index', array_filter(['company_id' => request('company_id', $asset?->company_id)])) }}"
-           class="text-gray-600 hover:underline">
+           class="shrink-0 text-gray-600 hover:underline">
             Activos y Actividades
         </a>
 
-        <span class="text-gray-400">›</span>
+        <span class="shrink-0 text-gray-400">›</span>
 
-        <a href="{{ route('assets.show', $asset) }}" class="text-gray-600 hover:underline">
-            {{ $asset->name }}
+        <a href="{{ route('assets.show', $asset) }}" class="min-w-0 text-gray-600 hover:underline">
+            <x-truncate max="max-w-[160px]">{{ $asset->name }}</x-truncate>
         </a>
 
-        <span class="text-gray-400">›</span>
+        <span class="shrink-0 text-gray-400">›</span>
 
-        <a href="{{ route('assets.requirements.show', [$asset, $requirement]) }}" class="text-gray-600 hover:underline">
-            <x-truncate max="max-w-[400px]" class="font-semibold text-gray-700">
+        <a href="{{ route('assets.requirements.show', [$asset, $requirement]) }}" class="min-w-0 text-gray-600 hover:underline">
+            <x-truncate max="max-w-[180px]" class="font-semibold text-gray-700">
                 {{ $requirement->template?->name ?? $requirement->type }}
             </x-truncate>
         </a>
 
-        <span class="text-gray-400">›</span>
+        <span class="shrink-0 text-gray-400">›</span>
 
-        <span class="text-gray-700 font-medium">
-            Documento oficial
-        </span>
+        <span class="shrink-0 text-gray-700 font-medium">Documento oficial</span>
     </x-slot>
 
     @php

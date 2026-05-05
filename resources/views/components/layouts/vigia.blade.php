@@ -110,6 +110,22 @@
                             Tablero
                         </a>
 
+                        @if($user?->isAdmin())
+                            <a href="{{ route('users.index') }}"
+                               @click="mobileMenuOpen = false"
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('users.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                Usuarios
+                            </a>
+                        @endif
+
+                        @if($user?->isAdmin() || $user?->isOperative() || $user?->isReadonly())
+                            <a href="{{ route('documents.index') }}"
+                               @click="mobileMenuOpen = false"
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('documents.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                Documentos
+                            </a>
+                        @endif
+
                         <a href="{{ route('assets.index') }}"
                            @click="mobileMenuOpen = false"
                            class="block rounded-md px-3 py-2 {{ request()->routeIs('assets.*') || !empty($navContext['asset']) ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
@@ -173,18 +189,25 @@
                         <span>Menú</span>
                     </div>
 
-                    @if($user?->isAdmin())
-                        <a href="{{ route('users.index') }}"
-                            class="block rounded-lg px-3 py-2 text-sm font-medium {{ request()->routeIs('users.*') ? 'bg-gray-100 text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
-                            Usuarios
-                        </a>
-                    @endif
-
                     <nav class="space-y-1 text-sm">
                         <a href="{{ route('dashboard') }}"
                            class="block rounded-md px-3 py-2 {{ request()->routeIs('dashboard') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
                             Tablero
                         </a>
+
+                        @if($user?->isAdmin())
+                            <a href="{{ route('users.index') }}"
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('users.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                Usuarios
+                            </a>
+                        @endif
+
+                        @if(auth()->user()->isAdmin() || auth()->user()->isOperative() || auth()->user()->isReadonly())
+                            <a href="{{ route('documents.index') }}"
+                               class="block rounded-md px-3 py-2 {{ request()->routeIs('documents.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
+                                Documentos
+                            </a>
+                        @endif
 
                         <a href="{{ route('assets.index') }}"
                            class="block rounded-md px-3 py-2 {{ request()->routeIs('assets.*') || !empty($navContext['asset']) ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">
@@ -236,13 +259,9 @@
 
             <div class="min-h-0 flex-1 overflow-y-auto pr-0 sm:pr-1">
                 @isset($breadcrumb)
-                    <div class="mb-4 overflow-x-auto text-sm text-gray-500">
-                        <div class="flex min-w-max items-center gap-2">
-                            <span class="inline-flex items-center gap-2">
-                                <span class="text-gray-400">⌂</span>
-                                {{ $breadcrumb }}
-                            </span>
-                        </div>
+                    <div class="mb-4 flex min-w-0 flex-wrap items-center gap-x-1 gap-y-1 text-sm text-gray-500">
+                        <span class="shrink-0 text-gray-400">⌂</span>
+                        {{ $breadcrumb }}
                     </div>
                 @endisset
 

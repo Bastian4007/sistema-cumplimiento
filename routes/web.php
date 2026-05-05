@@ -14,6 +14,8 @@ use App\Http\Controllers\RequirementHistoryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserInvitationController;
+use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\DocumentVersionController;
 
 Route::get('/', function () {
     return auth()->check()
@@ -26,6 +28,36 @@ Route::get('/dashboard', [ComplianceDashboardController::class, 'index'])
     ->name('dashboard');
 
 Route::middleware('auth')->group(function () {
+
+    /*
+    |--------------------------------------------------------------------------
+    | Documents 2
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/documents', [DocumentController::class, 'index'])
+        ->name('documents.index');
+
+    Route::get('/documents/folders/{folder}', [DocumentController::class, 'showFolder'])
+        ->name('documents.folders.show');
+
+    Route::get('/documents/categories/{category}', [DocumentController::class, 'showCategory'])
+        ->name('documents.categories.show');
+
+    // Document catalog versions
+    Route::get('/documents/categories/{category}/documents/{document}', [DocumentVersionController::class, 'show'])
+        ->name('documents.document.show');
+
+    Route::post('/documents/categories/{category}/documents/{document}/versions', [DocumentVersionController::class, 'store'])
+        ->name('documents.document.versions.store');
+
+    Route::get('/document-versions/{version}/preview', [DocumentVersionController::class, 'preview'])
+        ->name('document-versions.preview');
+
+    Route::get('/document-versions/{version}/download', [DocumentVersionController::class, 'download'])
+        ->name('document-versions.download');
+
+    Route::delete('/documents/categories/{category}/documents/{document}/versions/{version}', [DocumentVersionController::class, 'destroy'])
+        ->name('document-versions.destroy');
 
     // Profile
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -51,12 +83,11 @@ Route::middleware('auth')->group(function () {
 
     Route::patch('assets/{asset}/requirements/{requirement}/complete', [AssetRequirementController::class, 'complete'])
         ->name('assets.requirements.complete');
-    
-    Route::patch('/assets/{asset}/requirements/{requirement}/reopen', [AssetRequirementController::class, 'reopen'])
+
+    Route::patch('assets/{asset}/requirements/{requirement}/reopen', [AssetRequirementController::class, 'reopen'])
         ->name('assets.requirements.reopen');
 
-    // Requirement official documents (nested under asset + requirement)
-    // ✅ Cambié {document} a {requirementDocument} para evitar binding equivocado
+    // Requirement official documents
     Route::get('assets/{asset}/requirements/{requirement}/documents', [AssetRequirementDocumentController::class, 'index'])
         ->name('assets.requirements.documents.index');
 
@@ -72,7 +103,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('assets/{asset}/requirements/{requirement}/documents/{document}', [AssetRequirementDocumentController::class, 'destroy'])
         ->name('assets.requirements.documents.destroy');
 
-    // Tasks for a requirement (separate controller)
+    // Tasks for a requirement
     Route::get('requirements/{requirement}/tasks/create', [RequirementTaskController::class, 'create'])
         ->name('requirements.tasks.create');
 
@@ -94,12 +125,12 @@ Route::middleware('auth')->group(function () {
     Route::patch('requirements/{requirement}/tasks/{task}/reopen', [RequirementTaskController::class, 'reopen'])
         ->name('requirements.tasks.reopen');
 
-    Route::post('assets/{asset}/requirements/{requirement}/checkout',[RequirementTaskController::class, 'checkout'])
+    Route::post('assets/{asset}/requirements/{requirement}/checkout', [RequirementTaskController::class, 'checkout'])
         ->name('assets.requirements.checkout');
 
     Route::get('requirements/{requirement}/tasks/{task}', [RequirementTaskController::class, 'show'])
         ->name('requirements.tasks.show');
-        
+
     // Task documents
     Route::get('tasks/{task}/documents', [TaskDocumentController::class, 'index'])
         ->name('tasks.documents.index');
@@ -116,6 +147,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('documents/{document}', [TaskDocumentController::class, 'destroy'])
         ->name('documents.destroy');
 
+    // Audit / history
     Route::get(
         'assets/{asset}/requirements/{requirement}/audit-logs',
         [RequirementAuditLogController::class, 'index']
