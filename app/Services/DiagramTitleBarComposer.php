@@ -87,6 +87,15 @@ class DiagramTitleBarComposer
         imagestring($canvas, 5, $x, $y, $title, $textColor);
     }
 
+    /**
+     * Si hay una fuente TTF bold disponible para el texto de la barra — sin ella, la barra se
+     * dibuja igual pero con la fuente de mapa de bits de GD (más tosca). Solo para diagnóstico.
+     */
+    public function hasBoldFont(): bool
+    {
+        return $this->findBoldFont() !== null;
+    }
+
     private function findBoldFont(): ?string
     {
         foreach ([

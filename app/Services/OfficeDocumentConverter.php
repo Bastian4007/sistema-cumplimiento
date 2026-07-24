@@ -22,8 +22,14 @@ class OfficeDocumentConverter
     }
 
     /**
-     * @return string|null  Contenido binario del PDF resultante, o null si no se pudo convertir.
+     * Si LibreOffice está instalado y localizable en este servidor — sin convertir nada, solo
+     * para diagnóstico (ver comando processes:check-requirements).
      */
+    public function isAvailable(): bool
+    {
+        return $this->findSoffice() !== null;
+    }
+
     /**
      * @param  string  $inputPath  Ruta real en disco del archivo (puede tener cualquier nombre).
      * @param  string  $extension  Extensión REAL del documento (doc/xls/xlsx/ppt/pptx/...) — los
