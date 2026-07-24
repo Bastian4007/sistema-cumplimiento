@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\AiProcedureGenerationService;
 use App\Services\ApprovalFlowService;
 use App\Services\ChangeHighlightService;
+use App\Services\OfficeDocumentConverter;
 use App\Services\RegulationDocxHeaderBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -154,9 +155,13 @@ class RegulationVersionController extends Controller
         $hasDraft = $version->editing_by === $user->id && $version->draft_html !== null;
         $this->acquireLock($version, $user->id);
 
+        // body_html es el HTML exacto con el que se compiló el .docx actual — cargarlo tal cual
+        // evita reconvertir con PhpWord (que puede reescribir bgcolor/estilos de forma distinta)
+        // y asegura que lo que se ve al editar es idéntico a "Ver"/"Descargar". Solo se reconvierte
+        // para versiones sin body_html (subidas manualmente, de antes de esta columna).
         $bodyHtml = $hasDraft
             ? $version->draft_html
-            : $this->docxToHtml(Storage::disk('private')->path($version->file_path));
+            : ($version->body_html ?: $this->docxToHtml(Storage::disk('private')->path($version->file_path)));
 
         $regulation = $version->regulation;
 
@@ -288,8 +293,8 @@ class RegulationVersionController extends Controller
         $content = $data['content'];
         $changeDescription = $data['change_description'] ?? null;
 
-        if ($version->file_path && Storage::disk('private')->exists($version->file_path)) {
-            $oldHtml = $this->docxToHtml(Storage::disk('private')->path($version->file_path));
+        if ($version->body_html || ($version->file_path && Storage::disk('private')->exists($version->file_path))) {
+            $oldHtml = $version->body_html ?: $this->docxToHtml(Storage::disk('private')->path($version->file_path));
             $analysis = $changeHighlight->analyze($oldHtml, $content);
 
             if ($analysis !== null) {
@@ -336,7 +341,7 @@ class RegulationVersionController extends Controller
         $tmp = tempnam(sys_get_temp_dir(), 'edited_docx_');
         IOFactory::createWriter($phpWord, 'Word2007')->save($tmp);
 
-        DB::transaction(function () use ($regulation, $version, $tmp, $user, $changeDescription, $next) {
+        DB::transaction(function () use ($regulation, $version, $tmp, $user, $changeDescription, $next, $html) {
             $regulation->versions()->where('is_current', true)->update(['is_current' => false]);
 
             $rawName     = pathinfo($version->original_name ?? 'documento.docx', PATHINFO_FILENAME);
@@ -350,6 +355,7 @@ class RegulationVersionController extends Controller
                 'regulation_id'      => $regulation->id,
                 'version_number'     => $next,
                 'change_description' => $changeDescription ?: 'Editado en línea',
+                'body_html'          => $html,
                 'responsible_name'   => $user->name,
                 'file_path'          => $storagePath,
                 'original_name'      => $newName,
@@ -421,9 +427,12 @@ class RegulationVersionController extends Controller
 
         $ext = strtolower(pathinfo($version->original_name ?? $version->file_path, PATHINFO_EXTENSION));
 
-        // .docx → convert to HTML and render in browser
+        // .docx → render in browser. Si el sistema generó/editó esta versión, ya tenemos el HTML
+        // exacto usado para compilar el .docx (body_html) — usarlo evita reconvertir el .docx con
+        // PhpWord y arriesgar diferencias entre "Ver" y "Descargar". Solo se reconvierte para
+        // versiones subidas manualmente (sin body_html).
         if ($ext === 'docx') {
-            $bodyHtml = $this->docxToHtml(Storage::disk('private')->path($version->file_path));
+            $bodyHtml = $version->body_html ?: $this->docxToHtml(Storage::disk('private')->path($version->file_path));
             $name     = $version->original_name ?? basename($version->file_path);
 
             // Auto-detect any regulation code from the same company in the document text
@@ -557,7 +566,35 @@ HTML;
             return response($html, 200)->header('Content-Type', 'text/html; charset=UTF-8');
         }
 
-        // PDF and other viewable formats → serve directly
+        // Office (doc/xls/xlsx/ppt/pptx/...) → convertir a PDF con LibreOffice y mostrar ese PDF
+        // (el navegador ya lo renderiza nativamente, no hace falta un visor propio por formato).
+        // El resultado se cachea junto al archivo original: la conversión con LibreOffice tarda
+        // varios segundos, no tiene sentido repetirla cada vez que alguien abre "Ver".
+        $converter = app(OfficeDocumentConverter::class);
+
+        if ($ext !== 'pdf' && $converter->isConvertible($ext)) {
+            $previewPath = $version->file_path . '.preview.pdf';
+
+            if (! Storage::disk('private')->exists($previewPath)) {
+                $pdf = $converter->toPdf(Storage::disk('private')->path($version->file_path), $ext);
+
+                if ($pdf !== null) {
+                    Storage::disk('private')->put($previewPath, $pdf);
+                }
+            }
+
+            if (Storage::disk('private')->exists($previewPath)) {
+                return response()->file(
+                    Storage::disk('private')->path($previewPath),
+                    ['Content-Type' => 'application/pdf']
+                );
+            }
+
+            // LibreOffice no disponible en este servidor / la conversión falló: cae a servir el
+            // archivo original de todos modos, en vez de romper la vista previa por completo.
+        }
+
+        // PDF y cualquier otro formato sin conversión disponible → servir directo
         return response()->file(
             Storage::disk('private')->path($version->file_path),
             ['Content-Type' => $version->mime_type ?? 'application/octet-stream']
