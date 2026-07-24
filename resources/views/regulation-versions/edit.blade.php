@@ -160,6 +160,16 @@
     #editor mark   { background-color: #FFF176; border-radius: 2px; padding: 0 1px; }
     #editor .ProseMirror:focus { outline: none; }
     #editor .ProseMirror { min-height: 100%; }
+
+    /* Tablas del documento (Objetivo/Alcance/Indicadores/Definiciones/pasos) — el color/borde real
+       de cada celda viene de su propio atributo style/bgcolor (ver PreserveInlineStyle); esto solo
+       cubre el layout básico y el resaltado de selección de celdas de @tiptap/extension-table. */
+    #editor table { border-collapse: collapse; margin: .5em 0; overflow: hidden; width: 100%; }
+    #editor td, #editor th { position: relative; vertical-align: top; box-sizing: border-box; }
+    #editor .selectedCell:after {
+        content: ""; position: absolute; inset: 0; z-index: 2;
+        background: rgba(37, 99, 235, .12); pointer-events: none;
+    }
     .tb-btn {
         padding: 3px 8px; border-radius: 4px; font-size: 13px; color: #374151;
         background: transparent; border: 1px solid transparent; cursor: pointer;
@@ -197,12 +207,18 @@
 // — sin esto, esm.sh resuelve la dependencia interna de Mention/Link a otra versión distinta
 // (ej. 2.27.2) y quedan dos copias incompatibles de @tiptap/core cargadas a la vez, rompiendo
 // silenciosamente cualquier chequeo de identidad de clase (Suggestion, PluginKey, etc.).
-import { Editor, mergeAttributes } from 'https://esm.sh/@tiptap/core@2.27.2';
+import { Editor, mergeAttributes, Extension } from 'https://esm.sh/@tiptap/core@2.27.2';
 import StarterKit    from 'https://esm.sh/@tiptap/starter-kit@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
 import Underline     from 'https://esm.sh/@tiptap/extension-underline@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
 import Highlight     from 'https://esm.sh/@tiptap/extension-highlight@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
 import Mention       from 'https://esm.sh/@tiptap/extension-mention@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
 import Link          from 'https://esm.sh/@tiptap/extension-link@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
+import Image         from 'https://esm.sh/@tiptap/extension-image@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
+import TextStyle     from 'https://esm.sh/@tiptap/extension-text-style@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
+import Table         from 'https://esm.sh/@tiptap/extension-table@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
+import TableRow      from 'https://esm.sh/@tiptap/extension-table-row@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
+import TableHeader   from 'https://esm.sh/@tiptap/extension-table-header@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
+import TableCell     from 'https://esm.sh/@tiptap/extension-table-cell@2.27.2?deps=@tiptap/core@2.27.2,@tiptap/pm@2.27.2';
 import { PluginKey } from 'https://esm.sh/@tiptap/pm@2.27.2/state';
 // ── URLs ────────────────────────────────────────────────────────────────────
 const DRAFT_URL         = "{{ route('regulation-versions.saveDraft', $version) }}";
@@ -360,12 +376,48 @@ const DocReference = Mention.extend({
     },
 });
 
+// ── Preservar el formato fijo del documento (colores/tablas del generador de IA) ─────────────
+// Sin esto, el esquema de TipTap descarta cualquier atributo/estilo que no modele explícitamente:
+// las tablas de Objetivo/Alcance/Indicadores/Definiciones y los colores de RegulationBodyHtmlBuilder
+// (título #1A5276, encabezados de tabla #002060, etc.) se aplanarían al abrir el documento en este
+// editor y se perderían para siempre al guardar. En vez de modelar cada color/tabla como un atributo
+// semántico propio, se conserva el atributo "style"/"bgcolor" tal cual venga en el HTML de entrada
+// y se reescribe idéntico al guardar — funciona para cualquier estilo que el builder use hoy o en
+// el futuro, sin tener que tocar este editor cada vez que cambie el formato del documento.
+const PreserveInlineStyle = Extension.create({
+    name: 'preserveInlineStyle',
+    addGlobalAttributes() {
+        const rawStyle = {
+            style: {
+                default: null,
+                parseHTML: el => el.getAttribute('style'),
+                renderHTML: attrs => attrs.style ? { style: attrs.style } : {},
+            },
+        };
+        const rawBgcolor = {
+            bgcolor: {
+                default: null,
+                parseHTML: el => el.getAttribute('bgcolor'),
+                renderHTML: attrs => attrs.bgcolor ? { bgcolor: attrs.bgcolor } : {},
+            },
+        };
+        return [
+            { types: ['paragraph', 'table', 'tableRow', 'image'], attributes: rawStyle },
+            { types: ['tableCell', 'tableHeader'], attributes: { ...rawStyle, ...rawBgcolor } },
+            { types: ['textStyle'], attributes: rawStyle },
+        ];
+    },
+});
+
 // ── Editor ──────────────────────────────────────────────────────────────────
 const editor = new Editor({
     element: document.getElementById('editor'),
     extensions: [
         StarterKit, Underline, Highlight.configure({ multicolor: true }),
         Link.configure({ openOnClick: false, autolink: false, HTMLAttributes: { target: '_blank', rel: 'noopener' } }),
+        Image, TextStyle,
+        Table.configure({ resizable: false }), TableRow, TableHeader, TableCell,
+        PreserveInlineStyle,
         PersonMention, DocReference,
     ],
     content: {!! json_encode($bodyHtml) !!},

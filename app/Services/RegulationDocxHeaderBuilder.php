@@ -19,9 +19,13 @@ use PhpOffice\PhpWord\Element\Section;
  */
 class RegulationDocxHeaderBuilder
 {
-    private const ACCENT_BG = 'D9E2F3';
-    private const GRAY_BG = 'A6A6A6';
-    private const BORDER = '000000';
+    // Colores fijados según la especificación exacta documentada en
+    // resources/ai-reference/texto_validacion.md y documento_condiciones.docx: fila 1 azul
+    // marino con texto blanco, fila 2 gris claro con etiquetas en azul marino, bordes #1A3A5C.
+    private const NAVY_BG = '002060';
+    private const GRAY_BG = 'F2F3F4';
+    private const NAVY_TEXT = '002060';
+    private const BORDER = '1A3A5C';
 
     /**
      * @param  array{nombre: string, codigo: ?string, version: int|string, quien_elabora: ?string, quien_aprueba: ?string, fecha_vigencia: ?string}  $meta
@@ -38,43 +42,43 @@ class RegulationDocxHeaderBuilder
             'cellMargin'  => 80,
         ]);
 
-        // Fila 1: logo / nombre del procedimiento / código / versión
+        // Fila 1: logo / nombre del procedimiento / código / versión — fondo azul marino, texto blanco
         $table->addRow();
         $this->logoCell($table);
-        $this->cell($table, self::ACCENT_BG, 'PROCEDIMIENTO', $meta['nombre'] ?? '', italicValue: true);
-        $this->cell($table, self::ACCENT_BG, 'CÓDIGO', $meta['codigo'] ?? '—');
-        $this->cell($table, self::ACCENT_BG, 'VERSIÓN', (string) ($meta['version'] ?? '01'));
+        $this->cell($table, self::NAVY_BG, 'FFFFFF', 'FFFFFF', 'PROCEDIMIENTO', $meta['nombre'] ?? '', italicValue: true);
+        $this->cell($table, self::NAVY_BG, 'FFFFFF', 'FFFFFF', 'CÓDIGO', $meta['codigo'] ?? '—');
+        $this->cell($table, self::NAVY_BG, 'FFFFFF', 'FFFFFF', 'VERSIÓN', (string) ($meta['version'] ?? '01'));
 
-        // Fila 2: elaboró / aprobó / vigencia / página
+        // Fila 2: elaboró / aprobó / vigencia / página — fondo gris claro, etiquetas azul marino, valores negros
         $table->addRow();
-        $this->cell($table, self::GRAY_BG, 'ELABORADO POR:', $meta['quien_elabora'] ?? '—');
-        $this->cell($table, self::GRAY_BG, 'APROBADO POR:', $meta['quien_aprueba'] ?? '—');
-        $this->cell($table, self::GRAY_BG, 'Fecha de elaboración:', $this->formatFecha($meta['fecha_vigencia'] ?? null));
+        $this->cell($table, self::GRAY_BG, self::NAVY_TEXT, '000000', 'ELABORADO POR:', $meta['quien_elabora'] ?? '—');
+        $this->cell($table, self::GRAY_BG, self::NAVY_TEXT, '000000', 'APROBADO POR:', $meta['quien_aprueba'] ?? '—');
+        $this->cell($table, self::GRAY_BG, self::NAVY_TEXT, '000000', 'Fecha de elaboración:', $this->formatFecha($meta['fecha_vigencia'] ?? null));
         $this->pageNumberCell($table);
     }
 
     private function logoCell($table): void
     {
-        $cell = $table->addCell(2500, ['valign' => 'center']);
-        $cell->addText('LOGO EMPRESA', ['bold' => true, 'size' => 9], ['alignment' => 'center']);
-        $cell->addText('(insertar logotipo)', ['italic' => true, 'size' => 8], ['alignment' => 'center']);
+        $cell = $table->addCell(2500, ['bgColor' => self::NAVY_BG, 'valign' => 'center']);
+        $cell->addText('LOGO EMPRESA', ['bold' => true, 'size' => 9, 'color' => 'FFFFFF'], ['alignment' => 'center']);
+        $cell->addText('(insertar logotipo)', ['italic' => true, 'size' => 8, 'color' => 'FFFFFF'], ['alignment' => 'center']);
     }
 
-    private function cell($table, string $bgColor, string $label, string $value, bool $italicValue = false): void
+    private function cell($table, string $bgColor, string $labelColor, string $valueColor, string $label, string $value, bool $italicValue = false): void
     {
         $cell = $table->addCell(2500, ['bgColor' => $bgColor, 'valign' => 'center']);
-        $cell->addText($label, ['bold' => true, 'size' => 9], ['alignment' => 'center']);
-        $cell->addText($value, ['italic' => $italicValue, 'size' => 8], ['alignment' => 'center']);
+        $cell->addText($label, ['bold' => true, 'size' => 9, 'color' => $labelColor], ['alignment' => 'center']);
+        $cell->addText($value, ['italic' => $italicValue, 'size' => 8, 'color' => $valueColor], ['alignment' => 'center']);
     }
 
     private function pageNumberCell($table): void
     {
         $cell = $table->addCell(2500, ['bgColor' => self::GRAY_BG, 'valign' => 'center']);
-        $cell->addText('Página:', ['bold' => true, 'size' => 9], ['alignment' => 'center']);
+        $cell->addText('Página:', ['bold' => true, 'size' => 9, 'color' => self::NAVY_TEXT], ['alignment' => 'center']);
 
         $run = $cell->addTextRun(['alignment' => 'center']);
         $run->addField('PAGE', [], [], null);
-        $run->addText(' de ', ['size' => 8]);
+        $run->addText(' de ', ['size' => 8, 'color' => '000000']);
         $run->addField('NUMPAGES', [], [], null);
     }
 

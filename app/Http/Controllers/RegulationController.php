@@ -11,6 +11,7 @@ use App\Models\RegulationVersion;
 use App\Models\User;
 use App\Services\AiProcedureGenerationService;
 use App\Services\ApprovalFlowService;
+use App\Services\ChangeHighlightService;
 use App\Services\RegulationDocxHeaderBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -335,7 +336,12 @@ class RegulationController extends Controller
 
         try {
             set_time_limit(240); // la generación con IA puede tardar 1-3 minutos según el modelo
-            $ai = app(AiProcedureGenerationService::class)->generate($wizardDetails);
+            $ai = app(AiProcedureGenerationService::class)->generate(
+                $wizardDetails,
+                companyName: $company->name,
+                documentName: Str::upper($data['nombre']),
+                documentCode: $data['codigo'] ? Str::upper($data['codigo']) : ''
+            );
         } catch (\Throwable $e) {
             report($e);
 
@@ -351,6 +357,7 @@ class RegulationController extends Controller
             'wizard'        => $wizardDetails,
             'ai'            => $ai,
             'revisions'     => 0,
+            'company_name'  => $company->name,
         ]]);
 
         return redirect()->route('processes.preview.show');
@@ -404,7 +411,14 @@ class RegulationController extends Controller
 
         try {
             set_time_limit(240);
-            $ai = app(AiProcedureGenerationService::class)->generate($draft['wizard'], $draft['ai'], $data['feedback']);
+            $ai = app(AiProcedureGenerationService::class)->generate(
+                $draft['wizard'],
+                $draft['ai'],
+                $data['feedback'],
+                companyName: $draft['company_name'] ?? '',
+                documentName: Str::upper($draft['meta']['nombre'] ?? ''),
+                documentCode: ($draft['meta']['codigo'] ?? null) ? Str::upper($draft['meta']['codigo']) : ''
+            );
         } catch (\Throwable $e) {
             report($e);
 
@@ -499,6 +513,7 @@ class RegulationController extends Controller
                 'regulation_id'      => $regulation->id,
                 'version_number'     => 1,
                 'change_description' => 'Versión inicial redactada con IA a partir del wizard',
+                'body_html'          => $sanitizedHtml,
                 'responsible_name'   => $data['quien_elabora'],
                 'file_path'          => $storagePath,
                 'original_name'      => 'procedimiento_v1.docx',
@@ -543,7 +558,34 @@ class RegulationController extends Controller
             || ($draft['old_name'] ?? '') !== Str::upper($data['nombre'])
             || ($draft['old_code'] ?? '') !== ($data['codigo'] ? Str::upper($data['codigo']) : '');
 
-        DB::transaction(function () use ($regulation, $data, $user, $ai, $oldDetails, $newDetails) {
+        // Se vuelve a sanear aunque generate() ya lo haga: protege borradores que quedaron en
+        // sesión desde antes de un ajuste al saneador (como este documento pendiente de confirmar).
+        $freshHtml = app(AiProcedureGenerationService::class)->sanitizeHtmlForWord($ai['documento_html']);
+
+        // Comparar SOLO la versión actual (la que se va a reemplazar) contra este documento nuevo —
+        // nunca contra versiones más viejas — y resaltar en el propio documento (<mark> → amarillo)
+        // únicamente lo que de verdad cambió, en vez de aceptar la reescritura completa de la IA sin
+        // marcar nada. Si el resaltado no es seguro (la IA alteró algo más que el texto), se descarta
+        // silenciosamente y se guarda el documento nuevo tal cual, sin bloquear el guardado.
+        $finalHtml = $freshHtml;
+        $changeSummary = null;
+        $oldHtml = $regulation->currentVersion?->body_html;
+
+        if ($oldHtml) {
+            $analysis = app(ChangeHighlightService::class)->analyze($oldHtml, $freshHtml);
+
+            if ($analysis !== null) {
+                $highlighted = preg_replace(
+                    '/<mark\b[^>]*>(.*?)<\/mark>/si',
+                    '<span style="background-color: #FFFF00;">$1</span>',
+                    $analysis['highlighted_html']
+                );
+                $finalHtml = app(AiProcedureGenerationService::class)->sanitizeHtmlForWord($highlighted);
+                $changeSummary = $analysis['change_summary'];
+            }
+        }
+
+        DB::transaction(function () use ($regulation, $data, $user, $ai, $oldDetails, $newDetails, $finalHtml, $changeSummary) {
             // Se conserva la vigencia de la versión que se reemplaza — si esta edición no dispara
             // un nuevo ciclo de aprobación (ver setFlow()), no tiene caso dejar la nueva versión
             // sin vigencia; y si sí dispara uno nuevo, ApprovalFlowService la vuelve a asignar
@@ -562,8 +604,7 @@ class RegulationController extends Controller
             $regulation->versions()->where('is_current', true)->update(['is_current' => false]);
             $next = ($regulation->versions()->max('version_number') ?? 0) + 1;
 
-            $sanitizedHtml = app(AiProcedureGenerationService::class)->sanitizeHtmlForWord($ai['documento_html']);
-            $tmpDocx = $this->renderHtmlToDocx($sanitizedHtml, [
+            $tmpDocx = $this->renderHtmlToDocx($finalHtml, [
                 'nombre'         => Str::upper($data['nombre']),
                 'codigo'         => $data['codigo'] ? Str::upper($data['codigo']) : null,
                 'version'        => sprintf('%02d', $next),
@@ -578,7 +619,8 @@ class RegulationController extends Controller
             RegulationVersion::create([
                 'regulation_id'      => $regulation->id,
                 'version_number'     => $next,
-                'change_description' => 'Actualizado con IA a partir del wizard de edición',
+                'change_description' => $changeSummary ?: 'Actualizado con IA a partir del wizard de edición',
+                'body_html'          => $finalHtml,
                 'responsible_name'   => $data['quien_elabora'],
                 'file_path'          => $storagePath,
                 'original_name'      => "procedimiento_v{$next}.docx",
@@ -821,7 +863,12 @@ class RegulationController extends Controller
 
         try {
             set_time_limit(240); // la generación con IA puede tardar 1-3 minutos según el modelo
-            $ai = app(AiProcedureGenerationService::class)->generate($wizardDetails);
+            $ai = app(AiProcedureGenerationService::class)->generate(
+                $wizardDetails,
+                companyName: $regulation->company->name,
+                documentName: Str::upper($data['nombre']),
+                documentCode: $data['codigo'] ? Str::upper($data['codigo']) : ''
+            );
         } catch (\Throwable $e) {
             report($e);
 
@@ -837,6 +884,7 @@ class RegulationController extends Controller
             'wizard'              => $wizardDetails,
             'ai'                  => $ai,
             'revisions'           => 0,
+            'company_name'        => $regulation->company->name,
             'old_details'         => $regulation->details ?? [],
             'old_flow_locked'     => $regulation->flow_locked,
             'old_process_type_id' => (int) $regulation->process_type_id,

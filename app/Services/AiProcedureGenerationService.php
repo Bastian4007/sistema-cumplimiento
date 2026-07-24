@@ -35,14 +35,29 @@ class AiProcedureGenerationService
         'riesgos_errores', 'requerimientos_normativos',
     ];
 
+    public function __construct(
+        private readonly RegulationBodyHtmlBuilder $bodyBuilder,
+        private readonly MermaidDiagramStyler $diagramStyler,
+        private readonly DiagramTitleBarComposer $titleBarComposer,
+    ) {}
+
     /**
      * @param  array<string, string>  $wizardData  Campos capturados por el wizard (el esqueleto).
-     * @param  array{details: array<string, string>, documento_html: string}|null  $previousResult  Resultado anterior, si esta es una revisión.
+     * @param  array{details: array<string, string>, documento: array<string, mixed>, documento_html: string}|null  $previousResult  Resultado anterior, si esta es una revisión.
      * @param  string|null  $feedback  Cambios solicitados por el usuario sobre $previousResult.
-     * @return array{details: array<string, string>, documento_html: string}
+     * @param  string  $companyName  Nombre de la empresa, para el aviso de control al pie del documento.
+     * @param  string  $documentName  Nombre del procedimiento, para la barra de título del diagrama de flujo.
+     * @param  string  $documentCode  Código del procedimiento, para la barra de título del diagrama de flujo.
+     * @return array{details: array<string, string>, documento: array<string, mixed>, documento_html: string, diagrama_flujo_mermaid: ?string}
      */
-    public function generate(array $wizardData, ?array $previousResult = null, ?string $feedback = null): array
-    {
+    public function generate(
+        array $wizardData,
+        ?array $previousResult = null,
+        ?string $feedback = null,
+        string $companyName = '',
+        string $documentName = '',
+        string $documentCode = '',
+    ): array {
         $client = new Client(apiKey: config('services.anthropic.key'));
         $model = config('services.anthropic.model');
         $startedAt = microtime(true);
@@ -97,13 +112,19 @@ class AiProcedureGenerationService
 
         $data = json_decode($raw, true);
 
-        if (! is_array($data) || ! isset($data['details'], $data['documento_html'])) {
+        if (! is_array($data) || ! isset($data['details'], $data['documento'])) {
             throw new RuntimeException('La IA devolvió una respuesta en un formato inesperado (stop_reason: ' . ($message->stopReason ?? 'desconocido') . ').');
         }
 
+        // El formato (colores, tablas, tipografía) NUNCA lo decide la IA — solo redactó texto en
+        // "details"/"documento". El HTML final lo arma este builder de forma 100% determinista,
+        // igual que RegulationDocxHeaderBuilder ya hace con el encabezado.
+        $data['documento_html'] = $this->bodyBuilder->build($data['details'], $data['documento'], $companyName);
         $data['documento_html'] = $this->insertFlowDiagram(
             $data['documento_html'],
-            $data['diagrama_flujo_mermaid'] ?? null
+            $data['diagrama_flujo_mermaid'] ?? null,
+            $documentName,
+            $documentCode
         );
         $data['documento_html'] = $this->sanitizeHtmlForWord($data['documento_html']);
 
@@ -112,11 +133,13 @@ class AiProcedureGenerationService
 
     /**
      * Reemplaza el marcador {{DIAGRAMA_FLUJO}} por el diagrama ya renderizado como imagen
-     * (Mermaid → Kroki.io → PNG). Si no hay mermaid, Kroki falla, o el marcador no aparece
-     * (la IA no lo respetó), se deja una nota simple en vez de bloquear la generación —
-     * el documento completo nunca debe fallar solo por el diagrama.
+     * (Mermaid → mermaid-cli → PNG, con el estilo fijo de MermaidDiagramStyler y la barra de
+     * título de DiagramTitleBarComposer encima — igual que el documento_ejemplo.docx). Si no
+     * hay mermaid, la renderización falla, o el marcador no aparece (la IA no lo respetó), se
+     * deja una nota simple en vez de bloquear la generación — el documento completo nunca debe
+     * fallar solo por el diagrama.
      */
-    private function insertFlowDiagram(string $html, ?string $mermaidSource): string
+    private function insertFlowDiagram(string $html, ?string $mermaidSource, string $documentName = '', string $documentCode = ''): string
     {
         if (! str_contains($html, self::DIAGRAM_MARKER)) {
             return $html;
@@ -139,7 +162,17 @@ class AiProcedureGenerationService
             return str_replace(self::DIAGRAM_MARKER, $fallback, $html);
         }
 
-        $png = $this->renderMermaidDiagram($mermaidSource);
+        // El color/forma de cada nodo y el fondo de los carriles NUNCA los decide la IA ni el
+        // tema por defecto de Mermaid — se fuerzan aquí, igual que el resto del formato del documento.
+        $styledMermaid = $this->diagramStyler->style($mermaidSource);
+        $png = $this->renderMermaidDiagram($styledMermaid);
+
+        if ($png !== null) {
+            $steps = $this->diagramStyler->countActivitySteps($mermaidSource);
+            $label = trim("{$documentCode} {$documentName}");
+            $title = 'Diagrama de flujo' . ($label !== '' ? " — {$label}" : '') . " ({$steps} pasos)";
+            $png = $this->titleBarComposer->addTitleBar($png, $title);
+        }
 
         $replacement = $png !== null
             ? '<img src="data:image/png;base64,' . base64_encode($png) . '" style="max-width:100%;" />'
@@ -387,19 +420,91 @@ class AiProcedureGenerationService
                     'required' => self::DETAIL_FIELDS,
                     'additionalProperties' => false,
                 ],
-                'documento_html' => [
-                    'type' => 'string',
-                    'description' => 'SOLO el fragmento de contenido del procedimiento, listo para insertarse dentro de un <body> ya existente. '
-                        . 'PROHIBIDO incluir <!DOCTYPE>, <html>, <head>, <style>, <body> o <script> — el conversor a Word no los interpreta y el documento queda mal. '
-                        . 'Usa únicamente: <h1>-<h6>, <p>, <table>/<tr>/<td>/<th>, <strong>, <em>, <u>, <ul>/<ol>/<li>, <br>. '
-                        . 'Para color o resaltado usa style inline en la propia etiqueta (ej. <p style="color:#1A428A;">), nunca clases CSS ni hojas de estilo. '
-                        . 'En la sección "Diagrama de Flujo del Proceso", el ÚNICO contenido debe ser el marcador literal '
-                        . '<p>{{DIAGRAMA_FLUJO}}</p> — nada de notas, ni descripciones, ni el diagrama en sí: el sistema '
-                        . 'inserta ahí la imagen ya renderizada a partir de diagrama_flujo_mermaid. '
-                        . 'NO incluyas ningún encabezado con logo/nombre/código/versión/elaboró/aprobó/fecha/número de '
-                        . 'página al inicio del documento — el sistema agrega ese encabezado automáticamente en cada '
-                        . 'página, con formato fijo, fuera de este campo. Empieza documento_html directo en el título '
-                        . 'del procedimiento u "Objetivo".',
+                'documento' => [
+                    'type' => 'object',
+                    'description' => 'Contenido adicional del cuerpo del documento, SOLO texto plano (nada de HTML, colores ni '
+                        . 'estilos — el sistema arma el documento final con un formato fijo idéntico siempre, tú solo escribes el contenido).',
+                    'properties' => [
+                        'topicos' => [
+                            'type' => 'array',
+                            'items' => ['type' => 'string'],
+                            'description' => 'Entre 4 y 7 líneas cortas que resumen, a modo de índice de temas, lo que cubre el '
+                                . 'documento (qué prestaciones/actividades/indicadores/riesgos toca) — cada elemento es una línea, texto plano.',
+                        ],
+                        'indicador_proceso_formula' => [
+                            'type' => 'string',
+                            'description' => 'Fórmula de cálculo del indicador de proceso (details.indicador_proceso), en texto plano. Ej: "(Núm. de trámites en tiempo / Total de trámites del periodo) × 100".',
+                        ],
+                        'indicador_resultado_formula' => [
+                            'type' => 'string',
+                            'description' => 'Fórmula de cálculo del indicador de resultado (details.indicador_resultado), en texto plano.',
+                        ],
+                        'indicadores_responsable' => [
+                            'type' => 'string',
+                            'description' => 'Puesto responsable de dar seguimiento a ambos indicadores (ej. "Gerente de Compras"). Tómalo de details.areas_ejecutan o details.areas_aplica.',
+                        ],
+                        'definiciones' => [
+                            'type' => 'array',
+                            'items' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'termino' => ['type' => 'string', 'description' => 'Término o abreviatura, tal como se usa en el documento.'],
+                                    'definicion' => ['type' => 'string', 'description' => 'Definición completa del término.'],
+                                ],
+                                'required' => ['termino', 'definicion'],
+                                'additionalProperties' => false,
+                            ],
+                            'description' => 'Expande details.terminos_abreviaturas en una fila por término/abreviatura, incluyendo también los que uses en los pasos (campo "pasos") aunque no estén en ese texto.',
+                        ],
+                        'pasos' => [
+                            'type' => 'array',
+                            'items' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'titulo' => ['type' => 'string', 'description' => 'Título corto del paso, SIN el número (el sistema numera automáticamente, ej. "Recepción y verificación del expediente").'],
+                                    'responsable' => ['type' => 'string', 'description' => 'Puesto/área responsable de ejecutar este paso.'],
+                                    'quien' => ['type' => 'string', 'description' => 'Quién ejecuta la actividad.'],
+                                    'que' => ['type' => 'string', 'description' => 'Qué se hace en este paso.'],
+                                    'como' => ['type' => 'string', 'description' => 'Cómo se hace (herramienta/sistema/formato usado).'],
+                                    'cuando' => ['type' => 'string', 'description' => 'Cuándo se hace (plazo/momento).'],
+                                    'donde' => ['type' => 'string', 'description' => 'Dónde se hace o dónde queda archivado.'],
+                                    'excepcion' => ['type' => 'string', 'description' => 'Qué hacer si algo falla, no aplica o hay una excepción en este paso. Cadena vacía si no aplica.'],
+                                    'evidencia' => ['type' => 'string', 'description' => 'Evidencia/documento que debe quedar archivado tras completar este paso.'],
+                                ],
+                                'required' => ['titulo', 'responsable', 'quien', 'que', 'como', 'cuando', 'donde', 'excepcion', 'evidencia'],
+                                'additionalProperties' => false,
+                            ],
+                            'description' => 'Expande details.lista_actividades en un paso por actividad (mismo orden), usando details.areas_ejecutan para responsable/quién, details.decisiones_control para excepciones, y details.documentos_usados para la evidencia de cada paso.',
+                        ],
+                        'riesgos' => [
+                            'type' => 'array',
+                            'items' => ['type' => 'string'],
+                            'description' => 'Expande details.riesgos_errores en una lista de riesgos/errores puntuales, uno por elemento.',
+                        ],
+                        'requerimientos' => [
+                            'type' => 'array',
+                            'items' => ['type' => 'string'],
+                            'description' => 'Expande details.requerimientos_normativos en una lista de requerimientos puntuales, uno por elemento.',
+                        ],
+                        'anexos' => [
+                            'type' => 'array',
+                            'items' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'codigo' => ['type' => 'string', 'description' => 'Código del formato/documento (ej. "F-COM-001"). Cadena vacía si no tiene código.'],
+                                    'nombre' => ['type' => 'string', 'description' => 'Nombre del documento, formato o procedimiento relacionado.'],
+                                ],
+                                'required' => ['codigo', 'nombre'],
+                                'additionalProperties' => false,
+                            ],
+                            'description' => 'A partir de details.documentos_usados y details.procedimientos_relacionados: cada documento/formato/procedimiento mencionado en el cuerpo, con su código si tiene uno.',
+                        ],
+                    ],
+                    'required' => [
+                        'topicos', 'indicador_proceso_formula', 'indicador_resultado_formula', 'indicadores_responsable',
+                        'definiciones', 'pasos', 'riesgos', 'requerimientos', 'anexos',
+                    ],
+                    'additionalProperties' => false,
                 ],
                 'diagrama_flujo_mermaid' => [
                     'type' => 'string',
@@ -411,7 +516,7 @@ class AiProcedureGenerationService
                         . 'IDs de nodos/subgraphs (sí puedes usarlos dentro de las etiquetas de texto entre corchetes/comillas).',
                 ],
             ],
-            'required' => ['details', 'documento_html', 'diagrama_flujo_mermaid'],
+            'required' => ['details', 'documento', 'diagrama_flujo_mermaid'],
             'additionalProperties' => false,
         ];
     }
@@ -429,37 +534,39 @@ class AiProcedureGenerationService
             'El usuario capturó el siguiente esqueleto de procedimiento en un wizard. Es el punto de partida, en formato JSON:',
             json_encode($wizardData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
 
-            'Documento con las condiciones e instrucciones de redacción que debes seguir. '
+            'Documento con las condiciones e instrucciones de redacción que debes seguir para el CONTENIDO '
+                . '(no para el formato — el formato visual del documento final NUNCA lo decides tú, ver más abajo). '
                 . 'Dentro de su propio texto, este documento hace referencia al "documento de ejemplo" '
-                . '(que se incluye después) como muestra de cómo debe quedar el resultado final — '
-                . 'úsalo para entender las reglas, no para copiar su formato:',
+                . '(que se incluye después):',
             $this->docxToPlainText(self::CONDITIONS_DOCX, 'documento de condiciones'),
 
-            'Documento de ejemplo: referencia de cómo debe quedar el resultado final '
-                . '(estructura, tono y nivel de detalle esperado). Imita su forma, no su contenido literal:',
+            'Documento de ejemplo: referencia de tono, nivel de detalle y calidad de redacción esperados '
+                . '(NO de formato visual — el sistema ya reproduce el formato exacto del documento de ejemplo '
+                . 'de forma automática, por eso aquí solo debes fijarte en cómo está redactado el contenido, no en cómo se ve):',
             $this->docxToPlainText(self::EXAMPLE_DOCX, 'documento de ejemplo'),
         ];
 
         if ($previousResult !== null && $feedback !== null) {
-            $parts[] = 'Ya redactaste una versión de este procedimiento con las fuentes anteriores. Este fue el resultado, '
-                . 'en el mismo formato que debes devolver ahora (details + documento_html):';
-            $parts[] = json_encode($previousResult, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+            $parts[] = 'Ya redactaste una versión de este procedimiento con las fuentes anteriores. Este fue el resultado '
+                . '(details + documento), en el mismo formato que debes devolver ahora:';
+            $parts[] = json_encode([
+                'details' => $previousResult['details'] ?? null,
+                'documento' => $previousResult['documento'] ?? null,
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
             $parts[] = 'El usuario revisó ese resultado y pidió estos cambios puntuales: "' . $feedback . '". '
                 . 'Aplica ÚNICAMENTE los cambios solicitados sobre el resultado anterior. Todo lo que no se pidió cambiar '
-                . 'debe quedar exactamente igual (mismo contenido, redacción y estructura). Devuelve el documento y los '
-                . 'campos completos y actualizados, no solo la parte modificada.';
+                . 'debe quedar exactamente igual (mismo contenido, redacción y estructura). Devuelve los campos '
+                . 'completos y actualizados (details + documento), no solo la parte modificada.';
         } else {
             $parts[] = 'Con las tres fuentes anteriores (esqueleto del wizard, condiciones, ejemplo), afina cada campo del '
-                . 'esqueleto (mismo formato de texto plano, sin HTML) y redacta el documento completo del '
-                . 'procedimiento en el campo documento_html, siguiendo también las instrucciones del system prompt.';
+                . 'esqueleto en "details" y redacta el contenido estructurado en "documento" (pasos, definiciones, '
+                . 'indicadores, riesgos, requerimientos, anexos, tópicos), siguiendo también las instrucciones del system prompt.';
         }
 
-        $parts[] = 'Recuerda: documento_html es solo el fragmento de contenido, NUNCA un documento HTML completo '
-            . '(nada de <!DOCTYPE>, <html>, <head>, <style> ni <body>). Y en la sección "Diagrama de Flujo del Proceso" '
-            . 'de documento_html, escribe ÚNICAMENTE <p>{{DIAGRAMA_FLUJO}}</p> — el diagrama real va en el campo '
-            . 'diagrama_flujo_mermaid, no ahí. Tampoco escribas la tabla de encabezado (logo, nombre, código, versión, '
-            . 'elaboró, aprobó, fecha, número de página) al inicio de documento_html — eso lo agrega el sistema '
-            . 'automáticamente fuera de este campo, con un formato fijo que nunca cambia.';
+        $parts[] = 'Recuerda: "details" y "documento" son SOLO texto plano — nunca escribas HTML, colores, ni decidas '
+            . 'ningún aspecto de formato/diseño. El sistema arma el documento final (encabezado, tablas, colores, '
+            . 'tipografía) siempre con el mismo formato fijo, idéntico al documento de ejemplo, a partir de este texto. '
+            . 'Tu única responsabilidad es que el CONTENIDO sea correcto, completo y esté bien redactado.';
 
         return implode("\n\n", $parts);
     }
