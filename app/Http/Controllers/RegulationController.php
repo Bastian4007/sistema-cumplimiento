@@ -42,10 +42,11 @@ class RegulationController extends Controller
             $companiesQuery = Company::where('group_id', $user->group_id)
                 ->where('show_in_processes', true)
                 ->where('otras', false)
-                ->withCount(['regulations' => fn ($q) => $q->where('is_active', true)]);
+                ->withCount(['regulations' => fn ($q) => $q->where('is_active', true)->where('is_annex', false)]);
 
             return view('processes.index', [
                 'cardView'            => true,
+                'showAnnexes'         => false,
                 'companiesWithCounts' => $companiesQuery->orderBy('name')->get(),
                 'companies'           => $companies,
                 'selectedCompanyId'   => null,
@@ -68,9 +69,15 @@ class RegulationController extends Controller
             ->orderBy('name')
             ->get();
 
+        // Por defecto solo se listan procesos normales — los anexos (formatos, tabuladores, etc.
+        // que existen sobre todo para ser referenciados por otros documentos, no como procedimientos
+        // en sí) se ven aparte con ?anexos=1, para no mezclarlos en el listado principal.
+        $showAnnexes = $request->boolean('anexos');
+
         $query = Regulation::with(['processType', 'company', 'currentVersion', 'annexes'])
             ->where('group_id', $user->group_id)
-            ->where('is_active', true);
+            ->where('is_active', true)
+            ->where('is_annex', $showAnnexes);
 
         if ($selectedCompanyId) {
             $query->where('company_id', $selectedCompanyId);
@@ -128,6 +135,7 @@ class RegulationController extends Controller
 
         return view('processes.index', [
             'cardView'            => false,
+            'showAnnexes'         => $showAnnexes,
             'companiesWithCounts' => collect(),
             'regulations'         => $regulations,
             'processTypes'        => $processTypes,
@@ -287,6 +295,7 @@ class RegulationController extends Controller
             'company_id'                  => ['required', 'exists:companies,id'],
             'process_type_id'             => ['required', 'exists:process_types,id'],
             'document_type'               => ['required', 'string', 'in:' . implode(',', Regulation::DOCUMENT_TYPES)],
+            'is_annex'                    => ['sometimes', 'boolean'],
             'impact_level'                => ['nullable', 'string', 'in:' . implode(',', array_keys(Regulation::IMPACT_LEVELS))],
             'nombre'                      => ['required', 'string', 'max:255'],
             'codigo'                      => ['nullable', 'string', 'max:50'],
@@ -331,7 +340,7 @@ class RegulationController extends Controller
         abort_unless($user->canAccessCompany($company), 403);
 
         $wizardDetails = collect($data)
-            ->except(['company_id', 'process_type_id', 'document_type', 'nombre', 'codigo', 'impact_level'])
+            ->except(['company_id', 'process_type_id', 'document_type', 'is_annex', 'nombre', 'codigo', 'impact_level'])
             ->toArray();
 
         try {
@@ -485,6 +494,7 @@ class RegulationController extends Controller
                 'company_id'      => $company->id,
                 'process_type_id' => $data['process_type_id'],
                 'document_type'   => $data['document_type'],
+                'is_annex'        => $data['is_annex'] ?? false,
                 'code'            => $data['codigo'] ? Str::upper($data['codigo']) : null,
                 'name'            => Str::upper($data['nombre']),
                 'details'         => $this->mergeWizardMetaIntoDetails($ai['details'], $data),
@@ -595,6 +605,7 @@ class RegulationController extends Controller
             $regulation->update([
                 'process_type_id'  => $data['process_type_id'],
                 'document_type'    => $data['document_type'] ?? null,
+                'is_annex'         => $data['is_annex'] ?? false,
                 'code'             => $data['codigo'] ? Str::upper($data['codigo']) : null,
                 'name'             => Str::upper($data['nombre']),
                 'previous_details' => $oldDetails ?: null,
@@ -632,6 +643,11 @@ class RegulationController extends Controller
                 'uploaded_by'        => $user->id,
             ]);
         });
+
+        // Si el reglamento estaba rechazado, esta edición es (se asume) la corrección — avisar a
+        // los admins que ya pueden reiniciar el flujo, en vez de que se enteren solo si entran a
+        // revisar el reglamento por su cuenta.
+        $this->flowService->notifyIfCorrectedAfterRejection($regulation);
 
         if ($detailsChanged && ($draft['old_flow_locked'] ?? false) && $user->isAdmin()) {
             return redirect()
@@ -721,6 +737,7 @@ class RegulationController extends Controller
             'company_id'       => ['required', 'exists:companies,id'],
             'process_type_id'  => ['required', 'exists:process_types,id'],
             'document_type'    => ['required', 'string', 'in:' . implode(',', Regulation::DOCUMENT_TYPES)],
+            'is_annex'         => ['sometimes', 'boolean'],
             'nombre'           => ['required', 'string', 'max:255'],
             'codigo'           => ['required', 'string', 'max:50'],
             'quien_elabora'    => ['required', 'string', 'max:255'],
@@ -751,6 +768,7 @@ class RegulationController extends Controller
                 'company_id'      => $company->id,
                 'process_type_id' => $data['process_type_id'],
                 'document_type'   => $data['document_type'],
+                'is_annex'        => $data['is_annex'] ?? false,
                 'code'            => $data['codigo'] ? Str::upper($data['codigo']) : null,
                 'name'            => Str::upper($data['nombre']),
                 'details'         => $details,
@@ -816,6 +834,7 @@ class RegulationController extends Controller
         return [
             'process_type_id'             => ['required', 'exists:process_types,id'],
             'document_type'               => ['nullable', 'string', 'in:' . implode(',', Regulation::DOCUMENT_TYPES)],
+            'is_annex'                    => ['sometimes', 'boolean'],
             'codigo'                      => ['nullable', 'string', 'max:50'],
             'nombre'                      => ['required', 'string', 'max:255'],
             'quien_elabora'               => ['required', 'string', 'max:255'],
@@ -858,7 +877,7 @@ class RegulationController extends Controller
         $data = $request->validate($this->editWizardValidationRules());
 
         $wizardDetails = collect($data)
-            ->except(['process_type_id', 'document_type', 'codigo', 'nombre'])
+            ->except(['process_type_id', 'document_type', 'is_annex', 'codigo', 'nombre'])
             ->toArray();
 
         try {
@@ -1026,6 +1045,7 @@ class RegulationController extends Controller
         $data = $request->validate([
             'process_type_id' => ['required', 'exists:process_types,id'],
             'document_type'   => ['required', 'string', 'in:' . implode(',', Regulation::DOCUMENT_TYPES)],
+            'is_annex'        => ['sometimes', 'boolean'],
             'nombre'          => ['required', 'string', 'max:255'],
             'codigo'          => ['nullable', 'string', 'max:50'],
             'quien_elabora'   => ['required', 'string', 'max:255'],
@@ -1042,6 +1062,7 @@ class RegulationController extends Controller
         $regulation->update([
             'process_type_id' => $data['process_type_id'],
             'document_type'   => $data['document_type'],
+            'is_annex'        => $data['is_annex'] ?? false,
             'code'            => $data['codigo'] ? Str::upper($data['codigo']) : null,
             'name'            => Str::upper($data['nombre']),
             'details'         => $newDetails,

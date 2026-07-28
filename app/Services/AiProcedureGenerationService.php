@@ -324,10 +324,17 @@ class AiProcedureGenerationService
     {
         $html = $this->stripPageWrapper($html);
         $html = preg_replace('/<script\b[^>]*>.*?<\/script>/si', '', $html);
+        // El editor TipTap (extension-table) agrega <colgroup><col ...></colgroup> a cada tabla
+        // para recordar el ancho de columnas — PhpWord no lo necesita (las tablas del generador de
+        // IA nunca lo llevan) y su <col> sin autocerrar rompe DOMDocument::loadXML() con "Opening
+        // and ending tag mismatch: col ... colgroup" (confirmado guardando una edición real con
+        // una tabla). Se quita entero en vez de intentar arreglarlo: la tabla queda igual, solo
+        // sin el ancho de columna fijo en px, que Word calcula solo de todos modos.
+        $html = preg_replace('/<colgroup\b[^>]*>.*?<\/colgroup>/si', '', $html);
         $html = $this->escapeStrayCharsForPhpWord($html);
         $html = $this->dedupeTagAttributes($html);
 
-        return preg_replace_callback('/<(br|hr|img)\b([^>]*)>/i', function (array $m) {
+        return preg_replace_callback('/<(br|hr|img|col)\b([^>]*)>/i', function (array $m) {
             $attrs = rtrim($m[2]);
 
             return str_ends_with($attrs, '/')

@@ -6,9 +6,12 @@ use App\Models\JobPosition;
 use App\Models\Regulation;
 use App\Models\RegulationApproval;
 use App\Models\User;
+use App\Notifications\ApprovalFlowMemberNotification;
 use App\Notifications\ApprovalRequestedNotification;
 use App\Notifications\RegulationApprovedNotification;
+use App\Notifications\RegulationReadyToResubmitNotification;
 use App\Notifications\RegulationRejectedNotification;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
 class ApprovalFlowService
@@ -65,6 +68,7 @@ class ApprovalFlowService
         });
 
         $this->notifyPendingApprovers($regulation, 1);
+        $this->notifyFutureFlowMembers($regulation, $userMap);
     }
 
     /**
@@ -132,6 +136,7 @@ class ApprovalFlowService
         });
 
         $this->notifyPendingApprovers($regulation, 1);
+        $this->notifyFutureFlowMembers($regulation, $userMap);
     }
 
     /**
@@ -150,6 +155,29 @@ class ApprovalFlowService
         return $regulation->pendingApprovals()->where('user_id', $userId)->first();
     }
 
+    /**
+     * Si el reglamento estaba rechazado y se acaba de guardar una corrección (desde el wizard de
+     * IA o desde el editor libre), avisa a los admins con acceso a la empresa que ya pueden
+     * reiniciar el flujo — solo un admin puede hacerlo (RegulationApprovalController::resubmit()),
+     * y sin este aviso nadie se entera de que ya se corrigió hasta que alguien entra a revisar el
+     * reglamento por su cuenta. No hace nada si el reglamento no estaba rechazado.
+     */
+    public function notifyIfCorrectedAfterRejection(Regulation $regulation): void
+    {
+        if ($regulation->approval_status !== 'rejected') {
+            return;
+        }
+
+        $admins = User::where('group_id', $regulation->group_id)
+            ->whereHas('role', fn ($q) => $q->whereIn('slug', ['admin', 'superadmin']))
+            ->get()
+            ->filter(fn (User $u) => $u->canAccessCompany($regulation->company));
+
+        foreach ($admins as $admin) {
+            $admin->notify(new RegulationReadyToResubmitNotification($regulation));
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Private helpers
     // -------------------------------------------------------------------------
@@ -163,10 +191,32 @@ class ApprovalFlowService
             return;
         }
 
-        $requiresAll = $stepDef['requires_all'];
-        $positions   = $stepDef['positions'];
+        foreach ($this->resolveStepUsers($regulation, $stepDef, $userMap) as $user) {
+            RegulationApproval::create([
+                'regulation_id'   => $regulation->id,
+                'step_number'     => $step,
+                'job_position_id' => $user->pivot_job_position_id,
+                'user_id'         => $user->id,
+                'requires_all'    => $stepDef['requires_all'],
+                'status'          => 'pending',
+            ]);
+        }
+    }
 
-        foreach ($positions as $slug) {
+    /**
+     * Resuelve qué usuarios corresponden a un paso del flujo: si el admin asignó usuarios
+     * específicos por puesto (flow_user_map) se usan solo esos, si no, todos los usuarios
+     * activos de cada puesto involucrado. Compartido entre createStepRecords() (que sí crea el
+     * registro de aprobación) y notifyFutureFlowMembers() (que solo necesita saber a quién avisar
+     * de un paso que todavía no existe como registro en BD).
+     *
+     * @return Collection<int, User>  cada User trae "pivot_job_position_id" con el puesto resuelto.
+     */
+    private function resolveStepUsers(Regulation $regulation, array $stepDef, array $userMap): Collection
+    {
+        $users = collect();
+
+        foreach ($stepDef['positions'] as $slug) {
             $position = JobPosition::where('group_id', $regulation->group_id)
                 ->where('slug', $slug)
                 ->first();
@@ -175,39 +225,27 @@ class ApprovalFlowService
                 continue;
             }
 
-            // If specific users were assigned for this position, use only those
+            // Si se asignaron usuarios específicos para este puesto, usar solo esos.
             if (isset($userMap[$slug])) {
                 $userIds = is_array($userMap[$slug])
                     ? array_map('intval', $userMap[$slug])
                     : [(int) $userMap[$slug]];
 
-                foreach ($userIds as $userId) {
-                    if ($userId && User::where('id', $userId)->exists()) {
-                        RegulationApproval::create([
-                            'regulation_id'   => $regulation->id,
-                            'step_number'     => $step,
-                            'job_position_id' => $position->id,
-                            'user_id'         => $userId,
-                            'requires_all'    => $requiresAll,
-                            'status'          => 'pending',
-                        ]);
-                    }
+                foreach (User::whereIn('id', array_filter($userIds))->get() as $user) {
+                    $user->pivot_job_position_id = $position->id;
+                    $users->push($user);
                 }
                 continue;
             }
 
-            // Fall back to all users assigned to the position
+            // Si no, todos los usuarios asignados al puesto.
             foreach ($position->users as $user) {
-                RegulationApproval::create([
-                    'regulation_id'   => $regulation->id,
-                    'step_number'     => $step,
-                    'job_position_id' => $position->id,
-                    'user_id'         => $user->id,
-                    'requires_all'    => $requiresAll,
-                    'status'          => 'pending',
-                ]);
+                $user->pivot_job_position_id = $position->id;
+                $users->push($user);
             }
         }
+
+        return $users->unique('id');
     }
 
     private function isStepComplete(Regulation $regulation, int $step): bool
@@ -219,11 +257,64 @@ class ApprovalFlowService
 
     private function notifyPendingApprovers(Regulation $regulation, int $step): void
     {
-        // Notificaciones desactivadas temporalmente.
+        $users = $regulation->approvalStep($step)
+            ->where('status', 'pending')
+            ->with('user')
+            ->get()
+            ->pluck('user')
+            ->filter()
+            ->unique('id');
+
+        foreach ($users as $user) {
+            $user->notify(new ApprovalRequestedNotification($regulation));
+        }
+    }
+
+    /**
+     * Avisa, de forma solo informativa, a quienes participan en pasos POSTERIORES al primero —
+     * el primer paso ya recibe el correo accionable de notifyPendingApprovers(). Se manda una
+     * sola vez, al iniciar o reiniciar el flujo completo (no en cada avance de paso: ahí el paso
+     * que se desbloquea ya recibe el correo accionable, no el informativo).
+     */
+    private function notifyFutureFlowMembers(Regulation $regulation, array $userMap): void
+    {
+        $flow = self::FLOWS[$regulation->impact_level] ?? [];
+
+        // Quien ya participa en el paso 1 recibió el correo accionable — si esa misma persona
+        // también está asignada a un puesto de un paso posterior (ej. es líder Y gerente), no
+        // tiene caso mandarle además el informativo de "tu voto se pedirá más adelante".
+        $notifiedIds = isset($flow[1])
+            ? $this->resolveStepUsers($regulation, $flow[1], $userMap)->pluck('id')->all()
+            : [];
+
+        foreach ($flow as $step => $stepDef) {
+            if ($step === 1) {
+                continue;
+            }
+
+            foreach ($this->resolveStepUsers($regulation, $stepDef, $userMap) as $user) {
+                if (in_array($user->id, $notifiedIds, true)) {
+                    continue;
+                }
+
+                $notifiedIds[] = $user->id;
+                $user->notify(new ApprovalFlowMemberNotification($regulation, $step));
+            }
+        }
     }
 
     private function notifyCreator(Regulation $regulation, string $outcome, ?string $comments = null, $rejectedBy = null): void
     {
-        // Notificaciones desactivadas temporalmente.
+        $creator = $regulation->creator;
+
+        if (! $creator) {
+            return;
+        }
+
+        match ($outcome) {
+            'approved' => $creator->notify(new RegulationApprovedNotification($regulation)),
+            'rejected' => $creator->notify(new RegulationRejectedNotification($regulation, $comments ?? '', $rejectedBy)),
+            default => null,
+        };
     }
 }

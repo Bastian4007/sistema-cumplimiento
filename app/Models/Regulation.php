@@ -37,6 +37,7 @@ class Regulation extends Model
         'company_id',
         'process_type_id',
         'document_type',
+        'is_annex',
         'code',
         'name',
         'details',
@@ -53,6 +54,7 @@ class Regulation extends Model
         'details'          => 'array',
         'previous_details' => 'array',
         'flow_user_map'    => 'array',
+        'is_annex'         => 'boolean',
     ];
 
     /*

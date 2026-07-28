@@ -29,7 +29,7 @@
     {{-- HEADER --}}
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-semibold text-[#1A428A]">
-            {{ $cardView ? 'Procesos' : 'Procedimientos' }}
+            {{ $cardView ? 'Procesos' : ($showAnnexes ? 'Anexos' : 'Procedimientos') }}
         </h1>
 
         <div class="flex items-center gap-2">
@@ -81,9 +81,30 @@
         </div>
     </div>
 
+    @unless($cardView)
+        {{-- TABS: Procesos / Anexos — los anexos (formatos, tabuladores, etc.) se ven aparte,
+             nunca mezclados con los procesos normales en el listado por defecto. --}}
+        <div class="mt-4 flex items-center gap-1 border-b border-gray-200">
+            <a href="{{ route('processes.index', array_filter(['company_id' => $selectedCompanyId, 'process_type_id' => request('process_type_id')])) }}"
+               class="px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition
+                      {{ ! $showAnnexes ? 'border-[#1A428A] text-[#1A428A]' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
+                Procesos
+            </a>
+            <a href="{{ route('processes.index', array_filter(['company_id' => $selectedCompanyId, 'process_type_id' => request('process_type_id'), 'anexos' => 1])) }}"
+               class="px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition
+                      {{ $showAnnexes ? 'border-[#1A428A] text-[#1A428A]' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
+                Anexos
+            </a>
+        </div>
+    @endunless
+
     {{-- FILTROS --}}
     <form method="GET" action="{{ route('processes.index') }}"
           class="mt-4 flex flex-wrap items-end gap-3">
+
+        @if($showAnnexes)
+            <input type="hidden" name="anexos" value="1">
+        @endif
 
         @if($cardView || ($user->hasGroupScope() && !$selectedCompanyId))
             <div class="min-w-[200px]">
@@ -386,7 +407,7 @@
                                 </td>
 
                                 @if(! $globalSearch)
-                                <td class="px-4 py-3 min-w-[160px] max-w-[200px]"
+                                <td class="px-4 py-3 min-w-[110px] max-w-[110px] relative"
                                     ondblclick="event.stopPropagation()"
                                     x-data="annexEditor(
                                         {{ $regulation->id }},
@@ -394,107 +415,110 @@
                                         {{ Js::from($regulation->annexes->map(fn($a) => ['id' => $a->id, 'code' => $a->code, 'name' => $a->name])->values()) }}
                                     )">
 
-                                    {{-- Vista: lista colapsable + botón editar --}}
-                                    <div x-show="! editing" class="space-y-1">
-                                        <div class="flex items-center gap-1">
-                                            <template x-if="annexes.length > 0">
-                                                <button type="button"
-                                                        @click="expanded = ! expanded"
-                                                        class="flex items-center gap-1 text-xs text-gray-600 hover:text-[#1A428A]">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 transition-transform duration-150" :class="expanded ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
-                                                    </svg>
-                                                    <span x-text="'Anexos (' + annexes.length + ')'"></span>
-                                                </button>
-                                            </template>
-                                            <template x-if="annexes.length === 0">
-                                                <span class="text-gray-400 text-xs">Sin anexos</span>
-                                            </template>
-                                            @if($user->isAdmin() || $user->isOperative())
-                                            <button type="button"
-                                                    @click="openEdit()"
-                                                    class="text-gray-400 hover:text-[#1A428A] transition shrink-0"
-                                                    title="Editar anexos">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
-                                                </svg>
-                                            </button>
-                                            @endif
-                                        </div>
-                                        <div x-show="expanded" class="flex items-center flex-wrap gap-1">
-                                            <template x-for="annex in annexes" :key="annex.id">
-                                                <a :href="'/processes/' + annex.id + '?open_pdf=1'"
-                                                   @click="event.stopPropagation()"
-                                                   class="inline-flex items-center px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 text-xs font-mono hover:bg-blue-100 hover:text-[#1A428A]"
-                                                   :title="'Ver ' + annex.name"
-                                                   x-text="annex.code || '?'">
-                                                </a>
-                                            </template>
-                                        </div>
-                                    </div>
+                                    {{-- Disparador: tamaño fijo siempre (solo un conteo) — sin importar cuántos
+                                         anexos tenga el documento, nunca deforma la fila ni la tabla. --}}
+                                    <button type="button"
+                                            x-ref="trigger"
+                                            @click="toggleOpen()"
+                                            class="flex items-center gap-1 text-xs px-2 py-1 rounded border transition"
+                                            :class="open ? 'border-[#1A428A] text-[#1A428A] bg-blue-50' : 'border-gray-200 text-gray-600 hover:border-[#1A428A] hover:text-[#1A428A]'">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 010 5.656l-4 4a4 4 0 01-5.656-5.656l1.5-1.5m4.828-4.828a4 4 0 015.656 0l4 4a4 4 0 01-5.656 5.656l-1.5-1.5"/>
+                                        </svg>
+                                        <span x-text="annexes.length > 0 ? (annexes.length + ' anexo' + (annexes.length !== 1 ? 's' : '')) : 'Sin anexos'"></span>
+                                    </button>
 
-                                    {{-- Edición inline --}}
-                                    <div x-show="editing" class="space-y-1.5" style="display:none;">
+                                    {{-- Popover flotante — se teletransporta al <body> para escapar de cualquier
+                                         contenedor con overflow-hidden (p.ej. el wrapper de la tabla), y se
+                                         posiciona con coordenadas fijas calculadas desde el botón disparador.
+                                         Nunca empuja ni cambia el alto/ancho de la fila, sin importar cuántos
+                                         anexos traiga el documento. --}}
+                                    <template x-teleport="body">
+                                    <div x-show="open"
+                                         x-transition
+                                         @click.outside="closePopover()"
+                                         @keydown.escape.window="closePopover()"
+                                         @scroll.window="closePopover()"
+                                         @resize.window="closePopover()"
+                                         :style="popoverStyle"
+                                         class="fixed z-50 w-72 bg-white border border-gray-200 rounded-lg shadow-xl p-3"
+                                         style="display:none;">
 
-                                        {{-- Chips seleccionados --}}
-                                        <div class="flex flex-wrap gap-1 min-h-[1.25rem]">
+                                        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                                            Anexos de este documento
+                                        </div>
+
+                                        {{-- Chips de anexos actuales, con opción de quitar --}}
+                                        <div class="flex flex-wrap gap-1.5 mb-2 max-h-40 overflow-y-auto">
+                                            <template x-if="pending.length === 0">
+                                                <span class="text-xs text-gray-400 italic">Sin anexos agregados</span>
+                                            </template>
                                             <template x-for="annex in pending" :key="annex.id">
-                                                <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 text-xs font-mono">
-                                                    <span x-text="annex.code || '?'"></span>
+                                                <span class="inline-flex items-center gap-1 px-2 py-1 rounded bg-blue-50 text-blue-800 text-xs max-w-full">
+                                                    <a :href="'/processes/' + annex.id + '?open_pdf=1'"
+                                                       target="_blank"
+                                                       @click.stop
+                                                       class="font-mono font-semibold hover:underline shrink-0"
+                                                       x-text="annex.code || '?'"></a>
+                                                    <span class="text-blue-400 truncate" x-text="'— ' + annex.name" style="max-width: 130px;"></span>
+                                                    @if($user->isAdmin() || $user->isOperative())
                                                     <button type="button"
                                                             @click="removeAnnex(annex.id)"
-                                                            class="text-blue-500 hover:text-blue-800 ml-0.5">
+                                                            class="text-blue-500 hover:text-blue-800 ml-0.5 shrink-0">
                                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
                                                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
                                                         </svg>
                                                     </button>
+                                                    @endif
                                                 </span>
                                             </template>
                                         </div>
 
-                                        {{-- Autocomplete --}}
-                                        <div class="relative">
-                                            <input
-                                                x-ref="searchInput"
-                                                type="text"
-                                                x-model="search"
-                                                @input="onSearchInput()"
-                                                @focus="search.trim() && fetchResults()"
-                                                @keydown.escape="cancelEdit()"
-                                                placeholder="Buscar código…"
-                                                class="w-full rounded border border-gray-300 text-xs px-2 py-1 focus:outline-none focus:border-[#1A428A] focus:ring-1 focus:ring-[#1A428A]"
-                                            >
-                                            <div x-show="showDropdown"
-                                                 @click.outside="showDropdown = false"
-                                                 class="absolute left-0 top-full mt-0.5 z-30 w-60 bg-white border border-gray-200 rounded shadow-lg max-h-40 overflow-y-auto">
-                                                <template x-for="r in results" :key="r.id">
-                                                    <button type="button"
-                                                            @click="selectAnnex(r)"
-                                                            class="w-full text-left px-2 py-1.5 text-xs hover:bg-blue-50 flex items-baseline gap-1.5">
-                                                        <span class="font-mono font-semibold text-gray-800 shrink-0" x-text="r.code || '—'"></span>
-                                                        <span class="text-gray-500 truncate" x-text="r.name"></span>
-                                                    </button>
-                                                </template>
+                                        @if($user->isAdmin() || $user->isOperative())
+                                            {{-- Autocomplete para agregar --}}
+                                            <div class="relative">
+                                                <input
+                                                    x-ref="searchInput"
+                                                    type="text"
+                                                    x-model="search"
+                                                    @input="onSearchInput()"
+                                                    @focus="search.trim() && fetchResults()"
+                                                    placeholder="Buscar código para agregar…"
+                                                    class="w-full rounded border border-gray-300 text-xs px-2 py-1.5 focus:outline-none focus:border-[#1A428A] focus:ring-1 focus:ring-[#1A428A]"
+                                                >
+                                                <div x-show="showDropdown"
+                                                     @click.outside="showDropdown = false"
+                                                     class="absolute left-0 top-full mt-0.5 z-50 w-full bg-white border border-gray-200 rounded shadow-lg max-h-36 overflow-y-auto">
+                                                    <template x-for="r in results" :key="r.id">
+                                                        <button type="button"
+                                                                @click="selectAnnex(r)"
+                                                                class="w-full text-left px-2 py-1.5 text-xs hover:bg-blue-50 flex items-baseline gap-1.5">
+                                                            <span class="font-mono font-semibold text-gray-800 shrink-0" x-text="r.code || '—'"></span>
+                                                            <span class="text-gray-500 truncate" x-text="r.name"></span>
+                                                        </button>
+                                                    </template>
+                                                </div>
                                             </div>
-                                        </div>
 
-                                        {{-- Acciones --}}
-                                        <div class="flex items-center gap-1.5">
-                                            <button type="button"
-                                                    @click="save()"
-                                                    :disabled="saving"
-                                                    class="px-2 py-1 rounded bg-[#1A428A] text-white text-xs font-semibold hover:bg-[#15356d] disabled:opacity-50">
-                                                <span x-text="saving ? 'Guardando…' : 'Guardar'"></span>
-                                            </button>
-                                            <button type="button"
-                                                    @click="cancelEdit()"
-                                                    :disabled="saving"
-                                                    class="px-2 py-1 rounded border border-gray-300 text-gray-600 text-xs font-semibold hover:bg-gray-50">
-                                                Cancelar
-                                            </button>
-                                            <span x-show="error" class="text-red-500 text-xs">Error al guardar</span>
-                                        </div>
+                                            {{-- Acciones --}}
+                                            <div class="flex items-center gap-1.5 mt-2">
+                                                <button type="button"
+                                                        @click="save()"
+                                                        :disabled="saving"
+                                                        class="px-2.5 py-1 rounded bg-[#1A428A] text-white text-xs font-semibold hover:bg-[#15356d] disabled:opacity-50">
+                                                    <span x-text="saving ? 'Guardando…' : 'Guardar'"></span>
+                                                </button>
+                                                <button type="button"
+                                                        @click="closePopover()"
+                                                        :disabled="saving"
+                                                        class="px-2.5 py-1 rounded border border-gray-300 text-gray-600 text-xs font-semibold hover:bg-gray-50">
+                                                    Cerrar
+                                                </button>
+                                                <span x-show="error" class="text-red-500 text-xs">Error al guardar</span>
+                                            </div>
+                                        @endif
                                     </div>
+                                    </template>
                                 </td>
                                 @endif
 
@@ -657,7 +681,7 @@
                             <tr class="border-t">
                                 <td colspan="9"
                                     class="px-6 py-8 text-center text-gray-500">
-                                    No hay procedimientos para los filtros seleccionados.
+                                    No hay {{ $showAnnexes ? 'anexos' : 'procedimientos' }} para los filtros seleccionados.
                                 </td>
                             </tr>
                         @endforelse
@@ -666,13 +690,14 @@
             </div>
         </div>
 
+        @php $itemLabel = $showAnnexes ? 'anexo' : 'procedimiento'; @endphp
         <p class="mt-3 text-xs text-gray-400">
             @if($globalSearch)
-                {{ $regulations->count() }} {{ \Illuminate\Support\Str::plural('procedimiento', $regulations->count()) }}
+                {{ $regulations->count() }} {{ \Illuminate\Support\Str::plural($itemLabel, $regulations->count()) }}
                 encontrados en {{ $regulations->pluck('company_id')->unique()->count() }}
                 {{ \Illuminate\Support\Str::plural('empresa', $regulations->pluck('company_id')->unique()->count()) }}
             @else
-                {{ $regulations->count() }} {{ \Illuminate\Support\Str::plural('procedimiento', $regulations->count()) }} encontrados
+                {{ $regulations->count() }} {{ \Illuminate\Support\Str::plural($itemLabel, $regulations->count()) }} encontrados
             @endif
             <span x-show="selected.length > 0" class="ml-2 font-medium text-[#1A428A]">
                 · <span x-text="selected.length"></span> seleccionado<span x-show="selected.length !== 1">s</span>
@@ -879,8 +904,7 @@ function reportTable(allIds) {
 
 function annexEditor(regulationId, companyId, initialAnnexes) {
     return {
-        editing: false,
-        expanded: false,
+        open: false,
         saving: false,
         error: false,
         annexes: JSON.parse(JSON.stringify(initialAnnexes)),
@@ -888,19 +912,32 @@ function annexEditor(regulationId, companyId, initialAnnexes) {
         search: '',
         results: [],
         showDropdown: false,
+        popoverStyle: '',
         _timer: null,
 
-        openEdit() {
+        toggleOpen() {
+            this.open ? this.closePopover() : this.openPopover();
+        },
+
+        openPopover() {
+            const rect = this.$refs.trigger.getBoundingClientRect();
+            const width = 288; // w-72
+            let left = rect.left;
+            if (left + width > window.innerWidth - 8) {
+                left = window.innerWidth - width - 8;
+            }
+            this.popoverStyle = `top: ${rect.bottom + 4}px; left: ${Math.max(8, left)}px;`;
             this.pending = JSON.parse(JSON.stringify(this.annexes));
             this.search = '';
             this.results = [];
             this.showDropdown = false;
-            this.editing = true;
+            this.error = false;
+            this.open = true;
             this.$nextTick(() => this.$refs.searchInput?.focus());
         },
 
-        cancelEdit() {
-            this.editing = false;
+        closePopover() {
+            this.open = false;
             this.search = '';
             this.results = [];
             this.showDropdown = false;
@@ -961,7 +998,7 @@ function annexEditor(regulationId, companyId, initialAnnexes) {
                 if (res.ok) {
                     const data   = await res.json();
                     this.annexes = data.annexes;
-                    this.editing = false;
+                    this.open    = false;
                     this.search  = '';
                 } else {
                     this.error = true;

@@ -415,7 +415,14 @@ const editor = new Editor({
     extensions: [
         StarterKit, Underline, Highlight.configure({ multicolor: true }),
         Link.configure({ openOnClick: false, autolink: false, HTMLAttributes: { target: '_blank', rel: 'noopener' } }),
-        Image, TextStyle,
+        // inline: true — el diagrama de flujo (y cualquier otra imagen) viene envuelto en un
+        // <p> (RegulationBodyHtmlBuilder); Image es un nodo de bloque por defecto, y ProseMirror
+        // descarta un nodo de bloque anidado dentro de un párrafo al analizar el HTML — la imagen
+        // desaparecía en silencio al abrir el editor. allowBase64: true — por defecto Image
+        // directamente EXCLUYE del parseHTML cualquier <img src="data:..."> (para no inflar el
+        // documento con imágenes pesadas), pero el diagrama siempre se inserta como data URI
+        // (insertFlowDiagram()) — sin esto también desaparecía en silencio, sin ningún error.
+        Image.configure({ inline: true, allowBase64: true }), TextStyle,
         Table.configure({ resizable: false }), TableRow, TableHeader, TableCell,
         PreserveInlineStyle,
         PersonMention, DocReference,

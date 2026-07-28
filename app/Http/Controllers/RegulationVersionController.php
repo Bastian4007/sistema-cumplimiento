@@ -271,6 +271,13 @@ class RegulationVersionController extends Controller
 
     public function saveEdit(Request $request, RegulationVersion $version, ChangeHighlightService $changeHighlight, AiProcedureGenerationService $sanitizer)
     {
+        // ChangeHighlightService::analyze() llama a la IA (Haiku) más abajo — igual que los demás
+        // puntos que llaman IA en el wizard, el límite de 60s por defecto de PHP no alcanza si el
+        // modelo/red va lento. Sin esto, la petición muere con un fatal error de
+        // "Maximum execution time exceeded" a mitad de la llamada a Anthropic, sin guardar nada
+        // y sin liberar el bloqueo de edición (confirmado reproduciendo el fallo real).
+        set_time_limit(240);
+
         $user = auth()->user();
         abort_unless($user->isAdmin() || $user->isOperative(), 403);
         abort_unless($user->canAccessCompany($version->regulation->company), 403);
@@ -372,6 +379,10 @@ class RegulationVersionController extends Controller
         });
 
         @unlink($tmp);
+
+        // Si el reglamento estaba rechazado, esta edición libre es (se asume) la corrección —
+        // avisar a los admins que ya pueden reiniciar el flujo.
+        app(ApprovalFlowService::class)->notifyIfCorrectedAfterRejection($regulation);
 
         return redirect()
             ->route('processes.show', $regulation)

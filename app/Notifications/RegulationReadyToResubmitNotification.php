@@ -8,7 +8,13 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class ApprovalRequestedNotification extends Notification implements ShouldQueue
+/**
+ * Un reglamento rechazado se corrigió (se guardó una edición mientras approval_status seguía en
+ * "rejected") — solo un admin puede reiniciar el flujo (RegulationApprovalController::resubmit()),
+ * así que se les avisa a todos los admins con acceso a la empresa del reglamento, en vez de
+ * esperar a que alguno entre por su cuenta a revisar si ya se corrigió.
+ */
+class RegulationReadyToResubmitNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
@@ -22,8 +28,8 @@ class ApprovalRequestedNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Aprobación requerida: ' . $this->regulation->name)
-            ->view('emails.processes.approval-requested', [
+            ->subject('Documento corregido, listo para reenviar a aprobación: ' . $this->regulation->name)
+            ->view('emails.processes.regulation-ready-to-resubmit', [
                 'notifiable' => $notifiable,
                 'regulation' => $this->regulation,
             ]);
@@ -32,10 +38,9 @@ class ApprovalRequestedNotification extends Notification implements ShouldQueue
     public function toDatabase(object $notifiable): array
     {
         return [
-            'type'            => 'approval_requested',
+            'type'            => 'regulation_ready_to_resubmit',
             'regulation_id'   => $this->regulation->id,
             'regulation_name' => $this->regulation->name,
-            'impact_level'    => $this->regulation->impact_level,
         ];
     }
 
