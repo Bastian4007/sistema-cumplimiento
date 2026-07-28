@@ -28,6 +28,16 @@ class ChangeHighlightService
             return null;
         }
 
+        // El diagrama de flujo (una imagen en base64) no tiene nada que ver con este análisis de
+        // texto, pero puede pesar decenas de KB — confirmado con un documento real: 45 KB de un
+        // documento de 70 KB era solo la imagen. Mandarla tal cual al modelo, pidiéndole que la
+        // reproduzca íntegra y literal en la respuesta, es lento (la llamada real tardó >90s y
+        // llegó a tronar por el límite de ejecución de PHP) e inseguro (un solo carácter distinto
+        // en ese base64 rompe la imagen). Se reemplaza por un marcador corto antes de enviar, y se
+        // restaura la imagen real al resultado después — la IA nunca la ve ni la reescribe.
+        [$oldForPrompt] = $this->extractImages($oldHtml);
+        [$newForPrompt, $newImages] = $this->extractImages($newHtml);
+
         try {
             $client = new Client(apiKey: config('services.anthropic.key'));
             $model = config('services.anthropic.change_model');
@@ -43,7 +53,7 @@ class ChangeHighlightService
                 system: $this->systemPrompt(),
                 messages: [[
                     'role' => 'user',
-                    'content' => $this->buildPrompt($oldHtml, $newHtml),
+                    'content' => $this->buildPrompt($oldForPrompt, $newForPrompt),
                 ]],
                 outputConfig: OutputConfig::with(format: JSONOutputFormat::with(schema: $this->schema())),
             );
@@ -83,11 +93,13 @@ class ChangeHighlightService
                 return null;
             }
 
-            if (! $this->isSafe($data['highlighted_html'], $newHtml)) {
+            if (! $this->isSafe($data['highlighted_html'], $newForPrompt)) {
                 Log::warning('ChangeHighlightService: el HTML resaltado no coincide con el documento nuevo, se descarta el resaltado automático.');
 
                 return null;
             }
+
+            $data['highlighted_html'] = $this->restoreImages($data['highlighted_html'], $newImages);
 
             return $data;
         } catch (Throwable $e) {
@@ -117,6 +129,28 @@ class ChangeHighlightService
     private function plainText(string $html): string
     {
         return trim(preg_replace('/\s+/', ' ', html_entity_decode(strip_tags($html))));
+    }
+
+    /**
+     * @return array{0: string, 1: array<string, string>}  [html con marcadores, mapa marcador => <img> original]
+     */
+    private function extractImages(string $html): array
+    {
+        $images = [];
+
+        $replaced = preg_replace_callback('/<img\b[^>]*>/i', function (array $m) use (&$images) {
+            $token = '[[IMG_' . count($images) . ']]';
+            $images[$token] = $m[0];
+
+            return $token;
+        }, $html);
+
+        return [$replaced, $images];
+    }
+
+    private function restoreImages(string $html, array $images): string
+    {
+        return strtr($html, $images);
     }
 
     private function schema(): array
