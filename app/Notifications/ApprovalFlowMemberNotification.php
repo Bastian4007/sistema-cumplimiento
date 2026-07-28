@@ -3,20 +3,25 @@
 namespace App\Notifications;
 
 use App\Models\Regulation;
-use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class RegulationRejectedNotification extends Notification implements ShouldQueue
+/**
+ * Aviso informativo (sin acción inmediata) para quienes forman parte de un paso POSTERIOR al
+ * primero dentro del flujo de aprobación de un reglamento — a diferencia de
+ * ApprovalRequestedNotification (que sí pide actuar ya), esta solo avisa que su voto se
+ * necesitará más adelante, cuando el flujo llegue a su paso. Se manda una sola vez, al
+ * iniciar/reiniciar el flujo completo (ApprovalFlowService::initFlow()/resubmit()).
+ */
+class ApprovalFlowMemberNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
     public function __construct(
         public readonly Regulation $regulation,
-        public readonly string $comments,
-        public readonly ?User $rejectedBy = null,
+        public readonly int $step,
     ) {}
 
     public function via(object $notifiable): array
@@ -27,23 +32,20 @@ class RegulationRejectedNotification extends Notification implements ShouldQueue
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Documento rechazado: ' . $this->regulation->name)
-            ->view('emails.processes.regulation-rejected', [
+            ->subject('Formarás parte del flujo de aprobación: ' . $this->regulation->name)
+            ->view('emails.processes.approval-flow-member', [
                 'notifiable' => $notifiable,
                 'regulation' => $this->regulation,
-                'comments'   => $this->comments,
-                'rejectedBy' => $this->rejectedBy,
             ]);
     }
 
     public function toDatabase(object $notifiable): array
     {
         return [
-            'type'            => 'regulation_rejected',
+            'type'            => 'approval_flow_member',
             'regulation_id'   => $this->regulation->id,
             'regulation_name' => $this->regulation->name,
-            'comments'        => $this->comments,
-            'rejected_by'     => $this->rejectedBy?->name,
+            'step'            => $this->step,
         ];
     }
 

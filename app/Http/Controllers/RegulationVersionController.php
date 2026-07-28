@@ -380,6 +380,10 @@ class RegulationVersionController extends Controller
 
         @unlink($tmp);
 
+        // Si el reglamento estaba rechazado, esta edición libre es (se asume) la corrección —
+        // avisar a los admins que ya pueden reiniciar el flujo.
+        app(ApprovalFlowService::class)->notifyIfCorrectedAfterRejection($regulation);
+
         return redirect()
             ->route('processes.show', $regulation)
             ->with('success', 'Documento editado y guardado como nueva versión con cambios resaltados.');

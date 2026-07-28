@@ -633,6 +633,11 @@ class RegulationController extends Controller
             ]);
         });
 
+        // Si el reglamento estaba rechazado, esta edición es (se asume) la corrección — avisar a
+        // los admins que ya pueden reiniciar el flujo, en vez de que se enteren solo si entran a
+        // revisar el reglamento por su cuenta.
+        $this->flowService->notifyIfCorrectedAfterRejection($regulation);
+
         if ($detailsChanged && ($draft['old_flow_locked'] ?? false) && $user->isAdmin()) {
             return redirect()
                 ->route('processes.show', ['regulation' => $regulation->id, 'review_flow' => 1])
