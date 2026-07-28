@@ -192,6 +192,26 @@
                                     <p x-show="errors.document_type" x-text="errors.document_type" class="text-sm text-red-600 mt-1"></p>
                                 </div>
 
+                                {{-- is_annex --}}
+                                <div class="flex items-start gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5">
+                                    <input
+                                        type="checkbox"
+                                        id="is_annex"
+                                        name="is_annex"
+                                        value="1"
+                                        x-model="form.is_annex"
+                                        class="mt-0.5 rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A]"
+                                    >
+                                    <label for="is_annex" class="text-sm text-gray-700">
+                                        <span class="font-medium">Es un anexo</span>
+                                        <span class="block text-xs text-gray-400 mt-0.5">
+                                            Marca esto si este documento existe para ser referenciado por otros
+                                            procesos (formatos, tabuladores, etc.) y no es un procedimiento en sí
+                                            mismo. Por defecto no aparece en el listado principal de procesos.
+                                        </span>
+                                    </label>
+                                </div>
+
                                 {{-- nombre --}}
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -706,6 +726,7 @@
                 company_id:                   preselectedCompanyId ? String(preselectedCompanyId) : '',
                 process_type_id:              '',
                 document_type:                '',
+                is_annex:                     false,
                 nombre:                       '',
                 codigo:                       '',
                 quien_elabora:                '',

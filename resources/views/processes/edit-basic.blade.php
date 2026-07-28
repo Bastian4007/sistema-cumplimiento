@@ -90,6 +90,26 @@
                     </div>
                 </div>
 
+                {{-- is_annex --}}
+                <div class="flex items-start gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2.5">
+                    <input
+                        type="checkbox"
+                        id="is_annex"
+                        name="is_annex"
+                        value="1"
+                        {{ old('is_annex', $regulation->is_annex) ? 'checked' : '' }}
+                        class="mt-0.5 rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A]"
+                    >
+                    <label for="is_annex" class="text-xs text-gray-600">
+                        <span class="font-medium uppercase tracking-wide text-gray-500">Es un anexo</span>
+                        <span class="block text-xs text-gray-400 mt-0.5 normal-case">
+                            Documento que existe para ser referenciado por otros procesos (formatos,
+                            tabuladores, etc.), no un procedimiento en sí. No aparece en el listado
+                            principal por defecto.
+                        </span>
+                    </label>
+                </div>
+
                 {{-- Nombre --}}
                 <div>
                     <label class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">

@@ -29,7 +29,7 @@
     {{-- HEADER --}}
     <div class="flex items-center justify-between">
         <h1 class="text-2xl font-semibold text-[#1A428A]">
-            {{ $cardView ? 'Procesos' : 'Procedimientos' }}
+            {{ $cardView ? 'Procesos' : ($showAnnexes ? 'Anexos' : 'Procedimientos') }}
         </h1>
 
         <div class="flex items-center gap-2">
@@ -81,9 +81,30 @@
         </div>
     </div>
 
+    @unless($cardView)
+        {{-- TABS: Procesos / Anexos — los anexos (formatos, tabuladores, etc.) se ven aparte,
+             nunca mezclados con los procesos normales en el listado por defecto. --}}
+        <div class="mt-4 flex items-center gap-1 border-b border-gray-200">
+            <a href="{{ route('processes.index', array_filter(['company_id' => $selectedCompanyId, 'process_type_id' => request('process_type_id')])) }}"
+               class="px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition
+                      {{ ! $showAnnexes ? 'border-[#1A428A] text-[#1A428A]' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
+                Procesos
+            </a>
+            <a href="{{ route('processes.index', array_filter(['company_id' => $selectedCompanyId, 'process_type_id' => request('process_type_id'), 'anexos' => 1])) }}"
+               class="px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition
+                      {{ $showAnnexes ? 'border-[#1A428A] text-[#1A428A]' : 'border-transparent text-gray-500 hover:text-gray-700' }}">
+                Anexos
+            </a>
+        </div>
+    @endunless
+
     {{-- FILTROS --}}
     <form method="GET" action="{{ route('processes.index') }}"
           class="mt-4 flex flex-wrap items-end gap-3">
+
+        @if($showAnnexes)
+            <input type="hidden" name="anexos" value="1">
+        @endif
 
         @if($cardView || ($user->hasGroupScope() && !$selectedCompanyId))
             <div class="min-w-[200px]">
@@ -657,7 +678,7 @@
                             <tr class="border-t">
                                 <td colspan="9"
                                     class="px-6 py-8 text-center text-gray-500">
-                                    No hay procedimientos para los filtros seleccionados.
+                                    No hay {{ $showAnnexes ? 'anexos' : 'procedimientos' }} para los filtros seleccionados.
                                 </td>
                             </tr>
                         @endforelse
@@ -666,13 +687,14 @@
             </div>
         </div>
 
+        @php $itemLabel = $showAnnexes ? 'anexo' : 'procedimiento'; @endphp
         <p class="mt-3 text-xs text-gray-400">
             @if($globalSearch)
-                {{ $regulations->count() }} {{ \Illuminate\Support\Str::plural('procedimiento', $regulations->count()) }}
+                {{ $regulations->count() }} {{ \Illuminate\Support\Str::plural($itemLabel, $regulations->count()) }}
                 encontrados en {{ $regulations->pluck('company_id')->unique()->count() }}
                 {{ \Illuminate\Support\Str::plural('empresa', $regulations->pluck('company_id')->unique()->count()) }}
             @else
-                {{ $regulations->count() }} {{ \Illuminate\Support\Str::plural('procedimiento', $regulations->count()) }} encontrados
+                {{ $regulations->count() }} {{ \Illuminate\Support\Str::plural($itemLabel, $regulations->count()) }} encontrados
             @endif
             <span x-show="selected.length > 0" class="ml-2 font-medium text-[#1A428A]">
                 · <span x-text="selected.length"></span> seleccionado<span x-show="selected.length !== 1">s</span>
