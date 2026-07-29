@@ -292,6 +292,31 @@ class AiProcedureGenerationService
         return [$exitCode, $stdout, $stderr];
     }
 
+    /**
+     * Prueba real de renderizado, reusando exactamente el mismo camino (proc_open) que usa
+     * insertFlowDiagram() en producción — a diferencia de un chequeo con exec()/Process, esto
+     * detecta con certeza si el render de verdad funciona en este servidor, no solo si el
+     * binario existe. Pensada para diagnóstico (processes:check-requirements --deep).
+     *
+     * @return array{ok: bool, exit_code: int, stderr: string, stdout: string}
+     */
+    public function testMermaidCli(): array
+    {
+        $input = tempnam(sys_get_temp_dir(), 'mmd_check_') . '.mmd';
+        $output = tempnam(sys_get_temp_dir(), 'mmd_check_out_') . '.png';
+        file_put_contents($input, "flowchart LR\n  a([Inicio]) --> b[Paso] --> c([Fin])\n");
+
+        try {
+            [$exitCode, $stdout, $stderr] = $this->runMermaidCli($input, $output);
+            $ok = $exitCode === 0 && is_file($output) && filesize($output) > 0;
+
+            return ['ok' => $ok, 'exit_code' => $exitCode, 'stderr' => trim($stderr), 'stdout' => trim($stdout)];
+        } finally {
+            @unlink($input);
+            @unlink($output);
+        }
+    }
+
     private function diagramExampleImage(): string
     {
         $path = resource_path('ai-reference/' . self::DIAGRAM_EXAMPLE_IMAGE);
