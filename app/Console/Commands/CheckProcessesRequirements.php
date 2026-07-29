@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\AiProcedureGenerationService;
 use App\Services\DiagramTitleBarComposer;
 use App\Services\OfficeDocumentConverter;
 use Illuminate\Console\Command;
@@ -23,7 +24,7 @@ class CheckProcessesRequirements extends Command
 
     protected $description = 'Verifica que las dependencias del módulo de Procesos (migración, GD, LibreOffice, mermaid-cli, Anthropic) estén listas en este servidor';
 
-    public function handle(OfficeDocumentConverter $officeConverter, DiagramTitleBarComposer $titleBarComposer): int
+    public function handle(OfficeDocumentConverter $officeConverter, DiagramTitleBarComposer $titleBarComposer, AiProcedureGenerationService $aiService): int
     {
         $deep = (bool) $this->option('deep');
         $failures = 0;
@@ -81,10 +82,14 @@ class CheckProcessesRequirements extends Command
             $this->newLine();
             $this->components->info('Pruebas reales (--deep)');
 
+            $mermaidResult = $aiService->testMermaidCli();
             $failures += $this->check(
                 'Render de diagrama Mermaid de prueba',
-                fn () => $this->testMermaidRender(),
-                'mermaid-cli no pudo generar un PNG de prueba — revisa los logs de Laravel para el error exacto.'
+                fn () => $mermaidResult['ok'],
+                $mermaidResult['ok']
+                    ? ''
+                    : "mermaid-cli falló (exit code {$mermaidResult['exit_code']}): "
+                        . ($mermaidResult['stderr'] ?: $mermaidResult['stdout'] ?: '(sin salida)')
             );
 
             if ($officeConverter->isAvailable()) {
@@ -128,24 +133,6 @@ class CheckProcessesRequirements extends Command
         $this->line("    <fg=gray>{$hint}</>");
 
         return $warningOnly ? 0 : 1;
-    }
-
-    private function testMermaidRender(): bool
-    {
-        $input = tempnam(sys_get_temp_dir(), 'mmd_check_') . '.mmd';
-        $output = tempnam(sys_get_temp_dir(), 'mmd_check_out_') . '.png';
-        file_put_contents($input, "flowchart LR\n  a([Inicio]) --> b[Paso] --> c([Fin])\n");
-
-        $cliJs = base_path('node_modules/@mermaid-js/mermaid-cli/src/cli.js');
-        $cmd = sprintf('node %s -i %s -o %s -b white', escapeshellarg($cliJs), escapeshellarg($input), escapeshellarg($output));
-
-        exec($cmd . ' 2>&1', $out, $exitCode);
-        $ok = $exitCode === 0 && is_file($output) && filesize($output) > 0;
-
-        @unlink($input);
-        @unlink($output);
-
-        return $ok;
     }
 
     private function testOfficeConversion(OfficeDocumentConverter $converter): bool
