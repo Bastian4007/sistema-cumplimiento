@@ -270,21 +270,6 @@
                                         {{ $label }}
                                     </a>
                                 @endforeach
-                            @else
-                                <a href="{{ route('assets.show', ['asset' => $asset, 'scope' => 'project']) }}"
-                                   class="px-4 py-2 rounded-md border font-semibold whitespace-nowrap
-                                   {{ $scope === 'project'
-                                       ? 'bg-[#1A428A] text-white border-[#1A428A]'
-                                       : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
-                                    Normativa de proyecto
-                                </a>
-                                <a href="{{ route('assets.show', ['asset' => $asset, 'scope' => 'operation']) }}"
-                                   class="px-4 py-2 rounded-md border font-semibold whitespace-nowrap
-                                   {{ $scope === 'operation'
-                                       ? 'bg-[#1A428A] text-white border-[#1A428A]'
-                                       : 'bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50' }}">
-                                    Normativa de operación
-                                </a>
                             @endif
                         </div>
                     </div>
@@ -516,6 +501,7 @@
                             <th class="text-left px-6 py-4 font-semibold">Carpeta</th>
                             <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Vence</th>
                             <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Riesgo</th>
+                            <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Prioridad</th>
                             <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Estado</th>
                             <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Progreso</th>
                             <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Tareas</th>
@@ -534,6 +520,8 @@
 
                                 $progress = (int) ($req->computed_progress ?? 0);
                                 $riskVal = strtolower($req->risk_level ?? 'normal');
+                                $priorityVal = strtolower($req->template?->priority ?? '');
+                                $responsibleArea = $req->template?->responsible_area;
                                 $statusVal = $req->computed_status ?? 'pending';
 
                                 $renewalPending = (int) ($req->renewal_pending ?? 0);
@@ -568,6 +556,9 @@
                             <tr class="hover:bg-gray-50">
                                 <td class="px-6 py-4 font-semibold text-gray-800">
                                     {{ $title }}
+                                    @if($responsibleArea)
+                                        <div class="text-xs font-normal text-gray-400">{{ $responsibleArea }}</div>
+                                    @endif
                                 </td>
 
                                 <td class="px-6 py-4 whitespace-nowrap">
@@ -581,6 +572,18 @@
                                         <span class="text-xs px-3 py-1 rounded border bg-yellow-50 text-yellow-700 border-yellow-200">CRÍTICO</span>
                                     @else
                                         <span class="text-xs px-3 py-1 rounded border bg-green-50 text-green-700 border-green-200">NORMAL</span>
+                                    @endif
+                                </td>
+
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    @if($priorityVal === 'alta')
+                                        <span class="text-xs px-3 py-1 rounded border bg-slate-800 text-white border-slate-800">ALTA</span>
+                                    @elseif($priorityVal === 'media')
+                                        <span class="text-xs px-3 py-1 rounded border bg-slate-100 text-slate-700 border-slate-300">MEDIA</span>
+                                    @elseif($priorityVal === 'baja')
+                                        <span class="text-xs px-3 py-1 rounded border bg-slate-50 text-slate-500 border-slate-200">BAJA</span>
+                                    @else
+                                        <span class="text-xs text-gray-400">—</span>
                                     @endif
                                 </td>
 
@@ -637,7 +640,7 @@
                                     @if($hasActiveFilters)
                                         No se encontraron requerimientos con los filtros aplicados.
                                     @else
-                                        No hay requerimientos de {{ $usesCategoryView ? strtolower($scopeTitle) : ($scope === 'operation' ? 'operación' : 'proyecto') }} todavía.
+                                        No hay requerimientos de {{ strtolower($scopeTitle) }} todavía.
                                     @endif
                                 </td>
                             </tr>

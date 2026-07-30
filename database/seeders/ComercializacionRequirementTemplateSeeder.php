@@ -82,24 +82,19 @@ class ComercializacionRequirementTemplateSeeder extends Seeder
                 continue;
             }
 
-            $scopes = $this->extractScopes($rowData['aplica_para'] ?? null);
+            $template = RequirementTemplate::updateOrCreate(
+                [
+                    'name' => $documentName,
+                    'asset_type_id' => $assetType->id,
+                ],
+                [
+                    'authority' => $this->normalizeRegulatoryEntity($currentAuthority),
+                    'description' => $this->buildDescription($rowData),
+                    'subtype' => $this->guessSubtype($documentName),
+                ]
+            );
 
-            foreach ($scopes as $scope) {
-                $template = RequirementTemplate::updateOrCreate(
-                    [
-                        'name' => $documentName,
-                        'asset_type_id' => $assetType->id,
-                        'compliance_scope' => $scope,
-                    ],
-                    [
-                        'authority' => $this->normalizeRegulatoryEntity($currentAuthority),
-                        'description' => $this->buildDescription($rowData),
-                        'subtype' => $this->guessSubtype($documentName),
-                    ]
-                );
-
-                $createdOrUpdated[$template->id] = true;
-            }
+            $createdOrUpdated[$template->id] = true;
         }
 
         fclose($handle);
@@ -174,39 +169,6 @@ class ComercializacionRequirementTemplateSeeder extends Seeder
         }
 
         return $result;
-    }
-
-    private function extractScopes(?string $value): array
-    {
-        $value = Str::of((string) $value)
-            ->lower()
-            ->ascii()
-            ->replace(['/', ';', '|'], ',')
-            ->replace(' y ', ',')
-            ->replaceMatches('/\s+/', ' ')
-            ->trim()
-            ->value();
-
-        if ($value === '') {
-            return ['project'];
-        }
-
-        $scopes = collect(explode(',', $value))
-            ->map(fn ($item) => trim($item))
-            ->filter()
-            ->map(function ($item) {
-                return match ($item) {
-                    'cn', 'proyecto', 'project' => 'project',
-                    'op', 'operacion', 'operation' => 'operation',
-                    default => null,
-                };
-            })
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-
-        return empty($scopes) ? ['project'] : $scopes;
     }
 
     private function buildDescription(array $rowData): ?string

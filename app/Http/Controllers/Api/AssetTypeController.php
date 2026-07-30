@@ -35,7 +35,7 @@ class AssetTypeController extends Controller
 
         $templates = RequirementTemplate::whereIn('asset_type_id', $typeIds)
             ->orderBy('name')
-            ->get(['name', 'category', 'compliance_scope'])
+            ->get(['name', 'category'])
             ->unique('name');
 
         $hasCategories = $templates->whereNotNull('category')->where('category', '!=', '')->isNotEmpty();
@@ -54,21 +54,10 @@ class AssetTypeController extends Controller
             ]);
         }
 
-        $scopeLabels = [
-            'project'   => 'Normativa de proyecto',
-            'operation' => 'Normativa de operación',
-        ];
-
-        $grouped = collect($scopeLabels)
-            ->mapWithKeys(fn ($label, $key) => [
-                $label => $templates->where('compliance_scope', $key)->pluck('name')->values(),
-            ])
-            ->filter(fn ($items) => $items->isNotEmpty());
-
         return response()->json([
             'slug'         => $slug,
             'asset_type'   => $name,
-            'requirements' => $grouped->isNotEmpty() ? $grouped : $templates->pluck('name')->values(),
+            'requirements' => $templates->pluck('name')->values(),
         ]);
     }
 }

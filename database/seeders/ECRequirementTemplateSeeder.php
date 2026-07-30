@@ -14,7 +14,7 @@ class ECRequirementTemplateSeeder extends Seeder
 
     public function run(): void
     {
-        $filePath = database_path('seeders/data/ec_checklist.csv');
+        $filePath = database_path('seeders/data/CheckList de EC.csv');
 
         if (! file_exists($filePath)) {
             $this->command?->error("No se encontró el archivo: {$filePath}");
@@ -82,24 +82,21 @@ class ECRequirementTemplateSeeder extends Seeder
                 continue;
             }
 
-            $scopes = $this->extractScopes($rowData['aplica_para'] ?? null);
+            $template = RequirementTemplate::updateOrCreate(
+                [
+                    'name' => $documentName,
+                    'asset_type_id' => $assetType->id,
+                ],
+                [
+                    'authority' => $this->normalizeRegulatoryEntity($currentAuthority),
+                    'description' => $this->buildDescription($rowData),
+                    'subtype' => $this->guessSubtype($documentName),
+                    'priority' => $this->normalizePriority($rowData['prioridad'] ?? null),
+                    'responsible_area' => $this->normalizeResponsibleArea($rowData['area_responsable'] ?? null),
+                ]
+            );
 
-            foreach ($scopes as $scope) {
-                $template = RequirementTemplate::updateOrCreate(
-                    [
-                        'name' => $documentName,
-                        'asset_type_id' => $assetType->id,
-                        'compliance_scope' => $scope,
-                    ],
-                    [
-                        'authority' => $this->normalizeRegulatoryEntity($currentAuthority),
-                        'description' => $this->buildDescription($rowData),
-                        'subtype' => $this->guessSubtype($documentName),
-                    ]
-                );
-
-                $createdOrUpdated[$template->id] = true;
-            }
+            $createdOrUpdated[$template->id] = true;
         }
 
         fclose($handle);
@@ -132,13 +129,15 @@ class ECRequirementTemplateSeeder extends Seeder
                 ->trim()
                 ->value();
 
+            if (str_starts_with($normalized, 'nivel de riesgo') || $normalized === 'prioridad') {
+                return 'prioridad';
+            }
+
             return match ($normalized) {
                 'dependencia' => 'dependencia',
-                'documento' => 'documento',
+                'documento', 'cumplimiento normativo' => 'documento',
                 'frecuencia', 'frecuencia del permiso' => 'frecuencia_permiso',
-                'aplica para', 'aplica' => 'aplica_para',
-                'tipo doc', 'tipo de documento', 'tipo documento', 'autoridad' => 'tipo_documento',
-                'area responsable tramite' => 'area_responsable_tramite',
+                'area responsable', 'area responsable tramite' => 'area_responsable',
                 default => $normalized,
             };
         })->toArray();
@@ -150,8 +149,7 @@ class ECRequirementTemplateSeeder extends Seeder
 
         return $headers->contains('dependencia')
             && $headers->contains('documento')
-            && $headers->contains('frecuencia_permiso')
-            && $headers->contains('aplica_para');
+            && $headers->contains('frecuencia_permiso');
     }
 
     private function isRepeatedHeaderRow(array $row): bool
@@ -176,39 +174,6 @@ class ECRequirementTemplateSeeder extends Seeder
         return $result;
     }
 
-    private function extractScopes(?string $value): array
-    {
-        $value = Str::of((string) $value)
-            ->lower()
-            ->ascii()
-            ->replace(['/', ';', '|'], ',')
-            ->replace(' y ', ',')
-            ->replaceMatches('/\s+/', ' ')
-            ->trim()
-            ->value();
-
-        if ($value === '') {
-            return ['project'];
-        }
-
-        $scopes = collect(explode(',', $value))
-            ->map(fn ($item) => trim($item))
-            ->filter()
-            ->map(function ($item) {
-                return match ($item) {
-                    'cn', 'proyecto', 'project' => 'project',
-                    'op', 'operacion', 'operation' => 'operation',
-                    default => null,
-                };
-            })
-            ->filter()
-            ->unique()
-            ->values()
-            ->all();
-
-        return empty($scopes) ? ['project'] : $scopes;
-    }
-
     private function buildDescription(array $rowData): ?string
     {
         $parts = [];
@@ -219,14 +184,6 @@ class ECRequirementTemplateSeeder extends Seeder
 
         if (! empty($rowData['frecuencia_permiso'])) {
             $parts[] = 'Frecuencia: ' . trim((string) $rowData['frecuencia_permiso']);
-        }
-
-        if (! empty($rowData['tipo_documento'])) {
-            $parts[] = 'Tipo documento: ' . trim((string) $rowData['tipo_documento']);
-        }
-
-        if (! empty($rowData['area_responsable_tramite'])) {
-            $parts[] = 'Área responsable: ' . trim((string) $rowData['area_responsable_tramite']);
         }
 
         return empty($parts) ? null : implode(' | ', $parts);
@@ -302,6 +259,54 @@ class ECRequirementTemplateSeeder extends Seeder
             str_contains($normalized, 'semarnat') => 'SEMARNAT',
             str_contains($normalized, 'proteccion civil') => 'PROTECCION CIVIL',
             default => mb_strtoupper($value),
+        };
+    }
+
+    /**
+     * Mapea el texto libre de "Nivel de riesgo" del checklist a alta|media|baja.
+     * No confundir con AssetRequirement::risk_level (calculado por fecha de vencimiento).
+     */
+    private function normalizePriority(?string $value): ?string
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        $normalized = Str::of($value)->lower()->ascii()->trim()->value();
+
+        return match (true) {
+            str_starts_with($normalized, 'alt') => 'alta',
+            str_starts_with($normalized, 'med') => 'media',
+            str_starts_with($normalized, 'baj') => 'baja',
+            default => null,
+        };
+    }
+
+    /**
+     * Normaliza el área responsable a un valor consistente (mayúsculas, sin
+     * acentos ni espacios extra). Los valores conocidos se van agregando aquí
+     * conforme aparecen en los checklists reales.
+     */
+    private function normalizeResponsibleArea(?string $value): ?string
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        $normalized = Str::of($value)
+            ->upper()
+            ->ascii()
+            ->replaceMatches('/\s+/', ' ')
+            ->trim()
+            ->value();
+
+        return match ($normalized) {
+            'LEGAL', 'JURIDICO', 'JURIDICA' => 'LEGAL',
+            default => $normalized,
         };
     }
 }
