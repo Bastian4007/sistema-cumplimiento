@@ -161,6 +161,10 @@ class ApprovalFlowService
      * reiniciar el flujo — solo un admin puede hacerlo (RegulationApprovalController::resubmit()),
      * y sin este aviso nadie se entera de que ya se corrigió hasta que alguien entra a revisar el
      * reglamento por su cuenta. No hace nada si el reglamento no estaba rechazado.
+     *
+     * Solo se avisa a admins con acceso al módulo de Procesos (module_access 'all' o 'procesos')
+     * — los admins de otros módulos (ej. solo Cumplimiento) no deben recibir avisos de un flujo
+     * que no les corresponde.
      */
     public function notifyIfCorrectedAfterRejection(Regulation $regulation): void
     {
@@ -171,7 +175,8 @@ class ApprovalFlowService
         $admins = User::where('group_id', $regulation->group_id)
             ->whereHas('role', fn ($q) => $q->whereIn('slug', ['admin', 'superadmin']))
             ->get()
-            ->filter(fn (User $u) => $u->canAccessCompany($regulation->company));
+            ->filter(fn (User $u) => $u->canAccessCompany($regulation->company))
+            ->filter(fn (User $u) => $u->canAccessModule('procesos'));
 
         foreach ($admins as $admin) {
             $admin->notify(new RegulationReadyToResubmitNotification($regulation));
