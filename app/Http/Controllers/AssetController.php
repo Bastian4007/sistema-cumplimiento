@@ -345,26 +345,21 @@ class AssetController extends Controller
 
         $categoryTabs = RequirementTemplate::CATEGORIES; // ['expediente'=>'Expediente','alta'=>'Alta / Modificación','baja'=>'Baja']
 
-        $scope = $request->get('scope', $usesCategoryView ? 'expediente' : 'project');
+        $scope = $request->get('scope', $usesCategoryView ? 'expediente' : 'all');
 
         if ($usesCategoryView) {
             $scopeTitle       = $categoryTabs[$scope] ?? ucfirst($scope);
             $scopeDescription = 'Visualiza el avance y estado de los requerimientos de ' . strtolower($scopeTitle) . '.';
         } else {
-            $scopeTitle = $scope === 'operation'
-                ? 'Normativa de operación'
-                : 'Normativa de proyecto';
-            $scopeDescription = $scope === 'operation'
-                ? 'Visualiza el avance, riesgo y estado de cada carpeta de cumplimiento en operación.'
-                : 'Visualiza el avance, riesgo y estado de cada carpeta de cumplimiento del proyecto.';
+            $scopeTitle       = 'Normativa';
+            $scopeDescription = 'Visualiza el avance, riesgo y estado de cada carpeta de cumplimiento.';
         }
 
         $requirementsQuery = AssetRequirement::query()
             ->with(['template'])
             ->where('asset_id', $asset->id)
             ->when($usesCategoryView,
-                fn ($q) => $q->whereHas('template', fn ($tq) => $tq->where('category', $scope)),
-                fn ($q) => $q->where('compliance_scope', $scope)
+                fn ($q) => $q->whereHas('template', fn ($tq) => $tq->where('category', $scope))
             )
             ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($subQuery) use ($search) {

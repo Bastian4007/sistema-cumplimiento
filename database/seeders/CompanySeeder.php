@@ -17,7 +17,7 @@ class CompanySeeder extends Seeder
             'FISCAL',
             'TI',
             'SOM',
-            'INMUEBLES',
+            'DAVAL',
             'MERCANTIL DISTRIBUIDORA',
             'PROPANE SERVICES',
             'SOLTRACK',

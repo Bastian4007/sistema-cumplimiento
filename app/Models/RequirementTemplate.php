@@ -53,14 +53,23 @@ class RequirementTemplate extends Model
         'otro'           => 'Otro',
     ];
 
+    // Prioridad del requisito (fija, viene del checklist) — no confundir con el
+    // risk_level calculado en AssetRequirement según cercanía a la fecha de vencimiento.
+    const PRIORITIES = [
+        'alta'  => 'Alta',
+        'media' => 'Media',
+        'baja'  => 'Baja',
+    ];
+
     protected $fillable = [
         'asset_type_id',
         'name',
         'description',
         'authority',
-        'compliance_scope',
         'category',
         'subtype',
+        'priority',
+        'responsible_area',
     ];
 
     public function company()

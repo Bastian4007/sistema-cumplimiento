@@ -28,7 +28,6 @@ class SyncAssetRequirementsService
                     'company_id' => $asset->company_id,
                     'status' => RequirementStatus::PENDING,
                     'due_date' => $this->resolveDueDate($asset),
-                    'compliance_scope' => $template->compliance_scope ?? 'project',
                     'type' => 'initial',
                 ]
             );

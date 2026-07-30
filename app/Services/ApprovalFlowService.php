@@ -87,7 +87,11 @@ class ApprovalFlowService
             $userMap = $regulation->flow_user_map ?? [];
 
             if ($status === 'rejected') {
-                $regulation->pendingApprovals()->update(['status' => 'cancelled']);
+                // "waiting" incluido: si alguien a media fila de un paso secuencial rechaza, no
+                // debe quedar el resto de la fila colgado en waiting para siempre.
+                $regulation->approvals()
+                    ->whereIn('status', ['pending', 'waiting'])
+                    ->update(['status' => 'cancelled']);
                 $regulation->update(['approval_status' => 'rejected']);
                 $this->notifyCreator($regulation, 'rejected', $comments, $approval->user);
                 return;
@@ -97,6 +101,13 @@ class ApprovalFlowService
                 $regulation->approvalStep($approval->step_number)
                     ->where('status', 'pending')
                     ->update(['status' => 'cancelled']);
+            }
+
+            // Paso secuencial ("requires_all" con varios aprobadores): si queda alguien esperando
+            // su turno en este mismo paso, le toca ahora — el paso no avanza hasta que también
+            // decida (por eso se corta aquí y no se evalúa isStepComplete todavía).
+            if ($this->promoteNextWaitingApprover($regulation, $approval->step_number)) {
+                return;
             }
 
             if ($this->isStepComplete($regulation, $approval->step_number)) {
@@ -161,6 +172,10 @@ class ApprovalFlowService
      * reiniciar el flujo — solo un admin puede hacerlo (RegulationApprovalController::resubmit()),
      * y sin este aviso nadie se entera de que ya se corrigió hasta que alguien entra a revisar el
      * reglamento por su cuenta. No hace nada si el reglamento no estaba rechazado.
+     *
+     * Solo se avisa a admins con acceso al módulo de Procesos (module_access 'all' o 'procesos')
+     * — los admins de otros módulos (ej. solo Cumplimiento) no deben recibir avisos de un flujo
+     * que no les corresponde.
      */
     public function notifyIfCorrectedAfterRejection(Regulation $regulation): void
     {
@@ -171,7 +186,8 @@ class ApprovalFlowService
         $admins = User::where('group_id', $regulation->group_id)
             ->whereHas('role', fn ($q) => $q->whereIn('slug', ['admin', 'superadmin']))
             ->get()
-            ->filter(fn (User $u) => $u->canAccessCompany($regulation->company));
+            ->filter(fn (User $u) => $u->canAccessCompany($regulation->company))
+            ->filter(fn (User $u) => $u->canAccessModule('procesos'));
 
         foreach ($admins as $admin) {
             $admin->notify(new RegulationReadyToResubmitNotification($regulation));
@@ -191,14 +207,24 @@ class ApprovalFlowService
             return;
         }
 
-        foreach ($this->resolveStepUsers($regulation, $stepDef, $userMap) as $user) {
+        $users = $this->resolveStepUsers($regulation, $stepDef, $userMap)->values();
+
+        // Cuando el paso exige que TODOS aprueben y hay más de un aprobador, van uno a la vez en
+        // el orden en que se agregaron (flow_user_map conserva ese orden) — no en paralelo: solo
+        // el primero arranca "pending", el resto arranca "waiting" hasta que le toque su turno
+        // (ver promoteNextWaitingApprover()). Si basta con uno (OR) o solo hay un aprobador, se
+        // mantiene el comportamiento de siempre: todos "pending" desde el inicio.
+        $sequential = $stepDef['requires_all'] && $users->count() > 1;
+
+        foreach ($users as $index => $user) {
             RegulationApproval::create([
                 'regulation_id'   => $regulation->id,
                 'step_number'     => $step,
                 'job_position_id' => $user->pivot_job_position_id,
                 'user_id'         => $user->id,
                 'requires_all'    => $stepDef['requires_all'],
-                'status'          => 'pending',
+                'sequence_order'  => $index,
+                'status'          => (! $sequential || $index === 0) ? 'pending' : 'waiting',
             ]);
         }
     }
@@ -253,6 +279,29 @@ class ApprovalFlowService
         return ! $regulation->approvalStep($step)
             ->where('status', 'pending')
             ->exists();
+    }
+
+    /**
+     * En un paso secuencial (ver createStepRecords()), le pasa el turno al siguiente aprobador
+     * en la fila (el "waiting" con menor sequence_order) y lo notifica. Devuelve false si no hay
+     * nadie esperando turno en este paso — o porque el paso nunca fue secuencial, o porque ya
+     * decidieron todos.
+     */
+    private function promoteNextWaitingApprover(Regulation $regulation, int $step): bool
+    {
+        $next = $regulation->approvalStep($step)
+            ->where('status', 'waiting')
+            ->orderBy('sequence_order')
+            ->first();
+
+        if (! $next) {
+            return false;
+        }
+
+        $next->update(['status' => 'pending']);
+        $next->user?->notify(new ApprovalRequestedNotification($regulation));
+
+        return true;
     }
 
     private function notifyPendingApprovers(Regulation $regulation, int $step): void

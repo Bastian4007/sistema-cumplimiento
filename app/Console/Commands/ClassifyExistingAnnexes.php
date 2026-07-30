@@ -8,16 +8,18 @@ use Illuminate\Console\Command;
 /**
  * Clasifica como anexos los documentos que ya existían antes de que se agregara la
  * columna is_annex (jul 2026), detectándolos por la palabra "anexo" en su nombre o
- * código. No los vincula a ningún documento padre — esa vinculación se hace a mano
- * desde el popover de anexos en el índice de Procesos, ya que el nombre por sí solo
- * no dice de forma confiable a qué proceso pertenece cada anexo.
+ * código, o porque su código sigue la convención "F-..." (Formato — este tipo de
+ * documento siempre es un anexo). No los vincula a ningún documento padre — esa
+ * vinculación se hace a mano desde el popover de anexos en el índice de Procesos, ya
+ * que el nombre/código por sí solos no dicen de forma confiable a qué proceso
+ * pertenece cada anexo.
  */
 class ClassifyExistingAnnexes extends Command
 {
     protected $signature = 'processes:classify-existing-annexes
                             {--dry-run : Muestra qué registros cambiarían sin guardar nada}';
 
-    protected $description = 'Marca is_annex=true en documentos ya existentes cuyo nombre o código contiene "anexo"';
+    protected $description = 'Marca is_annex=true en documentos ya existentes con "anexo" en nombre/código, o código con prefijo "F-" (Formato)';
 
     public function handle(): int
     {
@@ -30,7 +32,8 @@ class ClassifyExistingAnnexes extends Command
             ->where('is_annex', false)
             ->where(function ($query) {
                 $query->whereRaw('LOWER(name) LIKE ?', ['%anexo%'])
-                    ->orWhereRaw('LOWER(code) LIKE ?', ['%anexo%']);
+                    ->orWhereRaw('LOWER(code) LIKE ?', ['%anexo%'])
+                    ->orWhereRaw('LOWER(code) LIKE ?', ['f-%']);
             })
             ->get(['id', 'code', 'name', 'company_id', 'is_annex']);
 
