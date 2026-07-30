@@ -12,6 +12,7 @@ class RegulationApproval extends Model
         'job_position_id',
         'user_id',
         'requires_all',
+        'sequence_order',
         'status',
         'comments',
         'decided_at',
@@ -40,6 +41,11 @@ class RegulationApproval extends Model
     public function isPending(): bool
     {
         return $this->status === 'pending';
+    }
+
+    public function isWaiting(): bool
+    {
+        return $this->status === 'waiting';
     }
 
     public function isApproved(): bool

@@ -238,6 +238,10 @@
                                                 <span class="inline-flex items-center gap-1.5 text-xs text-gray-400">
                                                     <span class="h-2 w-2 rounded-full bg-gray-300"></span>Cancelado
                                                 </span>
+                                            @elseif($ap->status === 'waiting')
+                                                <span class="inline-flex items-center gap-1.5 text-xs text-gray-500" title="Todavía no le toca — va después de los anteriores en este mismo paso">
+                                                    <span class="h-2 w-2 rounded-full bg-gray-300"></span>En fila (turno #{{ $ap->sequence_order + 1 }})
+                                                </span>
                                             @else
                                                 <span class="inline-flex items-center gap-1.5 text-xs font-semibold text-yellow-700">
                                                     <span class="h-2 w-2 rounded-full bg-yellow-400 animate-pulse"></span>Pendiente
