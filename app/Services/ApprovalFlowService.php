@@ -128,6 +128,7 @@ class ApprovalFlowService
                     ]);
 
                     $this->notifyCreator($regulation, 'approved');
+                    $this->notifyApprovers($regulation);
                 }
             }
         });
@@ -365,5 +366,25 @@ class ApprovalFlowService
             'rejected' => $creator->notify(new RegulationRejectedNotification($regulation, $comments ?? '', $rejectedBy)),
             default => null,
         };
+    }
+
+    /**
+     * Avisa a todos los que votaron (aprobaron) en algún paso del flujo — para llegar a
+     * "approved" TODOS tuvieron que aprobar (o, en un paso "basta con uno", quien haya votado),
+     * así que esto es exactamente el conjunto de aprobadores reales, sin incluir a quien quedó
+     * "cancelled" sin votar. Se excluye al creador porque notifyCreator() ya le avisó aparte
+     * (evita mandarle el mismo correo dos veces si además es uno de los aprobadores).
+     */
+    private function notifyApprovers(Regulation $regulation): void
+    {
+        $approverIds = $regulation->approvals()
+            ->where('status', 'approved')
+            ->pluck('user_id')
+            ->unique()
+            ->reject(fn ($id) => $id === $regulation->created_by);
+
+        User::whereIn('id', $approverIds)->get()->each(
+            fn (User $user) => $user->notify(new RegulationApprovedNotification($regulation))
+        );
     }
 }
