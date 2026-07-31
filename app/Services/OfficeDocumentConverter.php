@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Log;
  */
 class OfficeDocumentConverter
 {
-    private const CONVERTIBLE_EXTENSIONS = ['doc', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp', 'rtf'];
+    private const CONVERTIBLE_EXTENSIONS = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp', 'rtf'];
 
     public function isConvertible(string $extension): bool
     {
