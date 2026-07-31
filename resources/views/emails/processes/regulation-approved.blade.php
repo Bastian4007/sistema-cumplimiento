@@ -26,7 +26,7 @@
         </div>
         <div class="body">
             <p>Hola <strong>{{ $notifiable->name }}</strong>,</p>
-            <p>Tu documento ha sido <strong>aprobado</strong> exitosamente y ya se encuentra vigente en el sistema.</p>
+            <p>El siguiente documento completó su flujo de aprobación exitosamente y ya se encuentra <strong>vigente</strong> en el sistema.</p>
 
             <table class="info-table">
                 <tr><td>Nombre</td><td><strong>{{ $regulation->name }}</strong></td></tr>
