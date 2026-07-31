@@ -27,6 +27,18 @@ class RegulationBodyHtmlBuilder
     private const RESPONSIBLE_COLOR = '595959';
     private const FOOTER_COLOR = '666666';
 
+    /**
+     * Ancho de contenido en puntos (Carta 8.5in = 612pt, menos 1in de margen a cada lado —
+     * mismos márgenes que usa RegulationVersionController al armar la sección del .docx). El
+     * PhpWord\Shared\Html::addHtml() de PhpWord IGNORA por completo cualquier "width"/"max-width"
+     * puesto en el style="" de un <td> si no viene expresado así — y si un <td> no trae "width"
+     * en absoluto, PhpWord no reparte el ancho de la tabla entre columnas ni las ajusta al
+     * contenido: aplica un ancho mínimo casi fijo a cada una, sin importar cuánto texto tengan
+     * ("width: 100%" en el <table> no alcanza, hay que ponerlo también en cada <td>). Por eso
+     * dataTable() siempre debe recibir anchos de columna explícitos en pt.
+     */
+    private const CONTENT_WIDTH_PT = 468;
+
     /** Debe coincidir con AiProcedureGenerationService::DIAGRAM_MARKER (mismo literal, servicios independientes). */
     public const DIAGRAM_MARKER = '{{DIAGRAMA_FLUJO}}';
 
@@ -126,7 +138,10 @@ class RegulationBodyHtmlBuilder
             ],
         ];
 
-        return $this->dataTable($header, $rows, firstColBold: true);
+        // TIPO/INDICADOR son etiquetas cortas; FÓRMULA y META/FRECUENCIA suelen traer texto largo
+        // (fórmulas, varias líneas) — sin este reparto quedan las 4 casi iguales y el texto largo
+        // se ve aplastado en una columna angosta (una palabra por línea).
+        return $this->dataTable($header, $rows, firstColBold: true, colWidthRatios: [0.12, 0.20, 0.34, 0.34]);
     }
 
     /** @return array<int, string> líneas apiladas dentro de la celda meta/frecuencia/responsable */
@@ -148,7 +163,7 @@ class RegulationBodyHtmlBuilder
             return $this->paragraph('—', '#000000');
         }
 
-        return $this->dataTable(['TÉRMINO / ABREVIATURA', 'DEFINICIÓN'], $rows, firstColBold: true);
+        return $this->dataTable(['TÉRMINO / ABREVIATURA', 'DEFINICIÓN'], $rows, firstColBold: true, colWidthRatios: [0.25, 0.75]);
     }
 
     private function activitiesBody(array $details, array $documento): string
@@ -240,13 +255,25 @@ class RegulationBodyHtmlBuilder
      *
      * @param  array<int, string>  $headerCols
      * @param  array<int, array<int, string|array<int, string>>>  $rows  Cada celda puede ser un string o un array de líneas apiladas.
+     * @param  array<int, float>  $colWidthRatios  Proporción de cada columna (no necesitan sumar 1) —
+     *                                             ver el comentario de CONTENT_WIDTH_PT: sin esto, todas
+     *                                             las columnas terminan casi igual de angostas sin
+     *                                             importar cuánto texto tengan.
      */
-    private function dataTable(array $headerCols, array $rows, bool $firstColBold = false): string
+    private function dataTable(array $headerCols, array $rows, bool $firstColBold = false, array $colWidthRatios = []): string
     {
+        $colCount = count($headerCols);
+        $ratios = $colWidthRatios !== [] ? $colWidthRatios : array_fill(0, $colCount, 1);
+        $ratioSum = array_sum($ratios) ?: 1;
+        $colWidthsPt = array_map(
+            fn ($ratio) => round(self::CONTENT_WIDTH_PT * $ratio / $ratioSum),
+            $ratios
+        );
+
         $html = '<table style="width: 100%; border-collapse: collapse;"><tr>';
 
-        foreach ($headerCols as $col) {
-            $html .= '<td bgcolor="#' . self::TABLE_HEADER_BG . '" style="border: 1px solid #000000; padding: 4px;">'
+        foreach ($headerCols as $i => $col) {
+            $html .= '<td bgcolor="#' . self::TABLE_HEADER_BG . '" style="border: 1px solid #000000; padding: 4px; width: ' . $colWidthsPt[$i] . 'pt;">'
                 . '<p style="text-align: center; margin: 0;"><span style="font-size: 9pt; color: #FFFFFF; font-weight: bold;">'
                 . $this->esc($col) . '</span></p></td>';
         }
@@ -266,7 +293,7 @@ class RegulationBodyHtmlBuilder
                     $lines !== [] ? $lines : ['—']
                 ));
 
-                $html .= '<td bgcolor="#FFFFFF" style="border: 1px solid #000000; padding: 4px;">' . $cellHtml . '</td>';
+                $html .= '<td bgcolor="#FFFFFF" style="border: 1px solid #000000; padding: 4px; width: ' . ($colWidthsPt[$i] ?? round(self::CONTENT_WIDTH_PT / $colCount)) . 'pt;">' . $cellHtml . '</td>';
             }
             $html .= '</tr>';
         }
