@@ -71,6 +71,13 @@
         {{-- Side panel --}}
         <div class="w-72 shrink-0 flex flex-col gap-3">
 
+            @if($rejectionComment)
+            <div class="bg-red-50 border border-red-300 rounded-xl p-4 text-xs text-red-800">
+                <div class="font-semibold mb-1">✕ Motivo del rechazo</div>
+                <p class="whitespace-pre-line">{{ $rejectionComment }}</p>
+            </div>
+            @endif
+
             @if($hasDraft)
             <div class="bg-yellow-50 border border-yellow-300 rounded-xl p-4 text-xs text-yellow-800">
                 <div class="font-semibold mb-1">📝 Borrador recuperado</div>
@@ -152,8 +159,17 @@
     #editor h2 { font-size: 1.2em; font-weight: 700; margin: .7em 0 .35em; }
     #editor h3 { font-size: 1.05em; font-weight: 600; margin: .6em 0 .3em; }
     #editor p  { margin: .4em 0; line-height: 1.7; }
+    {{-- Tailwind Preflight pone "list-style: none" en todo ul/ol del sitio — sin esto, las
+         viñetas/números de las listas del editor no se ven aunque el <ul>/<ol>/<li> esté ahí. --}}
     #editor ul, #editor ol { padding-left: 1.5em; margin: .4em 0; }
+    #editor ul { list-style-type: disc; }
+    #editor ol { list-style-type: decimal; }
+    #editor ul ul { list-style-type: circle; }
+    #editor ul ul ul { list-style-type: square; }
+    #editor ol ol { list-style-type: lower-alpha; }
+    #editor ol ol ol { list-style-type: lower-roman; }
     #editor li { margin: .2em 0; }
+    #editor li::marker { color: inherit; }
     #editor strong { font-weight: 700; }
     #editor em     { font-style: italic; }
     #editor u      { text-decoration: underline; }
@@ -508,6 +524,16 @@ function setStatus(msg, isError = false) {
 }
 
 // ── Lock badge countdown ──────────────────────────────────────────────────────
+let warned5min = false;
+
+function showLockWarningToast() {
+    const toast = document.createElement('div');
+    toast.className = 'fixed top-16 right-4 z-50 max-w-sm bg-orange-50 border border-orange-300 text-orange-800 text-sm rounded-lg shadow-lg px-4 py-3 flex items-start gap-2';
+    toast.innerHTML = '<span>⏰</span><div><strong>El bloqueo expira en menos de 5 minutos.</strong><br>Guarda tus cambios pronto para no perder el acceso de edición.</div>';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 8000);
+}
+
 function updateLockBadge() {
     const remaining = Math.max(0, Math.round((lockExpiresAt - Date.now()) / 1000));
     const min = Math.floor(remaining / 60);
@@ -521,9 +547,14 @@ function updateLockBadge() {
     } else if (remaining < LOCK_WARN_SECS) {
         badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-700 border border-orange-300';
         label.textContent = `Expira en ${min}:${sec}`;
+        if (!warned5min) {
+            warned5min = true;
+            showLockWarningToast();
+        }
     } else {
         badge.className = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-300';
         label.textContent = `Bloqueado — ${min}:${sec}`;
+        warned5min = false;
     }
 }
 setInterval(updateLockBadge, 1000);

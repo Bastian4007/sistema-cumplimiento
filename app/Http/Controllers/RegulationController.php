@@ -235,17 +235,7 @@ class RegulationController extends Controller
             : collect();
 
         // Lock info for the edit button
-        $editLock = null;
-        if ($currentVersion && $currentVersion->editing_by && $currentVersion->editing_expires_at?->isFuture()) {
-            $lockUser = User::find($currentVersion->editing_by);
-            $editLock = [
-                'by_me'     => $currentVersion->editing_by === $user->id,
-                'user_name' => $lockUser?->name ?? 'otro usuario',
-                'expires'   => $currentVersion->editing_expires_at->format('H:i'),
-                'has_draft' => $currentVersion->editing_by === $user->id && $currentVersion->draft_html !== null,
-                'draft_at'  => $currentVersion->draft_saved_at?->format('H:i'),
-            ];
-        }
+        $editLock = $this->buildEditLock($currentVersion, $user);
 
         return view('processes.show', [
             'regulation'             => $regulation,
@@ -284,7 +274,31 @@ class RegulationController extends Controller
             ->get()
             ->groupBy('step_number');
 
-        return view('processes.flow', compact('regulation', 'approvals', 'pendingApprovalForUser'));
+        $currentVersion = $regulation->versions()->where('is_current', true)->first();
+        $editLock       = $this->buildEditLock($currentVersion, $user);
+
+        return view('processes.flow', compact('regulation', 'approvals', 'pendingApprovalForUser', 'currentVersion', 'editLock'));
+    }
+
+    /**
+     * Mismo criterio usado por show() y flowView() para decidir si el botón "Editar" de la
+     * versión actual debe estar habilitado, bloqueado por otro usuario, o retomando un borrador.
+     */
+    private function buildEditLock(?RegulationVersion $currentVersion, User $user): ?array
+    {
+        if (! $currentVersion || ! $currentVersion->editing_by || ! $currentVersion->editing_expires_at?->isFuture()) {
+            return null;
+        }
+
+        $lockUser = User::find($currentVersion->editing_by);
+
+        return [
+            'by_me'     => $currentVersion->editing_by === $user->id,
+            'user_name' => $lockUser?->name ?? 'otro usuario',
+            'expires'   => $currentVersion->editing_expires_at->format('H:i'),
+            'has_draft' => $currentVersion->editing_by === $user->id && $currentVersion->draft_html !== null,
+            'draft_at'  => $currentVersion->draft_saved_at?->format('H:i'),
+        ];
     }
 
     private const AI_DRAFT_SESSION_KEY = 'ai_procedure_draft';
