@@ -175,10 +175,42 @@ class AiProcedureGenerationService
         }
 
         $replacement = $png !== null
-            ? '<img src="data:image/png;base64,' . base64_encode($png) . '" style="max-width:100%;" />'
+            ? '<img src="data:image/png;base64,' . base64_encode($png) . '"' . $this->imageDimensionAttrs($png) . ' />'
             : $fallback;
 
         return str_replace(self::DIAGRAM_MARKER, $replacement, $html);
+    }
+
+    /**
+     * Devuelve los atributos width/height (en px) que hay que ponerle al <img> del diagrama para
+     * que quepa en el ancho de contenido de la página — PhpWord\Shared\Html::addHtml() SOLO lee
+     * las dimensiones de una imagen de los atributos width/height del <img>, nunca de su style=""
+     * (por eso el "max-width:100%" que se usaba antes no hacía nada: el diagrama se insertaba a su
+     * ancho nativo en píxeles, casi siempre mucho más ancho que la página, y Word lo recortaba en
+     * vez de encogerlo). El diagrama de mermaid-cli suele salir bastante más ancho que alto (varios
+     * carriles en fila), así que casi siempre hay que reducir el ancho y mantener la proporción.
+     */
+    private function imageDimensionAttrs(string $png): string
+    {
+        $info = @getimagesizefromstring($png);
+
+        if (! $info || empty($info[0]) || empty($info[1])) {
+            return '';
+        }
+
+        [$width, $height] = $info;
+
+        // 624px = 6.5in de contenido en Carta (mismo ancho que RegulationBodyHtmlBuilder::CONTENT_WIDTH_PT
+        // representa en puntos: 468pt / 72pt-por-in = 6.5in), convertido a la equivalencia de 96px/in
+        // que PhpWord asume para los atributos width/height del <img> (Converter::INCH_TO_PIXEL).
+        $maxWidth = 624;
+
+        if ($width > $maxWidth) {
+            $height = (int) round($height * ($maxWidth / $width));
+            $width = $maxWidth;
+        }
+
+        return sprintf(' width="%d" height="%d"', $width, $height);
     }
 
     /**

@@ -36,6 +36,7 @@ class RegulationDocxHeaderBuilder
 
         $table = $header->addTable([
             'borderColor' => self::BORDER,
+            
             'borderSize'  => 4,
             'unit'        => 'pct',
             'width'       => 100 * 50,

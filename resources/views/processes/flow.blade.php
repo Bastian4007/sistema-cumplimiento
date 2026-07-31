@@ -63,61 +63,109 @@
 
         {{-- Alerta: aprobación pendiente del usuario actual --}}
         @if($pendingApprovalForUser)
-            <div x-data="{ showReject: false }" class="mt-6 rounded-xl border border-yellow-200 bg-yellow-50 p-5">
+            <div x-data="{ showApprove: false, showReject: false }" class="mt-6 rounded-xl border border-yellow-200 bg-yellow-50 p-5">
                 <p class="text-sm font-semibold text-yellow-800 mb-4">
                     Tienes una aprobación pendiente en este documento — Paso {{ $pendingApprovalForUser->step_number }}
                     ({{ $pendingApprovalForUser->jobPosition->name ?? '' }}).
                 </p>
 
                 <div class="flex items-center gap-3 flex-wrap">
-                    <form method="POST" action="{{ route('processes.approve', $regulation) }}">
-                        @csrf
-                        <button type="submit"
-                                onclick="return confirm('¿Confirmas la aprobación de este documento?')"
-                                class="px-4 py-2 rounded-lg bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
-                            Aprobar
-                        </button>
-                    </form>
                     <button type="button"
-                            @click="showReject = !showReject"
+                            @click="showApprove = true"
+                            class="px-4 py-2 rounded-lg bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                        Aprobar
+                    </button>
+                    <button type="button"
+                            @click="showReject = true"
                             class="px-4 py-2 rounded-lg border border-red-300 text-red-600 text-sm font-semibold hover:bg-red-50">
                         Rechazar
                     </button>
                 </div>
 
-                {{-- Formulario de rechazo --}}
-                <div x-show="showReject"
-                     x-transition:enter="transition ease-out duration-150"
-                     x-transition:enter-start="opacity-0 -translate-y-1"
-                     x-transition:enter-end="opacity-100 translate-y-0"
-                     class="mt-4 border-t border-yellow-200 pt-4"
+                {{-- Modal de confirmación de aprobación --}}
+                <div x-show="showApprove"
+                     x-transition.opacity
+                     class="fixed inset-0 z-50 flex items-center justify-center p-4"
                      style="display:none;">
-                    <form method="POST" action="{{ route('processes.reject', $regulation) }}" class="space-y-3">
-                        @csrf
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">
-                                Motivo del rechazo <span class="text-red-500">*</span>
-                            </label>
-                            <textarea name="comments"
-                                      rows="3"
-                                      required
-                                      placeholder="Describe el motivo del rechazo para que el creador pueda corregirlo..."
-                                      class="w-full rounded-md border-gray-300 text-sm focus:border-red-400 focus:ring-red-400"></textarea>
-                            @error('comments')
-                                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
-                            @enderror
+                    <div class="absolute inset-0 bg-black/40" @click="showApprove = false"></div>
+                    <div class="relative bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 text-center">
+                        <div class="flex items-center justify-center w-12 h-12 rounded-full bg-blue-100 mx-auto mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-[#1A428A]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
                         </div>
-                        <button type="submit"
-                                class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700">
-                            Confirmar rechazo
-                        </button>
-                    </form>
+                        <h3 class="text-base font-bold text-gray-900 mb-1">Confirmar aprobación</h3>
+                        <p class="text-sm text-gray-500 mb-6">
+                            ¿Aprobar <span class="font-semibold text-gray-800">«{{ $regulation->name }}»</span>?<br>
+                            Esta acción no se puede deshacer.
+                        </p>
+                        <div class="flex gap-3">
+                            <button type="button"
+                                    @click="showApprove = false"
+                                    class="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50">
+                                Cancelar
+                            </button>
+                            <form method="POST" action="{{ route('processes.approve', $regulation) }}" class="flex-1">
+                                @csrf
+                                <button type="submit"
+                                        class="w-full px-4 py-2 rounded-lg bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                                    Sí, aprobar
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                {{-- Modal de confirmación de rechazo --}}
+                <div x-show="showReject"
+                     x-transition.opacity
+                     class="fixed inset-0 z-50 flex items-center justify-center p-4"
+                     style="display:none;">
+                    <div class="absolute inset-0 bg-black/40" @click="showReject = false"></div>
+                    <div class="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+                        <div class="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 mx-auto mb-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </div>
+                        <h3 class="text-base font-bold text-gray-900 mb-1 text-center">Confirmar rechazo</h3>
+                        <p class="text-sm text-gray-500 mb-4 text-center">
+                            ¿Rechazar <span class="font-semibold text-gray-800">«{{ $regulation->name }}»</span>?
+                        </p>
+                        <form method="POST" action="{{ route('processes.reject', $regulation) }}" class="space-y-3">
+                            @csrf
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Motivo del rechazo <span class="text-red-500">*</span>
+                                </label>
+                                <textarea name="comments"
+                                          rows="3"
+                                          required
+                                          placeholder="Describe el motivo del rechazo para que el creador pueda corregirlo..."
+                                          class="w-full rounded-md border-gray-300 text-sm focus:border-red-400 focus:ring-red-400"></textarea>
+                                @error('comments')
+                                    <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                                @enderror
+                            </div>
+                            <div class="flex gap-3">
+                                <button type="button"
+                                        @click="showReject = false"
+                                        class="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-semibold hover:bg-gray-50">
+                                    Cancelar
+                                </button>
+                                <button type="submit"
+                                        class="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700">
+                                    Confirmar rechazo
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
         @endif
 
-        {{-- Alerta: rechazado — re-enviar (solo admins) --}}
-        @if($regulation->isRejected() && auth()->user()->isAdmin())
+        {{-- Alerta: rechazado — editar y re-enviar --}}
+        @if($regulation->isRejected())
             <div class="mt-6 flex items-center justify-between gap-4 rounded-xl border border-red-200 bg-red-50 px-5 py-4">
                 <div>
                     <p class="text-sm font-semibold text-red-700">Documento rechazado</p>
@@ -125,14 +173,19 @@
                         Corrige los puntos indicados y re-envía a aprobación para reiniciar el flujo desde el paso 1.
                     </p>
                 </div>
-                <form method="POST" action="{{ route('processes.resubmit', $regulation) }}">
-                    @csrf
-                    <button type="submit"
-                            onclick="return confirm('¿Re-enviar este documento a aprobación? El flujo se reiniciará desde el paso 1.')"
-                            class="shrink-0 px-4 py-2 rounded-lg bg-[#1A428A] text-white text-sm font-semibold hover:bg-blue-800">
-                        Re-enviar a aprobación
-                    </button>
-                </form>
+                <div class="shrink-0 flex items-center gap-2">
+                    @include('processes.partials.edit-version-button', ['regulation' => $regulation, 'currentVersion' => $currentVersion, 'editLock' => $editLock])
+                    @if(auth()->user()->isAdmin())
+                        <form method="POST" action="{{ route('processes.resubmit', $regulation) }}">
+                            @csrf
+                            <button type="submit"
+                                    onclick="return confirm('¿Re-enviar este documento a aprobación? El flujo se reiniciará desde el paso 1.')"
+                                    class="px-4 py-2 rounded-lg bg-[#1A428A] text-white text-sm font-semibold hover:bg-blue-800">
+                                Re-enviar a aprobación
+                            </button>
+                        </form>
+                    @endif
+                </div>
             </div>
         @endif
 

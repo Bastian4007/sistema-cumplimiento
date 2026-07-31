@@ -190,31 +190,6 @@
                         @endif
                     </div>
 
-                    {{-- Formulario de rechazo --}}
-                    <div x-show="showReject" x-transition.opacity class="px-6 pb-4">
-                        <form method="POST" action="{{ route('processes.reject', $regulation) }}"
-                              @submit.prevent="if ($el.querySelector('textarea').value.trim() === '') { $el.querySelector('textarea').focus(); return; } $el.submit();">
-                            @csrf
-                            <div class="bg-red-50 border border-red-200 rounded-xl p-4">
-                                <label class="block text-sm font-semibold text-red-700 mb-2">
-                                    Motivo de rechazo <span class="text-red-500">*</span>
-                                </label>
-                                <textarea name="comments" rows="3" required
-                                          placeholder="Describe el motivo del rechazo..."
-                                          class="w-full rounded-md border-red-200 text-sm focus:border-red-400 focus:ring-red-400 resize-none"></textarea>
-                                <div class="flex items-center gap-2 mt-3">
-                                    <button type="submit" class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700">
-                                        Confirmar rechazo
-                                    </button>
-                                    <button type="button" @click="showReject = false"
-                                            class="px-4 py-2 rounded-lg border border-gray-300 text-gray-600 text-sm font-semibold hover:bg-gray-50">
-                                        Cancelar
-                                    </button>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-
                     {{-- Footer: acciones --}}
                     <div class="px-6 py-4 bg-gray-50 border-t flex items-center justify-between gap-3 flex-wrap">
 
@@ -229,11 +204,49 @@
 
                         <div class="flex items-center gap-2">
                             <button type="button"
-                                    @click="showReject = !showReject"
-                                    :class="showReject ? 'bg-red-50 border-red-300 text-red-700' : 'bg-white border-gray-300 text-gray-700 hover:bg-red-50 hover:border-red-300 hover:text-red-700'"
-                                    class="px-4 py-2 rounded-lg border text-sm font-semibold transition-colors">
+                                    @click="showReject = true"
+                                    class="px-4 py-2 rounded-lg border bg-white border-gray-300 text-gray-700 hover:bg-red-50 hover:border-red-300 hover:text-red-700 text-sm font-semibold transition-colors">
                                 Rechazar
                             </button>
+
+                            {{-- Modal de confirmación de rechazo --}}
+                            <div x-show="showReject"
+                                 x-transition.opacity
+                                 class="fixed inset-0 z-50 flex items-center justify-center p-4"
+                                 style="display:none;">
+                                <div class="absolute inset-0 bg-black/40" @click="showReject = false"></div>
+                                <div class="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+                                    <div class="flex items-center justify-center w-12 h-12 rounded-full bg-red-100 mx-auto mb-4">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+                                        </svg>
+                                    </div>
+                                    <h3 class="text-base font-bold text-gray-900 mb-1 text-center">Confirmar rechazo</h3>
+                                    <p class="text-sm text-gray-500 mb-4 text-center">
+                                        ¿Rechazar <span class="font-semibold text-gray-800">«{{ $regulation->name }}»</span>?
+                                    </p>
+                                    <form method="POST" action="{{ route('processes.reject', $regulation) }}" class="space-y-3">
+                                        @csrf
+                                        <div>
+                                            <label class="block text-sm font-semibold text-red-700 mb-2">
+                                                Motivo de rechazo <span class="text-red-500">*</span>
+                                            </label>
+                                            <textarea name="comments" rows="3" required
+                                                      placeholder="Describe el motivo del rechazo..."
+                                                      class="w-full rounded-md border-red-200 text-sm focus:border-red-400 focus:ring-red-400 resize-none"></textarea>
+                                        </div>
+                                        <div class="flex gap-3">
+                                            <button type="button" @click="showReject = false"
+                                                    class="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-600 text-sm font-semibold hover:bg-gray-50">
+                                                Cancelar
+                                            </button>
+                                            <button type="submit" class="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700">
+                                                Confirmar rechazo
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
 
                             <button type="button"
                                     @click="showConfirm = true"

@@ -202,6 +202,15 @@ class Regulation extends Model
         return $this->approval_status === 'rejected';
     }
 
+    public function latestRejectionComment(): ?string
+    {
+        return $this->approvals()
+            ->where('status', 'rejected')
+            ->latest('decided_at')
+            ->first()
+            ?->comments;
+    }
+
     public function approvalStatusLabel(): string
     {
         return self::APPROVAL_STATUSES[$this->approval_status] ?? $this->approval_status;

@@ -165,7 +165,9 @@ class RegulationVersionController extends Controller
 
         $regulation = $version->regulation;
 
-        return view('regulation-versions.edit', compact('version', 'regulation', 'bodyHtml', 'hasDraft'));
+        $rejectionComment = $regulation->isRejected() ? $regulation->latestRejectionComment() : null;
+
+        return view('regulation-versions.edit', compact('version', 'regulation', 'bodyHtml', 'hasDraft', 'rejectionComment'));
     }
 
     public function saveDraft(Request $request, RegulationVersion $version)
@@ -618,6 +620,34 @@ HTML;
         $this->authorizeVersionAccess($version, $user);
 
         abort_unless($version->file_path && Storage::disk('private')->exists($version->file_path), 404);
+
+        $ext = strtolower(pathinfo($version->original_name ?? $version->file_path, PATHINFO_EXTENSION));
+
+        // Por ahora solo .docx: se descarga siempre como PDF sin importar que se haya guardado en
+        // ese formato — mismo PDF cacheado (y mismo sidecar ".preview.pdf") que ya usa preview()
+        // para otros formatos de Office. file_path es inmutable por versión (cada edición crea una
+        // versión nueva, ver saveEdit()), así que este PDF cacheado nunca queda desactualizado.
+        if ($ext === 'docx') {
+            $converter = app(OfficeDocumentConverter::class);
+            $previewPath = $version->file_path . '.preview.pdf';
+
+            if (! Storage::disk('private')->exists($previewPath)) {
+                $pdf = $converter->toPdf(Storage::disk('private')->path($version->file_path), 'docx');
+
+                if ($pdf !== null) {
+                    Storage::disk('private')->put($previewPath, $pdf);
+                }
+            }
+
+            if (Storage::disk('private')->exists($previewPath)) {
+                $downloadName = pathinfo($version->original_name ?? basename($version->file_path), PATHINFO_FILENAME) . '.pdf';
+
+                return Storage::disk('private')->download($previewPath, $downloadName);
+            }
+
+            // LibreOffice no disponible / la conversión falló: cae a descargar el .docx original
+            // en vez de romper la descarga por completo.
+        }
 
         return Storage::disk('private')->download(
             $version->file_path,
