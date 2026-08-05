@@ -480,6 +480,7 @@
                                         <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800 w-24">Fecha</th>
                                         <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800">Elaboró</th>
                                         <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800">Descripción del cambio</th>
+                                        <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800">Justificación</th>
                                         <th class="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-800">Aprobó</th>
                                     </tr>
                                 </thead>
@@ -490,11 +491,12 @@
                                         <td class="border border-gray-300 px-3 py-2">{{ $v->issued_at?->format('d/m/Y') ?? $v->created_at->format('d/m/Y') }}</td>
                                         <td class="border border-gray-300 px-3 py-2 text-gray-600">{{ $v->uploader?->name ?? $d['quien_elabora'] ?? '—' }}</td>
                                         <td class="border border-gray-300 px-3 py-2 text-gray-700">{{ $v->change_description ?: ($v->version_number == 1 ? 'Creación inicial del documento' : '—') }}</td>
+                                        <td class="border border-gray-300 px-3 py-2 text-gray-700">{{ $v->change_justification ?: '—' }}</td>
                                         <td class="border border-gray-300 px-3 py-2 text-gray-600">{{ $d['quien_aprueba'] ?? '—' }}</td>
                                     </tr>
                                     @empty
                                     <tr>
-                                        <td colspan="5" class="border border-gray-300 px-3 py-2 text-gray-400 text-center italic">Sin versiones registradas</td>
+                                        <td colspan="6" class="border border-gray-300 px-3 py-2 text-gray-400 text-center italic">Sin versiones registradas</td>
                                     </tr>
                                     @endforelse
                                 </tbody>
@@ -603,8 +605,8 @@
         {{-- Columnas: subir + versión actual --}}
         <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-            {{-- Subir nueva versión --}}
-            @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
+            {{-- Subir nueva versión — solo admins; "Editar" (editor de texto) sigue abierto a operativos --}}
+            @if(auth()->user()->isAdmin())
                 <div class="bg-white border rounded-xl overflow-hidden">
                     <div class="p-5 border-b">
                         <div class="font-semibold text-[#1A428A]">
@@ -793,10 +795,15 @@
                                 </div>
 
                                 {{-- Razón del cambio --}}
-                                <div class="w-56 shrink-0 border-l bg-gray-50 px-4 py-4 flex items-center">
+                                <div class="w-56 shrink-0 border-l bg-gray-50 px-4 py-4 flex flex-col justify-center gap-1.5">
                                     <span class="text-xs text-gray-600 leading-relaxed">
                                         {{ $v->change_description ?: '—' }}
                                     </span>
+                                    @if($v->change_justification)
+                                        <span class="text-xs text-gray-500 leading-relaxed">
+                                            <span class="font-semibold text-gray-600">Justificación:</span> {{ $v->change_justification }}
+                                        </span>
+                                    @endif
                                 </div>
 
                                 {{-- Acciones --}}

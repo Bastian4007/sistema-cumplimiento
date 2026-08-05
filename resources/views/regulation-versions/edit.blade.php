@@ -91,7 +91,15 @@
                 <textarea id="changeDesc" rows="4"
                           placeholder="¿Qué se modificó?"
                           class="block w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]"></textarea>
-                <p class="text-xs text-gray-400 mt-2">Los cambios en amarillo quedan visibles al abrir el .docx en Word.</p>
+                <p class="text-xs text-gray-400 mt-2 mb-3">Los cambios en amarillo quedan visibles al abrir el .docx en Word.</p>
+
+                <label class="block text-xs font-medium text-gray-600 mb-1">
+                    Justificación del cambio <span class="text-red-500">*</span>
+                </label>
+                <textarea id="changeJustification" rows="3"
+                          placeholder="¿Por qué se hizo este cambio?"
+                          class="block w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A]"></textarea>
+                <p id="justificationError" class="text-xs text-red-600 mt-1 hidden">Explica por qué se hizo este cambio antes de guardar.</p>
             </div>
 
             <div class="bg-gray-50 border border-gray-200 rounded-xl p-4 text-xs text-gray-500">
@@ -106,8 +114,9 @@
 {{-- Hidden save form --}}
 <form id="saveForm" method="POST" action="{{ route('regulation-versions.saveEdit', $version) }}" class="hidden">
     @csrf
-    <input type="hidden" id="contentInput"  name="content" value="">
-    <input type="hidden" id="descInput"     name="change_description" value="">
+    <input type="hidden" id="contentInput"        name="content" value="">
+    <input type="hidden" id="descInput"           name="change_description" value="">
+    <input type="hidden" id="justificationInput"  name="change_justification" value="">
 </form>
 
 {{-- Cancel modal --}}
@@ -417,8 +426,24 @@ const PreserveInlineStyle = Extension.create({
                 renderHTML: attrs => attrs.bgcolor ? { bgcolor: attrs.bgcolor } : {},
             },
         };
+        // El Image de TipTap solo modela src/alt/title — sin esto, el diagrama de flujo pierde
+        // su width/height (los que lo encogen a 6.5in) en cuanto se abre/guarda una vez en este
+        // editor, y el siguiente .docx lo incrusta a su resolución nativa (mucho más ancho que la página).
+        const rawDimensions = {
+            width: {
+                default: null,
+                parseHTML: el => el.getAttribute('width'),
+                renderHTML: attrs => attrs.width ? { width: attrs.width } : {},
+            },
+            height: {
+                default: null,
+                parseHTML: el => el.getAttribute('height'),
+                renderHTML: attrs => attrs.height ? { height: attrs.height } : {},
+            },
+        };
         return [
-            { types: ['paragraph', 'table', 'tableRow', 'image'], attributes: rawStyle },
+            { types: ['paragraph', 'table', 'tableRow'], attributes: rawStyle },
+            { types: ['image'], attributes: { ...rawStyle, ...rawDimensions } },
             { types: ['tableCell', 'tableHeader'], attributes: { ...rawStyle, ...rawBgcolor } },
             { types: ['textStyle'], attributes: rawStyle },
         ];
@@ -487,6 +512,20 @@ document.getElementById('toolbar').addEventListener('click', e => {
     else if (c === 'clearHighlight') ch.unsetHighlight().run();
 });
 
+// El navegador normaliza cualquier "color:#RRGGBB" que llega en el HTML a "color: rgb(r, g, b)"
+// al serializarlo de vuelta (editor.getHTML()) — PhpWord\Shared\Html::addHtml() (usado al armar
+// el .docx en el servidor) solo entiende colores en hex y descarta silenciosamente cualquier
+// rgb(), dejando el texto en negro por defecto. Se revierte a hex aquí, antes de guardar.
+function rgbToHex(html) {
+    return html.replace(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*[\d.]+\s*)?\)/g, (_, r, g, b) => {
+        const toHex = n => Number(n).toString(16).padStart(2, '0');
+        return '#' + toHex(r) + toHex(g) + toHex(b);
+    });
+}
+function getContentForSave() {
+    return rgbToHex(editor.getHTML());
+}
+
 // ── Auto-save + lock renewal ─────────────────────────────────────────────────
 let dirty = false;
 let autoSaveTimer = null;
@@ -504,7 +543,7 @@ async function doAutoSave() {
         const res = await fetch(DRAFT_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
-            body: JSON.stringify({ content: editor.getHTML() }),
+            body: JSON.stringify({ content: getContentForSave() }),
         });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
@@ -572,14 +611,24 @@ function hideSaveModal() {
     m.classList.remove('flex');
 }
 
-document.getElementById('saveBtn').addEventListener('click', showSaveModal);
+document.getElementById('saveBtn').addEventListener('click', () => {
+    const justification = document.getElementById('changeJustification').value.trim();
+    if (!justification) {
+        document.getElementById('justificationError').classList.remove('hidden');
+        document.getElementById('changeJustification').focus();
+        return;
+    }
+    document.getElementById('justificationError').classList.add('hidden');
+    showSaveModal();
+});
 document.getElementById('cancelSaveBtn').addEventListener('click', hideSaveModal);
 
 document.getElementById('confirmSaveBtn').addEventListener('click', () => {
     clearTimeout(autoSaveTimer);
     dirty = false;   // evita el diálogo nativo "¿Deseas abandonar el sitio?"
-    document.getElementById('contentInput').value = editor.getHTML();
-    document.getElementById('descInput').value    = document.getElementById('changeDesc').value.trim();
+    document.getElementById('contentInput').value       = getContentForSave();
+    document.getElementById('descInput').value          = document.getElementById('changeDesc').value.trim();
+    document.getElementById('justificationInput').value = document.getElementById('changeJustification').value.trim();
     document.getElementById('saveForm').submit();
 });
 
@@ -623,7 +672,7 @@ window.addEventListener('beforeunload', e => {
     if (dirty) {
         // Trigger a best-effort auto-save (may not complete before close)
         navigator.sendBeacon(DRAFT_URL,
-            new Blob([JSON.stringify({ content: editor.getHTML(), _token: CSRF })],
+            new Blob([JSON.stringify({ content: getContentForSave(), _token: CSRF })],
                      { type: 'application/json' })
         );
         e.preventDefault();

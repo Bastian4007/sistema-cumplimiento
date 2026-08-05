@@ -14,6 +14,7 @@ class RegulationVersion extends Model
         'regulation_id',
         'version_number',
         'change_description',
+        'change_justification',
         'body_html',
         'file_path',
         'original_name',
