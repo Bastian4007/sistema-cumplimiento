@@ -199,6 +199,7 @@
                         <th bgcolor="#002060" class="border border-gray-300 px-3 py-2 text-center font-semibold text-white w-24">Fecha</th>
                         <th bgcolor="#002060" class="border border-gray-300 px-3 py-2 text-center font-semibold text-white">Elaboró</th>
                         <th bgcolor="#002060" class="border border-gray-300 px-3 py-2 text-center font-semibold text-white">Descripción del cambio</th>
+                        <th bgcolor="#002060" class="border border-gray-300 px-3 py-2 text-center font-semibold text-white">Justificación</th>
                         <th bgcolor="#002060" class="border border-gray-300 px-3 py-2 text-center font-semibold text-white">Aprobó</th>
                     </tr>
                 </thead>
@@ -209,11 +210,12 @@
                         <td class="border border-gray-300 px-3 py-2 text-center">{{ $v->issued_at?->format('d/m/Y') ?? $v->created_at->format('d/m/Y') }}</td>
                         <td class="border border-gray-300 px-3 py-2 text-gray-600">{{ $v->uploader?->name ?? $d['quien_elabora'] ?? '—' }}</td>
                         <td class="border border-gray-300 px-3 py-2 text-gray-700">{{ $v->change_description ?: ($v->version_number == 1 ? 'Creación inicial del documento' : '—') }}</td>
+                        <td class="border border-gray-300 px-3 py-2 text-gray-700">{{ $v->change_justification ?: '—' }}</td>
                         <td class="border border-gray-300 px-3 py-2 text-gray-600">{{ $d['quien_aprueba'] ?? '—' }}</td>
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="5" class="border border-gray-300 px-3 py-4 text-gray-400 text-center italic">Sin versiones registradas</td>
+                        <td colspan="6" class="border border-gray-300 px-3 py-4 text-gray-400 text-center italic">Sin versiones registradas</td>
                     </tr>
                     @endforelse
                 </tbody>

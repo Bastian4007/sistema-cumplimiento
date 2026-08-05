@@ -24,7 +24,9 @@ class RegulationVersionController extends Controller
     {
         $user = auth()->user();
 
-        abort_unless($user->isAdmin() || $user->isOperative(), 403);
+        // Solo admins pueden subir un archivo como nueva versión — a diferencia de "Editar", que
+        // sigue abierto a operativos.
+        abort_unless($user->isAdmin(), 403);
         abort_unless($user->canAccessCompany($regulation->company), 403);
 
         $data = $request->validate([
@@ -293,14 +295,16 @@ class RegulationVersionController extends Controller
         abort_unless($version->editing_by === $user->id, 403, 'No tienes el bloqueo de edición.');
 
         $data = $request->validate([
-            'content'            => ['required', 'string'],
-            'change_description' => ['nullable', 'string', 'max:1000'],
+            'content'               => ['required', 'string'],
+            'change_description'   => ['nullable', 'string', 'max:1000'],
+            'change_justification' => ['required', 'string', 'max:1000'],
         ]);
 
         $regulation = $version->regulation;
 
         $content = $data['content'];
         $changeDescription = $data['change_description'] ?? null;
+        $changeJustification = $data['change_justification'];
 
         if ($version->body_html || ($version->file_path && Storage::disk('private')->exists($version->file_path))) {
             $oldHtml = $version->body_html ?: $this->docxToHtml(Storage::disk('private')->path($version->file_path));
@@ -350,7 +354,7 @@ class RegulationVersionController extends Controller
         $tmp = tempnam(sys_get_temp_dir(), 'edited_docx_');
         IOFactory::createWriter($phpWord, 'Word2007')->save($tmp);
 
-        DB::transaction(function () use ($regulation, $version, $tmp, $user, $changeDescription, $next, $html) {
+        DB::transaction(function () use ($regulation, $version, $tmp, $user, $changeDescription, $changeJustification, $next, $html) {
             $regulation->versions()->where('is_current', true)->update(['is_current' => false]);
 
             $rawName     = pathinfo($version->original_name ?? 'documento.docx', PATHINFO_FILENAME);
@@ -361,19 +365,20 @@ class RegulationVersionController extends Controller
             Storage::disk('private')->put($storagePath, file_get_contents($tmp));
 
             RegulationVersion::create([
-                'regulation_id'      => $regulation->id,
-                'version_number'     => $next,
-                'change_description' => $changeDescription ?: 'Editado en línea',
-                'body_html'          => $html,
-                'responsible_name'   => $user->name,
-                'file_path'          => $storagePath,
-                'original_name'      => $newName,
-                'disk'               => 'private',
-                'mime_type'          => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                'issued_at'          => now()->toDateString(),
-                'valid_until'        => $version->valid_until,
-                'is_current'         => true,
-                'uploaded_by'        => $user->id,
+                'regulation_id'         => $regulation->id,
+                'version_number'        => $next,
+                'change_description'    => $changeDescription ?: 'Editado en línea',
+                'change_justification'  => $changeJustification,
+                'body_html'             => $html,
+                'responsible_name'      => $user->name,
+                'file_path'             => $storagePath,
+                'original_name'         => $newName,
+                'disk'                  => 'private',
+                'mime_type'             => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'issued_at'             => now()->toDateString(),
+                'valid_until'           => $version->valid_until,
+                'is_current'            => true,
+                'uploaded_by'           => $user->id,
             ]);
 
             // Release lock and clear draft on the original version

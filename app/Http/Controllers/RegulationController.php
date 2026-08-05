@@ -720,7 +720,8 @@ class RegulationController extends Controller
     public function cargar(Request $request)
     {
         $user = auth()->user();
-        abort_unless($user->isAdmin() || $user->isOperative(), 403);
+        // Cargar un documento por archivo — solo admins; crear vía wizard de IA sigue abierto a operativos.
+        abort_unless($user->isAdmin(), 403);
 
         $selectedCompanyId = $user->hasGroupScope()
             ? ($request->filled('company_id') ? (int) $request->company_id : null)
@@ -745,7 +746,7 @@ class RegulationController extends Controller
     public function storeCargar(Request $request)
     {
         $user = auth()->user();
-        abort_unless($user->isAdmin() || $user->isOperative(), 403);
+        abort_unless($user->isAdmin(), 403);
 
         $data = $request->validate([
             'company_id'       => ['required', 'exists:companies,id'],

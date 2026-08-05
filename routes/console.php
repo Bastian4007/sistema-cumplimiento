@@ -19,3 +19,6 @@ Schedule::command('documents:purge-trash')
 
 Schedule::command('licenses:check')
     ->dailyAt('07:00');
+
+Schedule::command('approvals:notify-reminders')
+    ->dailyAt('08:00');

@@ -16,11 +16,14 @@ class RegulationApproval extends Model
         'status',
         'comments',
         'decided_at',
+        'reminders_sent',
+        'last_reminder_sent_at',
     ];
 
     protected $casts = [
-        'requires_all' => 'boolean',
-        'decided_at'   => 'datetime',
+        'requires_all'          => 'boolean',
+        'decided_at'            => 'datetime',
+        'last_reminder_sent_at' => 'datetime',
     ];
 
     public function regulation()
