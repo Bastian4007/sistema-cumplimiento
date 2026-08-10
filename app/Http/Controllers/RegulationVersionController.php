@@ -135,8 +135,7 @@ class RegulationVersionController extends Controller
     public function editForm(RegulationVersion $version)
     {
         $user = auth()->user();
-        abort_unless($user->isAdmin() || $user->isOperative(), 403);
-        abort_unless($user->canAccessCompany($version->regulation->company), 403);
+        abort_unless($version->regulation->isEditableBy($user), 403);
 
         $ext = strtolower(pathinfo($version->original_name ?? $version->file_path, PATHINFO_EXTENSION));
         abort_unless($ext === 'docx', 422, 'Solo se pueden editar archivos .docx');
@@ -175,7 +174,7 @@ class RegulationVersionController extends Controller
     public function saveDraft(Request $request, RegulationVersion $version)
     {
         $user = auth()->user();
-        abort_unless($user->isAdmin() || $user->isOperative(), 403);
+        abort_unless($version->regulation->isEditableBy($user), 403);
 
         // Auto-acquire lock if free (defensivo: por si editForm falló en adquirirlo)
         if ($version->editing_by === null) {
@@ -283,8 +282,7 @@ class RegulationVersionController extends Controller
         set_time_limit(240);
 
         $user = auth()->user();
-        abort_unless($user->isAdmin() || $user->isOperative(), 403);
-        abort_unless($user->canAccessCompany($version->regulation->company), 403);
+        abort_unless($version->regulation->isEditableBy($user), 403);
 
         // Auto-acquire lock if free (defensivo)
         if ($version->editing_by === null) {
