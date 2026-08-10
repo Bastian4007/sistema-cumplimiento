@@ -19,12 +19,14 @@
         $activeAuthority = $authority ?? request('authority');
         $activeRisk = $risk ?? request('risk');
         $activeStatus = $status ?? request('status');
+        $activeResponsibleArea = $responsibleArea ?? request('responsible_area');
 
         $hasActiveFilters =
             filled($activeSearch) ||
             filled($activeAuthority) ||
             filled($activeRisk) ||
-            filled($activeStatus);
+            filled($activeStatus) ||
+            filled($activeResponsibleArea);
     @endphp
 
     <div class="bg-white rounded-xl shadow p-6 space-y-8">
@@ -396,7 +398,7 @@
                         id="requirement-filters-panel"
                         class="{{ $showFilters ? '' : 'hidden' }} rounded-xl border border-gray-200 bg-gray-50 p-4"
                     >
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">
                                     Entidad
@@ -417,7 +419,7 @@
 
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">
-                                    Riesgo
+                                    Alerta
                                 </label>
 
                                 <select
@@ -449,6 +451,24 @@
                                     <option value="expired" {{ $activeStatus === 'expired' ? 'selected' : '' }}>Vencido</option>
                                 </select>
                             </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Área responsable
+                                </label>
+
+                                <select
+                                    name="responsible_area"
+                                    class="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-[#1A428A] focus:ring-[#1A428A]"
+                                >
+                                    <option value="">Todas</option>
+                                    @foreach($responsibleAreas as $item)
+                                        <option value="{{ $item }}" {{ $activeResponsibleArea === $item ? 'selected' : '' }}>
+                                            {{ $item }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -470,7 +490,7 @@
 
                     @if(filled($activeRisk))
                         <span class="ml-4">
-                            Riesgo: <span class="font-semibold">
+                            Alerta: <span class="font-semibold">
                                 {{ $activeRisk === 'warning' ? 'Crítico' : ($activeRisk === 'danger' ? 'Peligro' : 'Normal') }}
                             </span>
                         </span>
@@ -491,6 +511,12 @@
                             </span>
                         </span>
                     @endif
+
+                    @if(filled($activeResponsibleArea))
+                        <span class="ml-4">
+                            Área responsable: <span class="font-semibold">{{ $activeResponsibleArea }}</span>
+                        </span>
+                    @endif
                 </div>
             @endif
 
@@ -499,9 +525,10 @@
                     <thead class="bg-gray-50 text-gray-600">
                         <tr>
                             <th class="text-left px-6 py-4 font-semibold">Carpeta</th>
+                            <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Entidad</th>
                             <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Vence</th>
+                            <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Alerta</th>
                             <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Riesgo</th>
-                            <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Prioridad</th>
                             <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Estado</th>
                             <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Progreso</th>
                             <th class="text-left px-6 py-4 font-semibold whitespace-nowrap">Tareas</th>
@@ -522,6 +549,7 @@
                                 $riskVal = strtolower($req->risk_level ?? 'normal');
                                 $priorityVal = strtolower($req->template?->priority ?? '');
                                 $responsibleArea = $req->template?->responsible_area;
+                                $authorityVal = $req->template?->authority;
                                 $statusVal = $req->computed_status ?? 'pending';
 
                                 $renewalPending = (int) ($req->renewal_pending ?? 0);
@@ -559,6 +587,10 @@
                                     @if($responsibleArea)
                                         <div class="text-xs font-normal text-gray-400">{{ $responsibleArea }}</div>
                                     @endif
+                                </td>
+
+                                <td class="px-6 py-4 whitespace-nowrap">
+                                    {{ $authorityVal ?: '—' }}
                                 </td>
 
                                 <td class="px-6 py-4 whitespace-nowrap">

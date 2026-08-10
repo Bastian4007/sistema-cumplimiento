@@ -300,7 +300,7 @@ class AssetController extends Controller
 
         // ── Filtros persistentes por sesión ─────────────────────────────────────
         $sessionKey  = "asset_req_filters.{$asset->id}";
-        $filterKeys  = ['search', 'authority', 'risk', 'status', 'show_filters'];
+        $filterKeys  = ['search', 'authority', 'risk', 'status', 'responsible_area', 'show_filters'];
         $hasFiltersInUrl = $request->hasAny($filterKeys);
 
         if ($request->has('clear_filters')) {
@@ -328,10 +328,12 @@ class AssetController extends Controller
         $authority = trim((string) $request->get('authority', ''));
         $risk = trim((string) $request->get('risk', ''));
         $status = trim((string) $request->get('status', ''));
+        $responsibleArea = trim((string) $request->get('responsible_area', ''));
         $showFilters = $request->boolean('show_filters')
             || $authority !== ''
             || $risk !== ''
-            || $status !== '';
+            || $status !== ''
+            || $responsibleArea !== '';
 
         $assetInactive = ($asset->status ?? null) === \App\Models\Asset::STATUS_INACTIVE
             || (method_exists($asset, 'isInactive') && $asset->isInactive());
@@ -371,6 +373,11 @@ class AssetController extends Controller
             ->when($authority !== '', function ($query) use ($authority) {
                 $query->whereHas('template', function ($templateQuery) use ($authority) {
                     $templateQuery->where('authority', $authority);
+                });
+            })
+            ->when($responsibleArea !== '', function ($query) use ($responsibleArea) {
+                $query->whereHas('template', function ($templateQuery) use ($responsibleArea) {
+                    $templateQuery->where('responsible_area', $responsibleArea);
                 });
             })
             ->withCount([
@@ -476,6 +483,14 @@ class AssetController extends Controller
             ->orderBy('authority')
             ->pluck('authority');
 
+        $responsibleAreas = RequirementTemplate::query()
+            ->where('asset_type_id', $asset->asset_type_id)
+            ->whereNotNull('responsible_area')
+            ->where('responsible_area', '!=', '')
+            ->distinct()
+            ->orderBy('responsible_area')
+            ->pluck('responsible_area');
+
         $navContext = [
             'asset' => $asset,
             'requirement' => null,
@@ -495,7 +510,9 @@ class AssetController extends Controller
             'authority',
             'risk',
             'status',
+            'responsibleArea',
             'authorities',
+            'responsibleAreas',
             'showFilters',
             'usesCategoryView',
             'categoryTabs'
