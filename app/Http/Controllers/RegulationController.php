@@ -988,6 +988,7 @@ class RegulationController extends Controller
 
         $companies = $user->hasGroupScope()
             ? Company::where('group_id', $user->group_id)
+                ->where('show_in_processes', true)
                 ->where('otras', false)
                 ->orderBy('name')
                 ->get()
