@@ -182,6 +182,36 @@
                     @enderror
                 </div>
 
+                {{-- Responsables de edición — solo un admin puede reasignarlos --}}
+                @if(auth()->user()->isAdmin())
+                    @php
+                        $selectedResponsables = old('responsables', $regulation->responsables->pluck('id')->all());
+                    @endphp
+                    <div>
+                        <label class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
+                            Responsables (pueden editar este reglamento)
+                        </label>
+                        <div class="max-h-44 overflow-y-auto rounded-md border border-gray-300 p-2 space-y-1">
+                            @forelse($candidateResponsables as $candidate)
+                                <label class="flex items-center gap-2 text-sm text-gray-700">
+                                    <input type="checkbox"
+                                           name="responsables[]"
+                                           value="{{ $candidate->id }}"
+                                           {{ in_array($candidate->id, $selectedResponsables) ? 'checked' : '' }}
+                                           class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A]">
+                                    {{ $candidate->name }}
+                                </label>
+                            @empty
+                                <p class="text-xs text-gray-400 italic">No hay usuarios disponibles en esta empresa.</p>
+                            @endforelse
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1">
+                            Un operativo solo puede editar los reglamentos de los que es responsable. Los admins
+                            pueden editar cualquier reglamento sin necesidad de estar en esta lista.
+                        </p>
+                    </div>
+                @endif
+
             </div>
         </div>
 

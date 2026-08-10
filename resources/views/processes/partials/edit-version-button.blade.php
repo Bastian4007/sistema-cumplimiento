@@ -3,7 +3,7 @@
     otro usuario, borrador propio disponible, o libre para editar. Requiere $regulation,
     $currentVersion, $editLock (mismo shape que RegulationController::buildEditLock()).
 --}}
-@if($currentVersion && (auth()->user()->isAdmin() || auth()->user()->isOperative()))
+@if($currentVersion && $regulation->isEditableBy(auth()->user()))
     @php
         $cvExt   = strtolower(pathinfo($currentVersion->original_name ?? $currentVersion->file_path, PATHINFO_EXTENSION));
         $canEdit = $cvExt === 'docx';

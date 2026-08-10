@@ -17,6 +17,19 @@ namespace App\Services;
  */
 class MermaidDiagramStyler
 {
+    /**
+     * El documento final siempre topa el diagrama a 6.5in de ancho (imageDimensionAttrs() en
+     * AiProcedureGenerationService) para que no se recorte en Word — con diagramas de varios
+     * carriles eso encoge mucho el ancho nativo, y con el fontSize/espaciado por defecto de
+     * Mermaid (~16px, 50px entre nodos/rangos) el texto queda demasiado pequeño para leerse.
+     * Subir el fontSize y apretar el espaciado fijo entre nodos/carriles hace que el texto ocupe
+     * una porción más grande del ancho total del diagrama, y que las etiquetas largas envuelvan
+     * a varias líneas dentro del nodo en vez de estirar el diagrama a lo ancho — el resultado, ya
+     * encogido a 6.5in, sale considerablemente más legible (probado con diagramas de 6 carriles).
+     */
+    private const INIT_DIRECTIVE = '%%{init: {"flowchart": {"nodeSpacing": 15, "rankSpacing": 25, '
+        . '"padding": 6}, "themeVariables": {"fontSize": "26px"}}}%%';
+
     private const CIRCLED_DIGITS = [
         1 => '①', 2 => '②', 3 => '③', 4 => '④', 5 => '⑤',
         6 => '⑥', 7 => '⑦', 8 => '⑧', 9 => '⑨', 10 => '⑩',
@@ -109,7 +122,7 @@ class MermaidDiagramStyler
             $lines[] = "style {$subgraphId} fill:#F7F9FC,stroke:#CCCCCC,stroke-width:1px;";
         }
 
-        return $mermaid . "\n" . implode("\n", $lines) . "\n";
+        return self::INIT_DIRECTIVE . "\n" . $mermaid . "\n" . implode("\n", $lines) . "\n";
     }
 
     /**

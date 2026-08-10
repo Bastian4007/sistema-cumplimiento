@@ -24,8 +24,18 @@ class ApprovalRequestedNotification extends Notification implements ShouldQueue
         return (new MailMessage)
             ->subject('Aprobación requerida: ' . $this->regulation->name)
             ->view('emails.processes.approval-requested', [
-                'notifiable' => $notifiable,
-                'regulation' => $this->regulation,
+                'notifiable'         => $notifiable,
+                'regulation'         => $this->regulation,
+                'elaboradoPor'       => $this->regulation->details['quien_elabora'] ?? $this->regulation->creator?->name,
+                // Quién ya aprobó en pasos anteriores (o antes en la misma fila, si el paso es
+                // secuencial) — para que el aprobador vea por quiénes ya pasó el documento antes
+                // de llegar a él, sin tener que entrar al flujo a revisarlo.
+                'previousApprovers'  => $this->regulation->approvals()
+                    ->where('status', 'approved')
+                    ->with(['user', 'jobPosition'])
+                    ->orderBy('step_number')
+                    ->orderBy('id')
+                    ->get(),
             ]);
     }
 

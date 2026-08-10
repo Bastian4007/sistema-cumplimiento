@@ -8,13 +8,13 @@ use Database\Seeders\Concerns\GuessesRequirementSubtype;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
-class ECRequirementTemplateSeeder extends Seeder
+class TransporteRequirementTemplateSeeder extends Seeder
 {
     use GuessesRequirementSubtype;
 
     public function run(): void
     {
-        $filePath = database_path('seeders/data/CheckList de EC.csv');
+        $filePath = database_path('seeders/data/Check de Transporte.csv');
 
         if (! file_exists($filePath)) {
             $this->command?->error("No se encontró el archivo: {$filePath}");
@@ -22,11 +22,11 @@ class ECRequirementTemplateSeeder extends Seeder
         }
 
         $assetType = AssetType::query()
-            ->where('name', 'EC')
+            ->where('name', 'Transporte')
             ->first();
 
         if (! $assetType) {
-            $this->command?->error('No existe el asset type EC.');
+            $this->command?->error('No existe el asset type Transporte.');
             return;
         }
 
@@ -108,7 +108,7 @@ class ECRequirementTemplateSeeder extends Seeder
 
         $count = count($createdOrUpdated);
 
-        $this->command?->info("Templates de Estación de Carburación importados/actualizados: {$count}");
+        $this->command?->info("Templates de Transporte importados/actualizados: {$count}");
     }
 
     private function normalizeHeaders(array $headers): array

@@ -15,6 +15,9 @@
         .info-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
         .info-table td { padding: 8px 12px; border: 1px solid #e5e7eb; font-size: 14px; }
         .info-table td:first-child { background: #f9fafb; font-weight: 600; color: #374151; width: 40%; }
+        .approvers-table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+        .approvers-table td { padding: 8px 12px; border: 1px solid #e5e7eb; font-size: 14px; }
+        .approvers-table td.head { background: #f9fafb; font-weight: 600; color: #374151; }
         .badge { display: inline-block; padding: 3px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; }
         .badge-yellow { background: #fef3c7; color: #92400e; }
         .badge-red { background: #fee2e2; color: #991b1b; }
@@ -39,6 +42,7 @@
                 <tr><td>Código</td><td>{{ $regulation->code ?? '—' }}</td></tr>
                 <tr><td>Tipo</td><td>{{ $regulation->document_type ?? '—' }}</td></tr>
                 <tr><td>Empresa</td><td>{{ $regulation->company->name ?? '—' }}</td></tr>
+                <tr><td>Elaborado por</td><td>{{ $elaboradoPor ?? '—' }}</td></tr>
                 <tr>
                     <td>Nivel de impacto</td>
                     <td>
@@ -55,6 +59,24 @@
                     </td>
                 </tr>
             </table>
+
+            @if($previousApprovers->isNotEmpty())
+                <p style="margin-bottom: 8px;"><strong>Ya revisado y aprobado por:</strong></p>
+                <table class="approvers-table">
+                    <tr>
+                        <td class="head">Puesto</td>
+                        <td class="head">Aprobador</td>
+                        <td class="head">Fecha</td>
+                    </tr>
+                    @foreach($previousApprovers as $prev)
+                        <tr>
+                            <td>{{ $prev->jobPosition->name ?? '—' }}</td>
+                            <td>{{ $prev->user->name ?? '—' }}</td>
+                            <td>{{ $prev->decided_at?->format('d/m/Y H:i') ?? '—' }}</td>
+                        </tr>
+                    @endforeach
+                </table>
+            @endif
 
             <p>Ingresa al sistema para revisar el documento completo y emitir tu decisión.</p>
 

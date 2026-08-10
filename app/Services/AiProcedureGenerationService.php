@@ -26,6 +26,14 @@ class AiProcedureGenerationService
     /** Marcador que la IA debe dejar en documento_html donde va el diagrama — se reemplaza por la imagen ya renderizada. */
     private const DIAGRAM_MARKER = '{{DIAGRAMA_FLUJO}}';
 
+    /**
+     * Factor de escala (Puppeteer deviceScaleFactor) con el que mermaid-cli captura el diagrama.
+     * El diagrama siempre se muestra al mismo tamaño físico en el documento (imageDimensionAttrs()
+     * lo topa a 624px), así que subir este factor no lo agranda — solo aumenta la densidad de
+     * píxeles, evitando que se vea borroso/pixelado al imprimir o hacer zoom en el PDF.
+     */
+    private const DIAGRAM_RENDER_SCALE = 3;
+
     public const DETAIL_FIELDS = [
         'problema_resuelve', 'resultado_esperado', 'areas_aplica', 'fuera_alcance',
         'indicador_proceso', 'indicador_resultado', 'meta_valor', 'frecuencia_medicion',
@@ -171,7 +179,7 @@ class AiProcedureGenerationService
             $steps = $this->diagramStyler->countActivitySteps($mermaidSource);
             $label = trim("{$documentCode} {$documentName}");
             $title = 'Diagrama de flujo' . ($label !== '' ? " — {$label}" : '') . " ({$steps} pasos)";
-            $png = $this->titleBarComposer->addTitleBar($png, $title);
+            $png = $this->titleBarComposer->addTitleBar($png, $title, self::DIAGRAM_RENDER_SCALE);
         }
 
         $replacement = $png !== null
@@ -279,10 +287,11 @@ class AiProcedureGenerationService
     {
         $cliJs = base_path('node_modules/@mermaid-js/mermaid-cli/src/cli.js');
         $cmd = sprintf(
-            'node %s -i %s -o %s -b white',
+            'node %s -i %s -o %s -b white -s %d',
             escapeshellarg($cliJs),
             escapeshellarg($input),
-            escapeshellarg($output)
+            escapeshellarg($output),
+            self::DIAGRAM_RENDER_SCALE
         );
 
         $proc = proc_open($cmd, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);

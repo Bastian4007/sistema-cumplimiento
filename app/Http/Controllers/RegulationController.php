@@ -518,6 +518,10 @@ class RegulationController extends Controller
                 'approval_status' => null,
             ]);
 
+            // Quien crea el reglamento queda como responsable automáticamente — puede editarlo
+            // aunque sea operativo. Un admin puede reasignar responsables desde "Info básica".
+            $regulation->responsables()->attach($user->id);
+
             // Se vuelve a sanear aunque generate() ya lo haga: protege borradores que quedaron
             // en sesión desde antes de un ajuste al saneador (como este documento pendiente de confirmar).
             $sanitizedHtml = app(AiProcedureGenerationService::class)->sanitizeHtmlForWord($ai['documento_html']);
@@ -563,7 +567,7 @@ class RegulationController extends Controller
     private function confirmEditDraft(array $draft, $user)
     {
         $regulation = Regulation::findOrFail($draft['regulation_id']);
-        abort_unless($user->canAccessCompany($regulation->company), 403);
+        abort_unless($regulation->isEditableBy($user), 403);
 
         $data = $draft['meta'];
         $ai = $draft['ai'];
@@ -794,6 +798,8 @@ class RegulationController extends Controller
                 'flow_locked'     => false,
             ]);
 
+            $regulation->responsables()->attach($user->id);
+
             if ($request->hasFile('file')) {
                 $file = $request->file('file');
                 $path = $file->store(
@@ -828,8 +834,7 @@ class RegulationController extends Controller
     public function edit(Regulation $regulation)
     {
         $user = auth()->user();
-        abort_unless($user->isAdmin() || $user->isOperative(), 403);
-        abort_unless($user->canAccessCompany($regulation->company), 403);
+        abort_unless($regulation->isEditableBy($user), 403);
 
         $regulation->load(['processType', 'company']);
 
@@ -886,8 +891,7 @@ class RegulationController extends Controller
     public function previewGenerateEdit(Request $request, Regulation $regulation)
     {
         $user = auth()->user();
-        abort_unless($user->isAdmin() || $user->isOperative(), 403);
-        abort_unless($user->canAccessCompany($regulation->company), 403);
+        abort_unless($regulation->isEditableBy($user), 403);
 
         $data = $request->validate($this->editWizardValidationRules());
 
@@ -988,6 +992,7 @@ class RegulationController extends Controller
 
         $companies = $user->hasGroupScope()
             ? Company::where('group_id', $user->group_id)
+                ->where('show_in_processes', true)
                 ->where('otras', false)
                 ->orderBy('name')
                 ->get()
@@ -1035,27 +1040,36 @@ class RegulationController extends Controller
     public function editBasic(Regulation $regulation)
     {
         $user = auth()->user();
-        abort_unless($user->isAdmin() || $user->isOperative(), 403);
-        abort_unless($user->canAccessCompany($regulation->company), 403);
+        abort_unless($regulation->isEditableBy($user), 403);
 
-        $regulation->load(['processType', 'company', 'currentVersion']);
+        $regulation->load(['processType', 'company', 'currentVersion', 'responsables']);
 
         $processTypes = ProcessType::where('group_id', $user->group_id)
             ->where('is_active', true)
             ->orderBy('sort_order')->orderBy('name')->get();
 
+        // Solo un admin puede reasignar responsables — se le ofrece el universo de usuarios del
+        // grupo que tengan acceso a la empresa del reglamento (mismo candado que canAccessCompany).
+        $candidateResponsables = $user->isAdmin()
+            ? User::where('group_id', $regulation->group_id)
+                ->get()
+                ->filter(fn (User $candidate) => $candidate->canAccessCompany($regulation->company))
+                ->sortBy('name')
+                ->values()
+            : collect();
+
         return view('processes.edit-basic', [
-            'regulation'    => $regulation,
-            'processTypes'  => $processTypes,
-            'documentTypes' => Regulation::DOCUMENT_TYPES,
+            'regulation'            => $regulation,
+            'processTypes'          => $processTypes,
+            'documentTypes'         => Regulation::DOCUMENT_TYPES,
+            'candidateResponsables' => $candidateResponsables,
         ]);
     }
 
     public function updateBasic(Request $request, Regulation $regulation)
     {
         $user = auth()->user();
-        abort_unless($user->isAdmin() || $user->isOperative(), 403);
-        abort_unless($user->canAccessCompany($regulation->company), 403);
+        abort_unless($regulation->isEditableBy($user), 403);
 
         $data = $request->validate([
             'process_type_id' => ['required', 'exists:process_types,id'],
@@ -1082,6 +1096,17 @@ class RegulationController extends Controller
             'name'            => Str::upper($data['nombre']),
             'details'         => $newDetails,
         ]);
+
+        // Reasignar responsables es exclusivo de admins — un operativo (aunque sea responsable y
+        // pueda entrar aquí) no puede tocar esta lista, así que ni se lee el input si no es admin.
+        if ($user->isAdmin()) {
+            $responsableIds = $request->validate([
+                'responsables'   => ['sometimes', 'array'],
+                'responsables.*' => ['integer', 'exists:users,id'],
+            ])['responsables'] ?? [];
+
+            $regulation->responsables()->sync($responsableIds);
+        }
 
         return redirect()
             ->route('processes.show', $regulation)

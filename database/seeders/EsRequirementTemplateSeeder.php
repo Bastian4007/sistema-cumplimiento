@@ -202,20 +202,27 @@ class EsRequirementTemplateSeeder extends Seeder
 
     private function normalizeRequirementName(string $name): string
     {
-        return Str::of($name)
+        $name = Str::of($name)
             ->replace("\xC2\xA0", ' ')
-            ->replaceMatches('/\b(19|20)\d{2}\b/u', '')
             ->replace(' + hoja de ayuda + acuse de cumplimiento autoridad', '')
             ->replace('+ hoja de ayuda + acuse de cumplimiento autoridad', '')
             ->replace(' + acuse de cumplimiento autoridad', '')
             ->replace('+ acuse de cumplimiento autoridad', '')
-            ->replaceMatches('/\bOPE\/CRE\b/u', '')
-            ->replaceMatches('/\bOPE\/CNE\b/u', '')
-            ->replaceMatches('/\bCRE\b/u', '')
-            ->replaceMatches('/\bCNE\b/u', '')
-            ->replaceMatches('/\s+/', ' ')
-            ->trim()
             ->value();
+
+        // Los códigos de NOM (p. ej. "NOM-016-CRE-2016") llevan año y siglas de la
+        // autoridad como parte del nombre oficial de la norma — no se deben recortar.
+        if (! preg_match('/^NOM[\s-]/iu', trim($name))) {
+            $name = Str::of($name)
+                ->replaceMatches('/\b(19|20)\d{2}\b/u', '')
+                ->replaceMatches('/\bOPE\/CRE\b/u', '')
+                ->replaceMatches('/\bOPE\/CNE\b/u', '')
+                ->replaceMatches('/\bCRE\b/u', '')
+                ->replaceMatches('/\bCNE\b/u', '')
+                ->value();
+        }
+
+        return Str::of($name)->replaceMatches('/\s+/', ' ')->trim()->value();
     }
 
     private function normalizeRegulatoryEntity(?string $value): ?string

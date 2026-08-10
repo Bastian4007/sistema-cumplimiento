@@ -56,7 +56,7 @@
             </div>
 
             <div class="flex items-center gap-2 shrink-0">
-                @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
+                @if($regulation->isEditableBy(auth()->user()))
                     {{-- Dropdown Editar --}}
                     <div class="relative" x-data="{ open: false }">
                         <button type="button"
@@ -90,17 +90,17 @@
                             </a>
                         </div>
                     </div>
+                @endif
 
-                    @if($regulation->approval_status === 'approved')
-                        <button type="button"
-                                onclick="openShareModal('send')"
-                                class="px-4 py-2 rounded-md border border-green-600 bg-white text-green-700 font-semibold hover:bg-green-50 text-sm flex items-center gap-1.5">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
-                            </svg>
-                            Compartir
-                        </button>
-                    @endif
+                @if(($regulation->approval_status === 'approved') && (auth()->user()->isAdmin() || auth()->user()->isOperative()))
+                    <button type="button"
+                            onclick="openShareModal('send')"
+                            class="px-4 py-2 rounded-md border border-green-600 bg-white text-green-700 font-semibold hover:bg-green-50 text-sm flex items-center gap-1.5">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                        </svg>
+                        Compartir
+                    </button>
                 @endif
                 <a href="{{ route('processes.index', ['company_id' => $regulation->company_id]) }}"
                    class="px-4 py-2 rounded-md border border-[#1A428A] bg-white text-[#1A428A] font-semibold hover:bg-blue-50 text-sm">

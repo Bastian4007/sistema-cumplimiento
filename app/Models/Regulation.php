@@ -83,6 +83,11 @@ class Regulation extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function responsables()
+    {
+        return $this->belongsToMany(User::class, 'regulation_responsables')->withTimestamps();
+    }
+
     public function versions()
     {
         return $this->hasMany(RegulationVersion::class)
@@ -229,5 +234,33 @@ class Regulation extends Model
     public function impactLevelLabel(): string
     {
         return self::IMPACT_LEVELS[$this->impact_level] ?? $this->impact_level ?? '—';
+    }
+
+    public function isResponsable(User $user): bool
+    {
+        return $this->responsables->contains('id', $user->id);
+    }
+
+    /**
+     * Regla de edición del módulo de Procesos: los admins pueden editar cualquier reglamento al
+     * que tengan acceso por empresa/grupo; los operativos SOLO los reglamentos de los que son
+     * responsables (nunca por defecto). Ajustar el flujo de aprobación (setFlow) es aparte y sigue
+     * siendo exclusivo de admins sin excepción — este método no aplica ahí.
+     */
+    public function isEditableBy(User $user): bool
+    {
+        if (! $user->canAccessCompany($this->company)) {
+            return false;
+        }
+
+        if ($user->isAdmin()) {
+            return true;
+        }
+
+        if ($user->isOperative()) {
+            return $this->isResponsable($user);
+        }
+
+        return false;
     }
 }
