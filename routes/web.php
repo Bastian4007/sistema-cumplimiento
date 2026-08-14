@@ -29,6 +29,7 @@ use App\Http\Controllers\DocumentReportController;
 use App\Http\Controllers\MyApprovalsController;
 use App\Http\Controllers\ProcessReportController;
 use App\Http\Controllers\RegulationShareController;
+use App\Http\Controllers\RegulationPublicViewController;
 use App\Models\Regulation;
 use App\Notifications\ApprovalFlowMemberNotification;
 use App\Notifications\ApprovalOverdueEscalationNotification;
@@ -259,6 +260,9 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
     Route::get('/processes/{regulation}/view/{token}', [RegulationShareController::class, 'track'])
         ->name('processes.view-track');
 
+    Route::get('/processes/{regulation}/qr', [RegulationShareController::class, 'qr'])
+        ->name('processes.qr');
+
     // Job positions (admin de grupo)
     Route::get('/settings/positions', [JobPositionController::class, 'index'])
         ->name('job-positions.index');
@@ -405,6 +409,11 @@ Route::get('/invitation/{token}', [UserInvitationController::class, 'show'])
 
 Route::post('/invitation/{token}', [UserInvitationController::class, 'store'])
     ->name('invitation.store');
+
+// Vista pública del QR de pared — sin auth, sin layout, sin manera de "regresar" a la plataforma.
+// Ver RegulationPublicViewController.
+Route::get('/p/{regulation}/{token}', [RegulationPublicViewController::class, 'show'])
+    ->name('processes.public-view');
 
 /*
 |--------------------------------------------------------------------------

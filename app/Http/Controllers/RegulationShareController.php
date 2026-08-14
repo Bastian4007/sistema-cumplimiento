@@ -70,4 +70,22 @@ class RegulationShareController extends Controller
 
         return redirect()->route('processes.show', [$regulation, 'open_pdf' => 1]);
     }
+
+    /**
+     * Página imprimible con el QR de pared — apunta a RegulationPublicViewController::show(), que
+     * siempre resuelve la versión vigente al momento de escanear (no una fija).
+     */
+    public function qr(Regulation $regulation)
+    {
+        $user = auth()->user();
+
+        abort_unless($user->isAdmin() || $user->isOperative(), 403);
+        abort_unless($user->canAccessCompany($regulation->company), 403);
+        abort_unless($regulation->approval_status === 'approved', 403);
+
+        $token = $regulation->ensurePublicShareToken();
+        $url   = route('processes.public-view', [$regulation, $token]);
+
+        return view('processes.qr', compact('regulation', 'url'));
+    }
 }

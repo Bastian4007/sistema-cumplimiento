@@ -882,6 +882,12 @@
                           :class="viewedCount > 0 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'"
                           x-text="`${viewedCount}/${recipients.length}`"></span>
                 </button>
+                <button type="button"
+                        @click="tab = 'qr'"
+                        :class="tab === 'qr' ? 'border-b-2 border-[#1A428A] text-[#1A428A] font-semibold' : 'text-gray-500 hover:text-gray-700'"
+                        class="px-5 py-2.5 text-sm transition">
+                    Código QR
+                </button>
             </div>
 
             {{-- Pestaña: Enviar --}}
@@ -982,6 +988,33 @@
                             class="px-4 py-2 rounded-md border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50">
                         Cerrar
                     </button>
+                </div>
+            </div>
+
+            {{-- Pestaña: Código QR --}}
+            <div x-show="tab === 'qr'" class="flex flex-col overflow-hidden">
+                <div class="p-5 overflow-y-auto text-center space-y-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.5h4.5v4.5h-4.5v-4.5zm0 10.5h4.5v4.5h-4.5v-4.5zm10.5-10.5h4.5v4.5h-4.5v-4.5zM14.25 15h2.25v2.25H14.25V15zm4.5 0H21v2.25h-2.25V15zM14.25 19.5h2.25v.008h-2.25V19.5zm4.5 0H21v.008h-2.25V19.5z"/>
+                    </svg>
+                    <p class="text-sm text-gray-700">
+                        Genera una hoja con un código QR para imprimir y pegar en la zona de trabajo.
+                    </p>
+                    <p class="text-xs text-gray-400">
+                        Al escanearlo siempre se abre la versión vigente de este documento — no hace
+                        falta iniciar sesión, y no habrá que reimprimirlo si el documento se actualiza.
+                    </p>
+                </div>
+                <div class="p-5 border-t shrink-0 flex items-center justify-end gap-3">
+                    <button type="button" onclick="closeShareModal()"
+                            class="px-4 py-2 rounded-md border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50">
+                        Cerrar
+                    </button>
+                    <a href="{{ route('processes.qr', $regulation) }}"
+                       target="_blank"
+                       class="px-5 py-2 rounded-md bg-[#1A428A] hover:bg-[#15356d] text-white text-sm font-semibold transition">
+                        Generar / imprimir QR
+                    </a>
                 </div>
             </div>
 

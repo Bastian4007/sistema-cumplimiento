@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class Regulation extends Model
 {
@@ -48,6 +49,7 @@ class Regulation extends Model
         'approval_status',
         'flow_locked',
         'flow_user_map',
+        'public_share_token',
     ];
 
     protected $casts = [
@@ -262,5 +264,19 @@ class Regulation extends Model
         }
 
         return false;
+    }
+
+    /**
+     * Token permanente (sin expiración, no atado a un usuario) para el enlace público — "cualquiera
+     * con el enlace puede ver" — usado por el QR para pared. Se genera solo una vez y persiste
+     * mientras exista el reglamento, así el mismo QR impreso sigue funcionando siempre.
+     */
+    public function ensurePublicShareToken(): string
+    {
+        if (! $this->public_share_token) {
+            $this->update(['public_share_token' => Str::random(48)]);
+        }
+
+        return $this->public_share_token;
     }
 }
