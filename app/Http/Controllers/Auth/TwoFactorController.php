@@ -33,6 +33,8 @@ class TwoFactorController extends Controller
 
         $request->validate([
             'code' => ['required', 'string'],
+        ], [
+            'code.required' => 'Ingresa el código que te enviamos.',
         ]);
 
         $userId = $request->session()->get('two_factor_pending_user_id');

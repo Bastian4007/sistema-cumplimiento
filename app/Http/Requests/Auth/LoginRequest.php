@@ -33,6 +33,19 @@ class LoginRequest extends FormRequest
     }
 
     /**
+     * Mensajes en español — el resto de la app usa APP_LOCALE=en (sin lang/es publicado), así que
+     * se traducen aquí explícitamente en vez de cambiar el locale global.
+     */
+    public function messages(): array
+    {
+        return [
+            'email.required'    => 'El correo electrónico es obligatorio.',
+            'email.email'       => 'Ingresa un correo electrónico válido.',
+            'password.required' => 'La contraseña es obligatoria.',
+        ];
+    }
+
+    /**
      * Attempt to authenticate the request's credentials.
      *
      * @throws \Illuminate\Validation\ValidationException
@@ -45,7 +58,7 @@ class LoginRequest extends FormRequest
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
-                'email' => trans('auth.failed'),
+                'email' => 'Estas credenciales no coinciden con nuestros registros.',
             ]);
         }
 
@@ -68,10 +81,7 @@ class LoginRequest extends FormRequest
         $seconds = RateLimiter::availableIn($this->throttleKey());
 
         throw ValidationException::withMessages([
-            'email' => trans('auth.throttle', [
-                'seconds' => $seconds,
-                'minutes' => ceil($seconds / 60),
-            ]),
+            'email' => "Demasiados intentos de acceso. Intenta de nuevo en {$seconds} segundos.",
         ]);
     }
 
