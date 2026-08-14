@@ -652,6 +652,11 @@ async function releaseLock(keepDraft) {
     // If keeping draft and there are unsaved changes, auto-save first
     if (keepDraft && dirty) await doAutoSave();
 
+    // El usuario ya confirmó qué hacer con el borrador en el modal de arriba — sin esto, el
+    // envío del formulario de abajo dispara TAMBIÉN el diálogo nativo "beforeunload" del navegador
+    // (el de "localhost dice...") justo encima del modal que ya se acaba de confirmar.
+    dirty = false;
+
     const form = document.createElement('form');
     form.method = 'POST';
     form.action = LOCK_URL;
