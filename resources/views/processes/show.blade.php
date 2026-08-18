@@ -540,24 +540,20 @@
         @if($regulation->impact_level)
             @php $apColor = $regulation->approvalStatusColor(); @endphp
 
-            {{-- Alerta si el usuario tiene una aprobación pendiente --}}
-            @if($pendingApprovalForUser)
-                <div class="mt-6 flex items-center gap-3 rounded-xl border border-yellow-200 bg-yellow-50 px-5 py-4">
-                    <span class="h-2.5 w-2.5 rounded-full bg-yellow-400 shrink-0"></span>
-                    <p class="text-sm font-medium text-yellow-800 flex-1">
-                        Tienes una aprobación pendiente en este documento (paso {{ $pendingApprovalForUser->step_number }}).
-                    </p>
-                    <a href="{{ route('processes.flow', $regulation) }}"
-                       class="shrink-0 px-4 py-2 rounded-lg bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
-                        Ir al flujo
-                    </a>
-                </div>
-            @endif
-
-            {{-- Tarjeta de estado del flujo + botón "Ver flujo" --}}
-            <div class="mt-{{ $pendingApprovalForUser ? '3' : '8' }} flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-5 py-4">
+            {{-- Una sola tarjeta: si el usuario tiene una aprobación pendiente, se resalta en
+                 amarillo con el aviso personalizado; si no, la tarjeta gris de estado general.
+                 Antes eran dos bloques apilados con el mismo botón "ir al flujo" repetido. --}}
+            <div class="mt-8 flex items-center justify-between rounded-xl border px-5 py-4
+                {{ $pendingApprovalForUser ? 'border-yellow-200 bg-yellow-50' : 'border-gray-200 bg-gray-50' }}">
                 <div class="flex items-center gap-3 flex-wrap">
-                    <span class="text-sm font-semibold text-gray-700">Flujo de aprobación</span>
+                    @if($pendingApprovalForUser)
+                        <span class="h-2.5 w-2.5 rounded-full bg-yellow-400 shrink-0"></span>
+                        <span class="text-sm font-medium text-yellow-800">
+                            Tienes una aprobación pendiente (paso {{ $pendingApprovalForUser->step_number }})
+                        </span>
+                    @else
+                        <span class="text-sm font-semibold text-gray-700">Flujo de aprobación</span>
+                    @endif
                     <span class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border
                         {{ $apColor === 'green'  ? 'bg-green-50 text-green-700 border-green-200' : '' }}
                         {{ $apColor === 'yellow' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : '' }}
@@ -575,7 +571,7 @@
                 </div>
                 <a href="{{ route('processes.flow', $regulation) }}"
                    class="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
-                    Ver flujo
+                    {{ $pendingApprovalForUser ? 'Ir al flujo' : 'Ver flujo' }}
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
                          viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
