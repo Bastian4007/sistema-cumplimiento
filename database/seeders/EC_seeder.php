@@ -80,8 +80,11 @@ class EC_Seeder extends Seeder
                     continue;
                 }
 
-                // Normalize: strip leading "EC " if already present, then add it once
-                $station = preg_replace('/^EC\s+/i', '', $station);
+                // Normalize: strip ANY leading "EC " repetitions already present (el CSV a veces
+                // ya trae el prefijo duplicado, p. ej. "EC EC VILLAS ESMERALDA" — con solo una
+                // repetición en el patrón, quitar una sola vez dejaba "EC" pegado y se volvía a
+                // duplicar al anteponerlo), y lo agrega una sola vez.
+                $station = preg_replace('/^(?:EC\s+)+/i', '', $station);
                 $stationName = 'EC ' . strtoupper($station);
 
                 $startDate = $this->parseInicioVigencia($data['inicio_vigencia'] ?? null, $defaultStartDate);

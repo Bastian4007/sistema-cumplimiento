@@ -75,8 +75,9 @@ class ES_Seeder extends Seeder
                 }
 
                 $name = strtoupper($name);
-                // Normalize: strip leading "ES " if already present, then add it once
-                $name = preg_replace('/^ES\s+/i', '', $name);
+                // Normalize: strip ANY leading "ES " repetitions already present (mismo caso que
+                // EC_seeder.php — el CSV a veces ya trae el prefijo duplicado) y lo agrega una sola vez.
+                $name = preg_replace('/^(?:ES\s+)+/i', '', $name);
                 $name = 'ES ' . $name;
 
                 $startDate = $this->parseInicioVigencia($data['inicio_vigencia'] ?? null, $defaultStartDate);
