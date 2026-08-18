@@ -8,7 +8,6 @@ use App\Models\RegulationVersion;
 use App\Models\User;
 use App\Services\AiProcedureGenerationService;
 use App\Services\ApprovalFlowService;
-use App\Services\ChangeHighlightService;
 use App\Services\OfficeDocumentConverter;
 use App\Services\RegulationDocxHeaderBuilder;
 use Illuminate\Http\Request;
@@ -272,15 +271,8 @@ class RegulationVersionController extends Controller
             );
     }
 
-    public function saveEdit(Request $request, RegulationVersion $version, ChangeHighlightService $changeHighlight, AiProcedureGenerationService $sanitizer)
+    public function saveEdit(Request $request, RegulationVersion $version, AiProcedureGenerationService $sanitizer)
     {
-        // ChangeHighlightService::analyze() llama a la IA (Haiku) más abajo — igual que los demás
-        // puntos que llaman IA en el wizard, el límite de 60s por defecto de PHP no alcanza si el
-        // modelo/red va lento. Sin esto, la petición muere con un fatal error de
-        // "Maximum execution time exceeded" a mitad de la llamada a Anthropic, sin guardar nada
-        // y sin liberar el bloqueo de edición (confirmado reproduciendo el fallo real).
-        set_time_limit(240);
-
         $user = auth()->user();
         abort_unless($version->regulation->isEditableBy($user), 403);
 
@@ -300,29 +292,14 @@ class RegulationVersionController extends Controller
 
         $regulation = $version->regulation;
 
-        $content = $data['content'];
         $changeDescription = $data['change_description'] ?? null;
         $changeJustification = $data['change_justification'];
 
-        if ($version->body_html || ($version->file_path && Storage::disk('private')->exists($version->file_path))) {
-            $oldHtml = $version->body_html ?: $this->docxToHtml(Storage::disk('private')->path($version->file_path));
-            $analysis = $changeHighlight->analyze($oldHtml, $content);
-
-            if ($analysis !== null) {
-                $content = $analysis['highlighted_html'];
-
-                if (empty($changeDescription)) {
-                    $changeDescription = $analysis['change_summary'];
-                }
-            }
-        }
-
-        $html = preg_replace(
-            '/<mark\b[^>]*>(.*?)<\/mark>/si',
-            '<span style="background-color: #FFFF00;">$1</span>',
-            $content
-        );
-        $html = $sanitizer->sanitizeHtmlForWord($html);
+        // El documento se guarda tal cual lo dejó el editor — el "qué cambió" para quien aprueba
+        // se calcula aparte, sección por sección, al mostrar el flujo de aprobación (ver
+        // RegulationChangeDiffService), comparando esta versión contra la anterior en el momento
+        // de mostrarla, sin alterar el contenido guardado.
+        $html = $sanitizer->sanitizeHtmlForWord($data['content']);
 
         $next = ($regulation->versions()->max('version_number') ?? 0) + 1;
         $details = $regulation->details ?? [];
@@ -391,7 +368,7 @@ class RegulationVersionController extends Controller
 
         return redirect()
             ->route('processes.show', $regulation)
-            ->with('success', 'Documento editado y guardado como nueva versión con cambios resaltados.');
+            ->with('success', 'Documento editado y guardado como nueva versión.');
     }
 
     /**

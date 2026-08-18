@@ -64,4 +64,16 @@ class RegulationVersion extends Model
             && $this->valid_until->lte(now()->addDays($days))
             && ! $this->valid_until->isPast();
     }
+
+    /**
+     * La versión inmediata anterior a esta (por número de versión) — null si esta es la versión 1.
+     * Usado para dar contexto de "antes/después" al aprobador (correo y "Mis aprobaciones").
+     */
+    public function previousVersion(): ?self
+    {
+        return static::where('regulation_id', $this->regulation_id)
+            ->where('version_number', '<', $this->version_number)
+            ->orderByDesc('version_number')
+            ->first();
+    }
 }

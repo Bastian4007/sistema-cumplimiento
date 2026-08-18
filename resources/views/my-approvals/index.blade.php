@@ -71,6 +71,10 @@
                     $regulation = $approval->regulation;
                     $details    = $regulation->details ?? [];
                     $totalSteps = count(\App\Services\ApprovalFlowService::getFlowSteps($regulation->impact_level));
+                    $currentVersion  = $regulation->currentVersion;
+                    $previousVersion = $currentVersion?->previousVersion();
+                    $changedSections = app(\App\Services\RegulationChangeDiffService::class)
+                        ->diff($previousVersion?->body_html, $currentVersion?->body_html);
                 @endphp
 
                 <div x-data="{ showPreview: false, showReject: false, showConfirm: false }" class="bg-white rounded-xl border shadow-sm overflow-hidden">
@@ -140,6 +144,61 @@
                                 <p class="text-gray-800 font-medium mt-0.5">{{ $regulation->approvalStatusLabel() }}</p>
                             </div>
                         </div>
+
+                        {{-- Qué cambió en esta versión --}}
+                        @if($currentVersion && ($currentVersion->change_description || $currentVersion->change_justification || count($changedSections) > 0))
+                            <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+                                <p class="text-xs font-semibold text-amber-800 uppercase tracking-wide mb-1.5">
+                                    Qué cambió en esta versión
+                                </p>
+                                @if($currentVersion->change_description)
+                                    <p class="text-sm text-gray-700">{{ $currentVersion->change_description }}</p>
+                                @endif
+                                @if($currentVersion->change_justification)
+                                    <p class="text-sm text-gray-600 mt-1">
+                                        <span class="font-medium">Justificación:</span> {{ $currentVersion->change_justification }}
+                                    </p>
+                                @endif
+
+                                @if(count($changedSections) > 0)
+                                    <div class="mt-3 border border-amber-200 rounded-lg overflow-hidden">
+                                        <table class="w-full text-xs">
+                                            <thead>
+                                                <tr class="bg-amber-100 text-amber-800">
+                                                    <th class="text-left font-semibold uppercase tracking-wide px-3 py-2 w-1/5">Sección</th>
+                                                    <th class="text-left font-semibold uppercase tracking-wide px-3 py-2">Antes</th>
+                                                    <th class="text-left font-semibold uppercase tracking-wide px-3 py-2">Después</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-amber-100 bg-white">
+                                                @foreach($changedSections as $section)
+                                                    <tr>
+                                                        <td class="px-3 py-2 font-semibold text-amber-800 align-top">{{ $section['title'] }}</td>
+                                                        <td class="px-3 py-2 text-gray-600 align-top whitespace-pre-line">{{ $section['before'] }}</td>
+                                                        <td class="px-3 py-2 text-gray-800 align-top whitespace-pre-line">{{ $section['after'] }}</td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                @endif
+
+                                <div class="flex items-center gap-4 mt-3">
+                                    @if($previousVersion)
+                                        <a href="{{ route('regulation-versions.preview', $previousVersion) }}"
+                                           target="_blank"
+                                           class="text-xs font-semibold text-amber-800 hover:underline">
+                                            Ver versión anterior completa
+                                        </a>
+                                    @endif
+                                    <a href="{{ route('regulation-versions.preview', $currentVersion) }}"
+                                       target="_blank"
+                                       class="text-xs font-semibold text-amber-800 hover:underline">
+                                        Ver esta versión completa
+                                    </a>
+                                </div>
+                            </div>
+                        @endif
 
                         {{-- Botón para desplegar vista previa --}}
                         <button type="button"

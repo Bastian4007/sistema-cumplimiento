@@ -11,7 +11,6 @@ use App\Models\RegulationVersion;
 use App\Models\User;
 use App\Services\AiProcedureGenerationService;
 use App\Services\ApprovalFlowService;
-use App\Services\ChangeHighlightService;
 use App\Services\RegulationDocxHeaderBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -588,32 +587,13 @@ class RegulationController extends Controller
 
         // Se vuelve a sanear aunque generate() ya lo haga: protege borradores que quedaron en
         // sesión desde antes de un ajuste al saneador (como este documento pendiente de confirmar).
-        $freshHtml = app(AiProcedureGenerationService::class)->sanitizeHtmlForWord($ai['documento_html']);
+        // El documento se guarda tal cual lo entregó la IA — el "qué cambió" para quien aprueba se
+        // calcula aparte, sección por sección, al mostrar el flujo de aprobación (ver
+        // RegulationChangeDiffService), comparando esta versión contra la anterior en el momento de
+        // mostrarla, sin alterar el contenido guardado.
+        $finalHtml = app(AiProcedureGenerationService::class)->sanitizeHtmlForWord($ai['documento_html']);
 
-        // Comparar SOLO la versión actual (la que se va a reemplazar) contra este documento nuevo —
-        // nunca contra versiones más viejas — y resaltar en el propio documento (<mark> → amarillo)
-        // únicamente lo que de verdad cambió, en vez de aceptar la reescritura completa de la IA sin
-        // marcar nada. Si el resaltado no es seguro (la IA alteró algo más que el texto), se descarta
-        // silenciosamente y se guarda el documento nuevo tal cual, sin bloquear el guardado.
-        $finalHtml = $freshHtml;
-        $changeSummary = null;
-        $oldHtml = $regulation->currentVersion?->body_html;
-
-        if ($oldHtml) {
-            $analysis = app(ChangeHighlightService::class)->analyze($oldHtml, $freshHtml);
-
-            if ($analysis !== null) {
-                $highlighted = preg_replace(
-                    '/<mark\b[^>]*>(.*?)<\/mark>/si',
-                    '<span style="background-color: #FFFF00;">$1</span>',
-                    $analysis['highlighted_html']
-                );
-                $finalHtml = app(AiProcedureGenerationService::class)->sanitizeHtmlForWord($highlighted);
-                $changeSummary = $analysis['change_summary'];
-            }
-        }
-
-        DB::transaction(function () use ($regulation, $data, $user, $ai, $oldDetails, $newDetails, $finalHtml, $changeSummary) {
+        DB::transaction(function () use ($regulation, $data, $user, $ai, $oldDetails, $newDetails, $finalHtml) {
             // Se conserva la vigencia de la versión que se reemplaza — si esta edición no dispara
             // un nuevo ciclo de aprobación (ver setFlow()), no tiene caso dejar la nueva versión
             // sin vigencia; y si sí dispara uno nuevo, ApprovalFlowService la vuelve a asignar
@@ -648,7 +628,7 @@ class RegulationController extends Controller
             RegulationVersion::create([
                 'regulation_id'      => $regulation->id,
                 'version_number'     => $next,
-                'change_description' => $changeSummary ?: 'Actualizado con IA a partir del wizard de edición',
+                'change_description' => 'Actualizado con IA a partir del wizard de edición',
                 'body_html'          => $finalHtml,
                 'responsible_name'   => $data['quien_elabora'],
                 'file_path'          => $storagePath,

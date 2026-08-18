@@ -43,6 +43,25 @@ class RegulationBodyHtmlBuilder
     public const DIAGRAM_MARKER = '{{DIAGRAMA_FLUJO}}';
 
     /**
+     * Títulos de sección, en el mismo orden en que build() los escribe — expuesto para que
+     * RegulationChangeDiffService pueda partir el HTML de dos versiones por estas mismas secciones
+     * y comparar antes/después sin duplicar la lista. Si build() cambia de secciones, esta
+     * constante debe actualizarse igual.
+     */
+    public const SECTION_TITLES = [
+        'Objetivo',
+        'Alcance',
+        'Tópicos',
+        'Indicadores',
+        'Definiciones y Abreviaturas',
+        'Diagrama de Flujo del Proceso',
+        'Descripción del Proceso / Actividades',
+        'Riesgos conocidos y errores frecuentes',
+        'Requerimientos normativos y legales',
+        'Anexos',
+    ];
+
+    /**
      * @param  array<string, string>  $details  Los 20 campos de texto plano ya afinados (DETAIL_FIELDS).
      * @param  array<string, mixed>  $documento  Contenido estructurado adicional (ver schema en AiProcedureGenerationService).
      */

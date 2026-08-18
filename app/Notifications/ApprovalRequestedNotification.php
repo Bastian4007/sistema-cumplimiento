@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Regulation;
+use App\Services\RegulationChangeDiffService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -21,6 +22,9 @@ class ApprovalRequestedNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
+        $currentVersion  = $this->regulation->currentVersion;
+        $previousVersion = $currentVersion?->previousVersion();
+
         return (new MailMessage)
             ->subject('Aprobación requerida: ' . $this->regulation->name)
             ->view('emails.processes.approval-requested', [
@@ -36,6 +40,14 @@ class ApprovalRequestedNotification extends Notification implements ShouldQueue
                     ->orderBy('step_number')
                     ->orderBy('id')
                     ->get(),
+                // Qué cambió en esta versión respecto a la anterior — change_description/
+                // change_justification ya se capturaban al editar, solo faltaba mostrarlos aquí.
+                // changedSections compara sección por sección (ver RegulationChangeDiffService) y
+                // arma la tabla de antes/después que el aprobador ve directo en el correo.
+                'currentVersion'     => $currentVersion,
+                'previousVersion'    => $previousVersion,
+                'changedSections'    => app(RegulationChangeDiffService::class)
+                    ->diff($previousVersion?->body_html, $currentVersion?->body_html),
             ]);
     }
 
