@@ -98,7 +98,10 @@ class AssetController extends Controller
 
         if ($request->filled('q')) {
             $q = trim($request->q);
-            $query->where('name', 'like', "%{$q}%");
+            // LOWER(...) LIKE en vez de LIKE: Postgres es sensible a mayúsculas por defecto, y no
+            // todos los activos quedan guardados en el mismo formato (los importados por CSV sí
+            // van en mayúsculas, los creados a mano desde el formulario no necesariamente).
+            $query->whereRaw('LOWER(name) LIKE ?', ['%' . mb_strtolower($q) . '%']);
         }
 
         if ($request->filled('location')) {
