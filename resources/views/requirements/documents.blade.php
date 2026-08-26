@@ -167,7 +167,7 @@
                               action="{{ route('assets.requirements.documents.store', [$asset, $requirement]) }}"
                               enctype="multipart/form-data"
                               x-data="{
-                                  mode: '{{ old('date_mode', 'renewal') }}',
+                                  mode: '{{ auth()->user()->isAdmin() ? old('date_mode', 'renewal') : 'no_dates' }}',
                                   slots: [1],
                                   nextId: 2,
                                   addSlot() { if (this.slots.length < 5) this.slots.push(this.nextId++); },
@@ -177,69 +177,75 @@
                             @csrf
                             <input type="hidden" name="date_mode" :value="mode">
 
-                            {{-- Tipo de documento --}}
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de documento</label>
-                                <div class="grid grid-cols-3 gap-2">
-                                    <button type="button" @click="mode = 'no_dates'"
-                                            :class="mode === 'no_dates'
-                                                ? 'bg-[#1A428A] text-white border-[#1A428A]'
-                                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
-                                            class="px-3 py-2 text-xs font-medium rounded-md border transition text-center leading-snug">
-                                        Sin fechas<br>
-                                        <span class="font-normal opacity-75">sin revisión</span>
-                                    </button>
-                                    <button type="button" @click="mode = 'no_renewal'"
-                                            :class="mode === 'no_renewal'
-                                                ? 'bg-[#1A428A] text-white border-[#1A428A]'
-                                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
-                                            class="px-3 py-2 text-xs font-medium rounded-md border transition text-center leading-snug">
-                                        Sin renovación<br>
-                                        <span class="font-normal opacity-75">solo emisión</span>
-                                    </button>
-                                    <button type="button" @click="mode = 'renewal'"
-                                            :class="mode === 'renewal'
-                                                ? 'bg-[#1A428A] text-white border-[#1A428A]'
-                                                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
-                                            class="px-3 py-2 text-xs font-medium rounded-md border transition text-center leading-snug">
-                                        Con renovación<br>
-                                        <span class="font-normal opacity-75">emisión y vencimiento</span>
-                                    </button>
-                                </div>
-                            </div>
-
-                            {{-- Fechas (condicional según modo) --}}
-                            <div x-show="mode !== 'no_dates'"
-                                 x-transition:enter="transition ease-out duration-150"
-                                 x-transition:enter-start="opacity-0"
-                                 x-transition:enter-end="opacity-100"
-                                 class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            @if(auth()->user()->isAdmin())
+                                {{-- Tipo de documento --}}
                                 <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de emisión</label>
-                                    <input type="date"
-                                           name="issued_at"
-                                           value="{{ old('issued_at', optional($currentDoc?->issued_at)->format('Y-m-d')) }}"
-                                           class="block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm">
-                                    @error('issued_at')
-                                        <div class="text-sm text-red-600 mt-1">{{ $message }}</div>
-                                    @enderror
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Tipo de documento</label>
+                                    <div class="grid grid-cols-3 gap-2">
+                                        <button type="button" @click="mode = 'no_dates'"
+                                                :class="mode === 'no_dates'
+                                                    ? 'bg-[#1A428A] text-white border-[#1A428A]'
+                                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
+                                                class="px-3 py-2 text-xs font-medium rounded-md border transition text-center leading-snug">
+                                            Sin fechas<br>
+                                            <span class="font-normal opacity-75">sin revisión</span>
+                                        </button>
+                                        <button type="button" @click="mode = 'no_renewal'"
+                                                :class="mode === 'no_renewal'
+                                                    ? 'bg-[#1A428A] text-white border-[#1A428A]'
+                                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
+                                                class="px-3 py-2 text-xs font-medium rounded-md border transition text-center leading-snug">
+                                            Sin renovación<br>
+                                            <span class="font-normal opacity-75">solo emisión</span>
+                                        </button>
+                                        <button type="button" @click="mode = 'renewal'"
+                                                :class="mode === 'renewal'
+                                                    ? 'bg-[#1A428A] text-white border-[#1A428A]'
+                                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'"
+                                                class="px-3 py-2 text-xs font-medium rounded-md border transition text-center leading-snug">
+                                            Con renovación<br>
+                                            <span class="font-normal opacity-75">emisión y vencimiento</span>
+                                        </button>
+                                    </div>
                                 </div>
 
-                                <div x-show="mode === 'renewal'"
+                                {{-- Fechas (condicional según modo) --}}
+                                <div x-show="mode !== 'no_dates'"
                                      x-transition:enter="transition ease-out duration-150"
                                      x-transition:enter-start="opacity-0"
-                                     x-transition:enter-end="opacity-100">
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de vencimiento</label>
-                                    <input type="date"
-                                           name="expires_at"
-                                           value="{{ old('expires_at', optional($currentDoc?->expires_at)->format('Y-m-d')) }}"
-                                           :required="mode === 'renewal'"
-                                           class="block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm">
-                                    @error('expires_at')
-                                        <div class="text-sm text-red-600 mt-1">{{ $message }}</div>
-                                    @enderror
+                                     x-transition:enter-end="opacity-100"
+                                     class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de emisión</label>
+                                        <input type="date"
+                                               name="issued_at"
+                                               value="{{ old('issued_at', optional($currentDoc?->issued_at)->format('Y-m-d')) }}"
+                                               class="block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm">
+                                        @error('issued_at')
+                                            <div class="text-sm text-red-600 mt-1">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+
+                                    <div x-show="mode === 'renewal'"
+                                         x-transition:enter="transition ease-out duration-150"
+                                         x-transition:enter-start="opacity-0"
+                                         x-transition:enter-end="opacity-100">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de vencimiento</label>
+                                        <input type="date"
+                                               name="expires_at"
+                                               value="{{ old('expires_at', optional($currentDoc?->expires_at)->format('Y-m-d')) }}"
+                                               :required="mode === 'renewal'"
+                                               class="block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm">
+                                        @error('expires_at')
+                                            <div class="text-sm text-red-600 mt-1">{{ $message }}</div>
+                                        @enderror
+                                    </div>
                                 </div>
-                            </div>
+                            @else
+                                <div class="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-md px-3 py-2">
+                                    Solo un administrador puede definir la fecha de emisión y vencimiento de este documento.
+                                </div>
+                            @endif
 
                             {{-- Archivos (hasta 5) --}}
                             <div>

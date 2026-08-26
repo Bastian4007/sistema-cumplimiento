@@ -64,6 +64,10 @@ class AssetRequirementDocumentController extends Controller
             return back()->with('error', 'El activo está desactivado. No puedes subir documentación oficial.');
         }
 
+        if (! auth()->user()->isAdmin()) {
+            $request->merge(['date_mode' => 'no_dates', 'issued_at' => null, 'expires_at' => null]);
+        }
+
         $dateMode = $request->input('date_mode', 'renewal');
 
         $data = $request->validate([
