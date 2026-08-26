@@ -25,6 +25,10 @@ Thumbs.db
 database/seeders/data/*.csv
 database/seeders/examples/*.csv
 
+# Staging local para cargas masivas de documentos (reutilizable por activo, contenido sensible)
+/database/seeders/imports/*
+!/database/seeders/imports/README.md
+
 # Documentos de referencia para generación IA de procedimientos — contenido interno/sensible
 /resources/ai-reference/documento_condiciones.docx
 /resources/ai-reference/documento_ejemplo.docx
