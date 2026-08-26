@@ -357,6 +357,19 @@
                                     Descargar
                                 </a>
 
+                                @if(auth()->user()->isAdmin())
+                                    <button
+                                        type="button"
+                                        onclick="openEditDatesModal(
+                                            '{{ route('assets.requirements.documents.update-dates', [$asset, $requirement, $currentDoc]) }}',
+                                            @js(optional($currentDoc->issued_at)->format('Y-m-d')),
+                                            @js(optional($currentDoc->expires_at)->format('Y-m-d'))
+                                        )"
+                                        class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-[#1A428A] border-[#1A428A] hover:bg-blue-50">
+                                        Editar fechas
+                                    </button>
+                                @endif
+
                                 @if(auth()->user()->isAdmin() || auth()->user()->isOperative())
                                     <button
                                         type="button"
@@ -559,7 +572,83 @@
         </div>
     </div>
 
+    <div
+        id="editDatesModal"
+        class="fixed inset-0 z-50 hidden items-center justify-center bg-black/50 px-4"
+    >
+        <div class="w-full max-w-md rounded-xl bg-white shadow-2xl">
+            <div class="p-6 border-b">
+                <h3 class="text-lg font-bold text-gray-900">
+                    Editar fechas de vigencia
+                </h3>
+                <p class="mt-2 text-sm text-gray-600">
+                    Solo un administrador puede modificar la fecha de emisión y vencimiento del documento vigente.
+                </p>
+            </div>
+
+            <form id="editDatesForm" method="POST" class="p-6 space-y-4">
+                @csrf
+                @method('PATCH')
+
+                <div>
+                    <label for="edit_dates_issued_at" class="block text-sm font-medium text-gray-700 mb-1">Fecha de emisión</label>
+                    <input
+                        id="edit_dates_issued_at"
+                        type="date"
+                        name="issued_at"
+                        class="block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                    >
+                </div>
+
+                <div>
+                    <label for="edit_dates_expires_at" class="block text-sm font-medium text-gray-700 mb-1">Fecha de vencimiento</label>
+                    <input
+                        id="edit_dates_expires_at"
+                        type="date"
+                        name="expires_at"
+                        class="block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
+                    >
+                </div>
+
+                <div class="flex items-center justify-end gap-3 pt-2">
+                    <button
+                        type="button"
+                        onclick="closeEditDatesModal()"
+                        class="px-4 py-2 rounded-md border border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-50"
+                    >
+                        Cancelar
+                    </button>
+
+                    <button
+                        type="submit"
+                        class="px-4 py-2 rounded-md bg-[#1A428A] text-white font-semibold hover:bg-[#15356d]"
+                    >
+                        Guardar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
+        function openEditDatesModal(actionUrl, issuedAt, expiresAt) {
+            const modal = document.getElementById('editDatesModal');
+            const form = document.getElementById('editDatesForm');
+
+            form.action = actionUrl;
+            document.getElementById('edit_dates_issued_at').value = issuedAt || '';
+            document.getElementById('edit_dates_expires_at').value = expiresAt || '';
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeEditDatesModal() {
+            const modal = document.getElementById('editDatesModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
         function openDeleteDocumentModal(actionUrl, fileName, versionNumber) {
             const modal = document.getElementById('deleteDocumentModal');
             const form = document.getElementById('deleteDocumentForm');
@@ -603,6 +692,7 @@
         document.addEventListener('keydown', function (event) {
             if (event.key === 'Escape') {
                 closeDeleteDocumentModal();
+                closeEditDatesModal();
             }
         });
     </script>

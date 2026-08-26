@@ -340,6 +340,9 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
     Route::delete('assets/{asset}/requirements/{requirement}/documents/{document}', [AssetRequirementDocumentController::class, 'destroy'])
         ->name('assets.requirements.documents.destroy');
 
+    Route::patch('assets/{asset}/requirements/{requirement}/documents/{document}/dates', [AssetRequirementDocumentController::class, 'updateDates'])
+        ->name('assets.requirements.documents.update-dates');
+
     Route::post('assets/{asset}/requirements/{requirement}/renewal-task', [AssetRequirementDocumentController::class, 'storeRenewalTask'])
         ->name('assets.requirements.renewal-task');
 

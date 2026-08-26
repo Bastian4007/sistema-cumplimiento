@@ -267,6 +267,44 @@ class AssetRequirementDocumentController extends Controller
         return back()->with('status', 'Documento eliminado correctamente.');
     }
 
+    public function updateDates(Request $request, Asset $asset, AssetRequirement $requirement, AssetRequirementDocument $document)
+    {
+        $this->assertRequirementBelongsToAsset($asset, $requirement);
+        $this->assertSameCompany($asset);
+        $this->assertDocumentBelongsToRequirement($document, $requirement);
+        abort_unless(auth()->user()->isAdmin(), 403);
+
+        $data = $request->validate([
+            'issued_at' => ['nullable', 'date'],
+            'expires_at' => ['nullable', 'date'],
+        ]);
+
+        \DB::transaction(function () use ($requirement, $document, $data) {
+            $document = AssetRequirementDocument::query()
+                ->whereKey($document->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $document->update([
+                'issued_at' => $data['issued_at'] ?? null,
+                'expires_at' => $data['expires_at'] ?? null,
+            ]);
+
+            if (! $document->is_current) {
+                return;
+            }
+
+            $requirement->update([
+                'issued_at' => $document->issued_at,
+                'expires_at' => $document->expires_at,
+            ]);
+
+            $this->syncRenewalTaskFromCurrentDocument($requirement, $document);
+        });
+
+        return back()->with('status', 'Fechas del documento actualizadas correctamente.');
+    }
+
     private function deleteOpenRenewalTasks(AssetRequirement $requirement): void
     {
         Task::query()
