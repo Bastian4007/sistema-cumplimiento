@@ -131,9 +131,10 @@
 
             $sections = [
                 'Identificación' => [
-                    'quien_elabora'  => 'Elaborado por',
-                    'quien_aprueba'  => 'Aprobado por',
-                    'fecha_vigencia' => 'Fecha de elaboración',
+                    'quien_elabora'   => 'Elaborado por',
+                    'quien_aprueba'   => 'Aprobado por',
+                    'fecha_vigencia'  => 'Fecha de elaboración',
+                    'motivo_creacion' => 'Motivo de creación',
                 ],
                 'Objetivo y Alcance' => [
                     'resultado_esperado' => 'Resultado esperado',

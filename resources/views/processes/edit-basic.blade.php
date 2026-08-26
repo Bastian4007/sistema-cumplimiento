@@ -182,6 +182,20 @@
                     @enderror
                 </div>
 
+                {{-- Motivo de creación --}}
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
+                        Motivo de creación <span class="text-red-500">*</span>
+                    </label>
+                    <textarea name="motivo_creacion"
+                              rows="2"
+                              placeholder="Ej: Se detectó falta de un procedimiento formal durante la auditoría interna 2026"
+                              class="w-full rounded-md border-gray-300 text-sm focus:border-[#1A428A] focus:ring-[#1A428A] @error('motivo_creacion') border-red-400 @enderror">{{ old('motivo_creacion', $d['motivo_creacion'] ?? '') }}</textarea>
+                    @error('motivo_creacion')
+                        <p class="text-xs text-red-600 mt-1">{{ $message }}</p>
+                    @enderror
+                </div>
+
                 {{-- Responsables de edición — solo un admin puede reasignarlos --}}
                 @if(auth()->user()->isAdmin())
                     @php

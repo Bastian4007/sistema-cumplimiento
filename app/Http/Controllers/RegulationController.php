@@ -315,6 +315,7 @@ class RegulationController extends Controller
             'quien_elabora'               => ['required', 'string', 'max:255'],
             'quien_aprueba'               => ['required', 'string', 'max:255'],
             'fecha_vigencia'              => ['required', 'date'],
+            'motivo_creacion'             => ['required', 'string'],
             'problema_resuelve'           => ['required', 'string'],
             'resultado_esperado'          => ['required', 'string'],
             'areas_aplica'                => ['required', 'string'],
@@ -660,15 +661,16 @@ class RegulationController extends Controller
 
     /**
      * El schema de salida de la IA solo cubre los 20 campos de AiProcedureGenerationService::DETAIL_FIELDS.
-     * quien_elabora/quien_aprueba/fecha_vigencia viven también dentro de "details" (igual que antes de
-     * la integración con IA) pero no pasan por la IA — hay que devolverlos al guardar, o se pierden.
+     * quien_elabora/quien_aprueba/fecha_vigencia/motivo_creacion viven también dentro de "details" (igual
+     * que antes de la integración con IA) pero no pasan por la IA — hay que devolverlos al guardar, o se pierden.
      */
     private function mergeWizardMetaIntoDetails(array $aiDetails, array $wizardMeta): array
     {
         return array_merge($aiDetails, [
-            'quien_elabora'  => $wizardMeta['quien_elabora'],
-            'quien_aprueba'  => $wizardMeta['quien_aprueba'],
-            'fecha_vigencia' => $wizardMeta['fecha_vigencia'],
+            'quien_elabora'   => $wizardMeta['quien_elabora'],
+            'quien_aprueba'   => $wizardMeta['quien_aprueba'],
+            'fecha_vigencia'  => $wizardMeta['fecha_vigencia'],
+            'motivo_creacion' => $wizardMeta['motivo_creacion'],
         ]);
     }
 
@@ -840,6 +842,7 @@ class RegulationController extends Controller
             'quien_elabora'               => ['required', 'string', 'max:255'],
             'quien_aprueba'               => ['required', 'string', 'max:255'],
             'fecha_vigencia'              => ['required', 'date'],
+            'motivo_creacion'             => ['required', 'string'],
             'problema_resuelve'           => ['required', 'string'],
             'resultado_esperado'          => ['required', 'string'],
             'areas_aplica'                => ['required', 'string'],
@@ -1060,12 +1063,14 @@ class RegulationController extends Controller
             'quien_elabora'   => ['required', 'string', 'max:255'],
             'quien_aprueba'   => ['required', 'string', 'max:255'],
             'fecha_vigencia'  => ['required', 'date'],
+            'motivo_creacion' => ['required', 'string'],
         ]);
 
         $newDetails = array_merge($regulation->details ?? [], [
-            'quien_elabora'  => $data['quien_elabora'],
-            'quien_aprueba'  => $data['quien_aprueba'],
-            'fecha_vigencia' => $data['fecha_vigencia'],
+            'quien_elabora'   => $data['quien_elabora'],
+            'quien_aprueba'   => $data['quien_aprueba'],
+            'fecha_vigencia'  => $data['fecha_vigencia'],
+            'motivo_creacion' => $data['motivo_creacion'],
         ]);
 
         $regulation->update([

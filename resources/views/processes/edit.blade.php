@@ -23,6 +23,7 @@
             'quien_elabora'               => $d['quien_elabora'] ?? '',
             'quien_aprueba'               => $d['quien_aprueba'] ?? '',
             'fecha_vigencia'              => $d['fecha_vigencia'] ?? '',
+            'motivo_creacion'             => $d['motivo_creacion'] ?? '',
             'problema_resuelve'           => $d['problema_resuelve'] ?? '',
             'resultado_esperado'          => $d['resultado_esperado'] ?? '',
             'areas_aplica'                => $d['areas_aplica'] ?? '',
@@ -46,7 +47,7 @@
         ];
 
         $blockFields = [
-            1 => ['process_type_id', 'document_type', 'nombre', 'codigo', 'quien_elabora', 'quien_aprueba', 'fecha_vigencia'],
+            1 => ['process_type_id', 'document_type', 'nombre', 'codigo', 'quien_elabora', 'quien_aprueba', 'fecha_vigencia', 'motivo_creacion'],
             2 => ['problema_resuelve', 'resultado_esperado', 'areas_aplica', 'fuera_alcance'],
             3 => ['indicador_proceso', 'indicador_resultado', 'meta_valor', 'frecuencia_medicion'],
             4 => ['que_detona', 'lista_actividades', 'areas_ejecutan', 'decisiones_control', 'documentos_usados', 'resultado_entregable'],
@@ -303,6 +304,23 @@
                                         class="w-full rounded-md text-sm focus:border-blue-600 focus:ring-blue-600"
                                     >
                                     <p x-show="errors.fecha_vigencia" x-text="errors.fecha_vigencia" class="text-sm text-red-600 mt-1"></p>
+                                </div>
+
+                                {{-- motivo_creacion --}}
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                                        Motivo de creación <span class="text-red-500">*</span>
+                                    </label>
+                                    <p class="text-xs text-gray-400 mt-0.5 mb-1">Por qué se está creando este documento (nueva normativa, hallazgo de auditoría, mejora de proceso, etc.)</p>
+                                    <textarea
+                                        name="motivo_creacion"
+                                        x-model="form.motivo_creacion"
+                                        rows="2"
+                                        placeholder="Ej: Se detectó falta de un procedimiento formal durante la auditoría interna 2026"
+                                        :class="errors.motivo_creacion ? 'border-red-400' : 'border-gray-300'"
+                                        class="w-full rounded-md text-sm focus:border-blue-600 focus:ring-blue-600"
+                                    ></textarea>
+                                    <p x-show="errors.motivo_creacion" x-text="errors.motivo_creacion" class="text-sm text-red-600 mt-1"></p>
                                 </div>
 
                             </div>
@@ -635,7 +653,7 @@
             errors: {},
 
             blockFieldMap: {
-                1: ['process_type_id', 'document_type', 'nombre', 'codigo', 'quien_elabora', 'quien_aprueba', 'fecha_vigencia'],
+                1: ['process_type_id', 'document_type', 'nombre', 'codigo', 'quien_elabora', 'quien_aprueba', 'fecha_vigencia', 'motivo_creacion'],
                 2: ['problema_resuelve', 'resultado_esperado', 'areas_aplica', 'fuera_alcance'],
                 3: ['indicador_proceso', 'indicador_resultado', 'meta_valor', 'frecuencia_medicion'],
                 4: ['que_detona', 'lista_actividades', 'areas_ejecutan', 'decisiones_control', 'documentos_usados', 'resultado_entregable'],
