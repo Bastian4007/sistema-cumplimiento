@@ -120,7 +120,10 @@ class RegulationVersionController extends Controller
         ));
     }
 
-    private function docxToHtml(string $filePath): string
+    /**
+     * @return array{html: string, lostContent: bool}
+     */
+    private function docxToHtml(string $filePath): array
     {
         $phpWord = IOFactory::load($filePath);
         $writer  = IOFactory::createWriter($phpWord, 'HTML');
@@ -128,7 +131,61 @@ class RegulationVersionController extends Controller
         $writer->save($tmp);
         $raw = file_get_contents($tmp);
         @unlink($tmp);
-        return preg_match('/<body[^>]*>(.*?)<\/body>/si', $raw, $m) ? $m[1] : $raw;
+        $html = preg_match('/<body[^>]*>(.*?)<\/body>/si', $raw, $m) ? $m[1] : $raw;
+
+        // La sola presencia de tablas/imágenes en el .docx original NO implica que se vayan a
+        // perder: probado con casos reales, el escritor HTML de PhpWord normalmente sí las
+        // reconstruye bien. Lo que se compara aquí es el CONTEO antes/después — si el HTML
+        // resultante trae menos tablas o imágenes que las que el lector encontró en el .docx
+        // original, esas sí se perdieron de verdad para ESTE documento en particular.
+        $original = $this->countComplexElements($phpWord);
+        $rebuilt  = ['tables' => substr_count($html, '<table'), 'images' => substr_count($html, '<img')];
+        $lostContent = $rebuilt['tables'] < $original['tables'] || $rebuilt['images'] < $original['images'];
+
+        return ['html' => $html, 'lostContent' => $lostContent];
+    }
+
+    /** @return array{tables: int, images: int} */
+    private function countComplexElements(PhpWord $phpWord): array
+    {
+        $counts = ['tables' => 0, 'images' => 0];
+
+        foreach ($phpWord->getSections() as $section) {
+            $this->countContainerComplexElements($section, $counts);
+        }
+
+        return $counts;
+    }
+
+    /** @param  array{tables: int, images: int}  $counts */
+    private function countContainerComplexElements(object $container, array &$counts): void
+    {
+        // Table no expone getElements() (su contenido vive en filas → celdas, no en una lista
+        // plana) — sin este caso especial, cualquier imagen dentro de una celda de tabla queda
+        // invisible para el contador y el chequeo de pérdida no la detecta.
+        if ($container instanceof \PhpOffice\PhpWord\Element\Table) {
+            $counts['tables']++;
+
+            foreach ($container->getRows() as $row) {
+                foreach ($row->getCells() as $cell) {
+                    $this->countContainerComplexElements($cell, $counts);
+                }
+            }
+
+            return;
+        }
+
+        if (! method_exists($container, 'getElements')) {
+            return;
+        }
+
+        foreach ($container->getElements() as $element) {
+            if ($element instanceof \PhpOffice\PhpWord\Element\Image) {
+                $counts['images']++;
+            }
+
+            $this->countContainerComplexElements($element, $counts);
+        }
     }
 
     public function editForm(RegulationVersion $version)
@@ -159,15 +216,38 @@ class RegulationVersionController extends Controller
         // evita reconvertir con PhpWord (que puede reescribir bgcolor/estilos de forma distinta)
         // y asegura que lo que se ve al editar es idéntico a "Ver"/"Descargar". Solo se reconvierte
         // para versiones sin body_html (subidas manualmente, de antes de esta columna).
-        $bodyHtml = $hasDraft
-            ? $version->draft_html
-            : ($version->body_html ?: $this->docxToHtml(Storage::disk('private')->path($version->file_path)));
+        $reconstructedFromDocx = ! $hasDraft && ! $version->body_html;
+
+        if ($reconstructedFromDocx) {
+            // Guardar este HTML reconstruido lo deja como el nuevo body_html permanente — si para
+            // ESTE documento en particular la reconstrucción perdió tablas o imágenes reales
+            // (verificado por conteo, no solo "podría perder"), se bloquea de plano en vez de
+            // guardarlo en silencio: ya pasó una vez con un documento real.
+            $reconstructed = $this->docxToHtml(Storage::disk('private')->path($version->file_path));
+
+            if ($reconstructed['lostContent']) {
+                $this->clearLock($version, keepDraft: false);
+
+                return redirect()
+                    ->route('processes.show', $version->regulation)
+                    ->with('error',
+                        'Al reconstruir este documento para poder editarlo se perdió alguna tabla o imagen ' .
+                        '(posiblemente el diagrama de flujo o una tabla de datos) — no se puede continuar sin ' .
+                        'riesgo de perderla permanentemente. Usa "Prompt" (IA) para regenerarlo, o sube una ' .
+                        'nueva versión en .docx desde "Subir versión".'
+                    );
+            }
+
+            $bodyHtml = $reconstructed['html'];
+        } else {
+            $bodyHtml = $hasDraft ? $version->draft_html : $version->body_html;
+        }
 
         $regulation = $version->regulation;
 
         $rejectionComment = $regulation->isRejected() ? $regulation->latestRejectionComment() : null;
 
-        return view('regulation-versions.edit', compact('version', 'regulation', 'bodyHtml', 'hasDraft', 'rejectionComment'));
+        return view('regulation-versions.edit', compact('version', 'regulation', 'bodyHtml', 'hasDraft', 'rejectionComment', 'reconstructedFromDocx'));
     }
 
     public function saveDraft(Request $request, RegulationVersion $version)

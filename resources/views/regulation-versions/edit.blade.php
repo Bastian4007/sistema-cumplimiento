@@ -38,6 +38,15 @@
         </div>
     </div>
 
+    @if($reconstructedFromDocx)
+        <div class="mb-4 shrink-0 rounded-lg border border-orange-300 bg-orange-50 px-4 py-3 text-sm text-orange-800">
+            <strong>Aviso:</strong> este documento no tenía una copia editable guardada, así que su
+            contenido se reconstruyó automáticamente a partir del archivo .docx (se verificó que las
+            tablas e imágenes originales se conservaron). Aun así, revisa el formato antes de
+            guardar por si algo se ve distinto a lo esperado.
+        </div>
+    @endif
+
     {{-- Editor area --}}
     <div class="flex flex-1 gap-4 min-h-0">
 
