@@ -201,7 +201,7 @@
                     @php
                         $selectedResponsables = old('responsables', $regulation->responsables->pluck('id')->all());
                     @endphp
-                    <div>
+                    <div id="responsables">
                         <label class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
                             Responsables (pueden editar este reglamento)
                         </label>

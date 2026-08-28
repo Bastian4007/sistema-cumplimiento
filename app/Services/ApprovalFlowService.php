@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Notifications\ApprovalFlowMemberNotification;
 use App\Notifications\ApprovalRequestedNotification;
 use App\Notifications\RegulationApprovedNotification;
+use App\Notifications\RegulationAccessRequestedNotification;
 use App\Notifications\RegulationReadyToResubmitNotification;
 use App\Notifications\RegulationRejectedNotification;
 use Illuminate\Support\Collection;
@@ -193,6 +194,28 @@ class ApprovalFlowService
         foreach ($admins as $admin) {
             $admin->notify(new RegulationReadyToResubmitNotification($regulation));
         }
+    }
+
+    /**
+     * Un operativo sin acceso de edición (no es responsable) solicitó que lo agreguen como
+     * responsable de un reglamento — se avisa a los admins con acceso al módulo de Procesos
+     * (mismo filtro que notifyIfCorrectedAfterRejection) para que le den acceso si corresponde.
+     * Devuelve cuántos admins fueron notificados, para que el controlador pueda avisarle al
+     * operativo si no había ninguno a quien avisar.
+     */
+    public function notifyAdminsOfAccessRequest(Regulation $regulation, User $requester): int
+    {
+        $admins = User::where('group_id', $regulation->group_id)
+            ->whereHas('role', fn ($q) => $q->whereIn('slug', ['admin', 'superadmin']))
+            ->get()
+            ->filter(fn (User $u) => $u->canAccessCompany($regulation->company))
+            ->filter(fn (User $u) => $u->canAccessModule('procesos'));
+
+        foreach ($admins as $admin) {
+            $admin->notify(new RegulationAccessRequestedNotification($regulation, $requester));
+        }
+
+        return $admins->count();
     }
 
     // -------------------------------------------------------------------------

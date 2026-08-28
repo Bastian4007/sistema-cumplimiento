@@ -267,6 +267,18 @@ class Regulation extends Model
     }
 
     /**
+     * Un operativo sin acceso de edición (no es responsable) puede solicitar que lo agreguen como
+     * responsable — así es como pide acceso en vez de editar directamente. No aplica a admins (ya
+     * pueden editar) ni a operativos fuera de la empresa/grupo del reglamento.
+     */
+    public function canRequestAccessFrom(User $user): bool
+    {
+        return $user->isOperative()
+            && $user->canAccessCompany($this->company)
+            && ! $this->isResponsable($user);
+    }
+
+    /**
      * Token permanente (sin expiración, no atado a un usuario) para el enlace público — "cualquiera
      * con el enlace puede ver" — usado por el QR para pared. Se genera solo una vez y persiste
      * mientras exista el reglamento, así el mismo QR impreso sigue funcionando siempre.

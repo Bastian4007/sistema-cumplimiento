@@ -32,4 +32,14 @@
             Editar
         </a>
     @endif
+@elseif($currentVersion && $regulation->canRequestAccessFrom(auth()->user()))
+    <form method="POST" action="{{ route('processes.requestAccess', $regulation) }}"
+          onsubmit="return confirm('¿Enviar solicitud de acceso a los administradores de Procesos?');">
+        @csrf
+        <button type="submit"
+                title="No eres responsable de este reglamento — pide que te agreguen para poder editarlo"
+                class="px-3 py-2 rounded-md border font-semibold text-sm bg-white text-orange-600 border-orange-400 hover:bg-orange-50">
+            Solicitar edición
+        </button>
+    </form>
 @endif

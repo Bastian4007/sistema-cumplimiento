@@ -204,6 +204,9 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
     Route::put('/processes/{regulation}/update-basic', [RegulationController::class, 'updateBasic'])
         ->name('processes.updateBasic');
 
+    Route::post('/processes/{regulation}/request-access', [RegulationController::class, 'requestAccess'])
+        ->name('processes.requestAccess');
+
     Route::patch('/processes/{regulation}/set-flow', [RegulationController::class, 'setFlow'])
         ->name('processes.setFlow');
 

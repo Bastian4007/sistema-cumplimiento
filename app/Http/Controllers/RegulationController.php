@@ -1020,6 +1020,20 @@ class RegulationController extends Controller
         ]);
     }
 
+    public function requestAccess(Regulation $regulation)
+    {
+        $user = auth()->user();
+        abort_unless($regulation->canRequestAccessFrom($user), 403);
+
+        $notified = $this->flowService->notifyAdminsOfAccessRequest($regulation, $user);
+
+        return redirect()
+            ->route('processes.show', $regulation)
+            ->with('success', $notified > 0
+                ? 'Se envió tu solicitud de acceso a los administradores de Procesos.'
+                : 'No se encontró un administrador de Procesos a quien avisar — contacta directamente a tu administrador.');
+    }
+
     public function editBasic(Regulation $regulation)
     {
         $user = auth()->user();
