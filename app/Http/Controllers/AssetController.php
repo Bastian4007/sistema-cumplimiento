@@ -460,7 +460,12 @@ class AssetController extends Controller
             ->when($status !== '', function (Collection $collection) use ($status) {
                 return $collection->filter(fn ($item) => ($item->computed_status ?? '') === $status);
             })
-            ->sortBy(fn ($item) => sprintf('%02d-%s', $item->template?->subtype_rank ?? 99, $item->template?->name ?? ''))
+            ->sortBy(fn ($item) => sprintf(
+                '%s|%02d-%s',
+                $item->template?->authority ?: 'zzz-sin-entidad',
+                $item->template?->subtype_rank ?? 99,
+                $item->template?->name ?? ''
+            ))
             ->values();
 
         $perPage = 10;

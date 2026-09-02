@@ -537,6 +537,7 @@
                     </thead>
 
                     <tbody class="divide-y">
+                        @php $lastAuthority = null; @endphp
                         @forelse($requirements as $req)
                             @php
                                 $title = $req->template?->name ?? $req->type;
@@ -580,6 +581,15 @@
                                     };
                                 }
                             @endphp
+
+                            @if($authorityVal !== $lastAuthority)
+                                @php $lastAuthority = $authorityVal; @endphp
+                                <tr class="bg-gray-100">
+                                    <td colspan="9" class="px-6 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                        {{ $authorityVal ?: 'Sin entidad asignada' }}
+                                    </td>
+                                </tr>
+                            @endif
 
                             <tr class="hover:bg-gray-50">
                                 <td class="px-6 py-4 font-semibold text-gray-800">
