@@ -136,7 +136,11 @@ class ApprovalFlowService
     }
 
     /**
-     * Reinicia el flujo desde el paso 1 (usado tras un rechazo).
+     * Reinicia el flujo desde el paso 1. Se usa en dos casos: (1) un admin re-envía manualmente
+     * un reglamento rechazado tras corregirlo (RegulationApprovalController::resubmit()), y (2)
+     * automáticamente cuando se guarda una edición sobre un reglamento que ya estaba 'approved'
+     * (saveEdit()/confirmEditDraft()/store() en los controladores de Regulation) — el contenido
+     * cambió, así que ya no se puede considerar aprobado sin que alguien lo revise de nuevo.
      */
     public function resubmit(Regulation $regulation): void
     {

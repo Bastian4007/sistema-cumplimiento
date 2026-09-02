@@ -90,6 +90,11 @@
                             </a>
                         </div>
                     </div>
+                @elseif($regulation->hasActiveApprovalFlow() && (auth()->user()->isAdmin() || $regulation->isResponsable(auth()->user())))
+                    <span class="px-4 py-2 rounded-md border border-gray-300 bg-gray-50 text-gray-500 font-semibold text-sm flex items-center gap-1.5"
+                          title="No se puede editar mientras el documento está en proceso de aprobación">
+                        En revisión — no editable
+                    </span>
                 @elseif($regulation->canRequestAccessFrom(auth()->user()))
                     <form method="POST" action="{{ route('processes.requestAccess', $regulation) }}"
                           onsubmit="return confirm('¿Enviar solicitud de acceso a los administradores de Procesos?');">

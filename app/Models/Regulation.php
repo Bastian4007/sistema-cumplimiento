@@ -209,6 +209,16 @@ class Regulation extends Model
         return $this->approval_status === 'rejected';
     }
 
+    /**
+     * A medio flujo: ya se envió a aprobar pero todavía no hay una decisión final (ni aprobado
+     * ni rechazado). Mientras esto sea true, isEditableBy() bloquea cualquier edición — nadie
+     * debe alterar el contenido que los aprobadores están revisando en este momento.
+     */
+    public function hasActiveApprovalFlow(): bool
+    {
+        return in_array($this->approval_status, ['pending_review', 'pending_authorization'], true);
+    }
+
     public function latestRejectionComment(): ?string
     {
         return $this->approvals()
@@ -251,6 +261,12 @@ class Regulation extends Model
      */
     public function isEditableBy(User $user): bool
     {
+        // A medio flujo, nadie edita — ni siquiera un admin — hasta que se apruebe o rechace:
+        // el contenido que se editaría es justo el que los aprobadores están revisando ahora.
+        if ($this->hasActiveApprovalFlow()) {
+            return false;
+        }
+
         if (! $user->canAccessCompany($this->company)) {
             return false;
         }

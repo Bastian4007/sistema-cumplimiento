@@ -568,6 +568,7 @@ class RegulationController extends Controller
     {
         $regulation = Regulation::findOrFail($draft['regulation_id']);
         abort_unless($regulation->isEditableBy($user), 403);
+        $wasApproved = $regulation->approval_status === 'approved';
 
         $data = $draft['meta'];
         $ai = $draft['ai'];
@@ -647,6 +648,12 @@ class RegulationController extends Controller
         // los admins que ya pueden reiniciar el flujo, en vez de que se enteren solo si entran a
         // revisar el reglamento por su cuenta.
         $this->flowService->notifyIfCorrectedAfterRejection($regulation);
+
+        // Si en cambio ya estaba aprobado, el contenido acaba de cambiar bajo un documento que se
+        // consideraba definitivo — no puede seguir "aprobado" sin que alguien lo revise de nuevo.
+        if ($wasApproved) {
+            $this->flowService->resubmit($regulation);
+        }
 
         if ($detailsChanged && ($draft['old_flow_locked'] ?? false) && $user->isAdmin()) {
             return redirect()

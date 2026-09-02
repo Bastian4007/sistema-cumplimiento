@@ -160,6 +160,29 @@
                                     </p>
                                 @endif
 
+                                @if(!empty($currentVersion->changes_table['rows']))
+                                    <div class="mt-3 border border-amber-200 rounded-lg overflow-hidden">
+                                        <table class="w-full text-xs">
+                                            <thead>
+                                                <tr class="bg-amber-100 text-amber-800">
+                                                    <th class="text-left font-semibold uppercase tracking-wide px-3 py-2 w-10">#</th>
+                                                    <th class="text-left font-semibold uppercase tracking-wide px-3 py-2 w-2/5">Modificación solicitada</th>
+                                                    <th class="text-left font-semibold uppercase tracking-wide px-3 py-2">Texto ya incorporado al procedimiento</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-amber-100 bg-white">
+                                                @foreach($currentVersion->changes_table['rows'] as $i => $row)
+                                                    <tr>
+                                                        <td class="px-3 py-2 font-semibold text-amber-800 align-top">{{ $i + 1 }}</td>
+                                                        <td class="px-3 py-2 text-gray-700 align-top whitespace-pre-line">{{ $row['modificacion'] }}</td>
+                                                        <td class="px-3 py-2 text-gray-800 align-top whitespace-pre-line">{{ $row['texto_incorporado'] }}</td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                @endif
+
                                 @if(count($changedSections) > 0)
                                     <div class="mt-3 border border-amber-200 rounded-lg overflow-hidden">
                                         <table class="w-full text-xs">

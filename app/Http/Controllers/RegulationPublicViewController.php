@@ -21,6 +21,11 @@ class RegulationPublicViewController extends Controller
             404
         );
 
+        // Si el reglamento se editó y está a medio flujo (o se rechazó) desde que se generó este
+        // link, el contenido actual ya no está validado — el QR de pared no debe servirlo hasta
+        // que vuelva a quedar aprobado.
+        abort_unless($regulation->approval_status === 'approved', 404);
+
         $version = $regulation->currentVersion;
 
         abort_unless($version && $version->file_path && Storage::disk('private')->exists($version->file_path), 404);

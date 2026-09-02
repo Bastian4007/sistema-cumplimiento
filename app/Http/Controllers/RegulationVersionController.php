@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\AiProcedureGenerationService;
 use App\Services\ApprovalFlowService;
 use App\Services\OfficeDocumentConverter;
+use App\Services\RegulationChangeTableService;
 use App\Services\RegulationDocxHeaderBuilder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -27,6 +28,9 @@ class RegulationVersionController extends Controller
         // sigue abierto a operativos.
         abort_unless($user->isAdmin(), 403);
         abort_unless($user->canAccessCompany($regulation->company), 403);
+        abort_unless(! $regulation->hasActiveApprovalFlow(), 403, 'No se puede subir una nueva versión mientras el documento está en proceso de aprobación.');
+
+        $wasApproved = $regulation->approval_status === 'approved';
 
         $data = $request->validate([
             // Ver comentario en RegulationController::storeCargar() — "mimes" rechaza .docx/.xlsx/.pptx
@@ -64,6 +68,12 @@ class RegulationVersionController extends Controller
                 'uploaded_by'        => $user->id,
             ]);
         });
+
+        // Si el archivo subido reemplaza un documento ya aprobado, ese contenido nuevo no ha sido
+        // revisado por nadie — no puede seguir mostrándose como "aprobado".
+        if ($wasApproved) {
+            app(ApprovalFlowService::class)->resubmit($regulation);
+        }
 
         return redirect()
             ->route('processes.show', $regulation)
@@ -351,7 +361,7 @@ class RegulationVersionController extends Controller
             );
     }
 
-    public function saveEdit(Request $request, RegulationVersion $version, AiProcedureGenerationService $sanitizer)
+    public function saveEdit(Request $request, RegulationVersion $version, AiProcedureGenerationService $sanitizer, RegulationChangeTableService $changeTableService)
     {
         $user = auth()->user();
         abort_unless($version->regulation->isEditableBy($user), 403);
@@ -371,6 +381,7 @@ class RegulationVersionController extends Controller
         ]);
 
         $regulation = $version->regulation;
+        $wasApproved = $regulation->approval_status === 'approved';
 
         $changeDescription = $data['change_description'] ?? null;
         $changeJustification = $data['change_justification'];
@@ -409,7 +420,12 @@ class RegulationVersionController extends Controller
         $tmp = tempnam(sys_get_temp_dir(), 'edited_docx_');
         IOFactory::createWriter($phpWord, 'Word2007')->save($tmp);
 
-        DB::transaction(function () use ($regulation, $version, $tmp, $user, $changeDescription, $changeJustification, $next, $html) {
+        // Se genera antes de la transacción: es una llamada a la IA (puede tardar unos segundos)
+        // y de fallar no debe revertir nada — changeTableService ya atrapa sus propios errores y
+        // regresa null en vez de lanzar, así que esto nunca bloquea el guardado de la versión.
+        $changesTable = $changeTableService->generate($changeJustification, $changeDescription, $version->body_html, $html);
+
+        DB::transaction(function () use ($regulation, $version, $tmp, $user, $changeDescription, $changeJustification, $changesTable, $next, $html) {
             $regulation->versions()->where('is_current', true)->update(['is_current' => false]);
 
             $rawName     = pathinfo($version->original_name ?? 'documento.docx', PATHINFO_FILENAME);
@@ -424,6 +440,7 @@ class RegulationVersionController extends Controller
                 'version_number'        => $next,
                 'change_description'    => $changeDescription ?: 'Editado en línea',
                 'change_justification'  => $changeJustification,
+                'changes_table'         => $changesTable,
                 'body_html'             => $html,
                 'responsible_name'      => $user->name,
                 'file_path'             => $storagePath,
@@ -445,6 +462,12 @@ class RegulationVersionController extends Controller
         // Si el reglamento estaba rechazado, esta edición libre es (se asume) la corrección —
         // avisar a los admins que ya pueden reiniciar el flujo.
         app(ApprovalFlowService::class)->notifyIfCorrectedAfterRejection($regulation);
+
+        // Si en cambio ya estaba aprobado, el contenido acaba de cambiar bajo un documento que se
+        // consideraba definitivo — no puede seguir "aprobado" sin que alguien lo revise de nuevo.
+        if ($wasApproved) {
+            app(ApprovalFlowService::class)->resubmit($regulation);
+        }
 
         return redirect()
             ->route('processes.show', $regulation)

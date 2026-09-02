@@ -130,7 +130,7 @@ class RegulationChangeDiffService
      * imágenes (p. ej. el diagrama de flujo, embebido como &lt;img&gt; en base64) se pierden aquí a
      * propósito: no tiene caso comparar texto de una imagen, y evita inflar la tabla con basura.
      */
-    private function toPlainText(string $html): string
+    public function toPlainText(string $html): string
     {
         return implode("\n", $this->plainTextLines($html));
     }
