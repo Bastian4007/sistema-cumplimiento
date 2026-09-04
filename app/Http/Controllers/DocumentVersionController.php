@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Company;
 use App\Models\Document;
-use App\Models\DocumentFolder;
 use App\Models\DocumentVersion;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -17,17 +18,15 @@ class DocumentVersionController extends Controller
         return Storage::disk('private');
     }
 
-    public function show(DocumentFolder $category, Document $document)
+    public function show(Document $document)
     {
-        $this->assertDocumentBelongsToCategory($document, $category);
-
         $user = auth()->user();
-        $this->authorizeDocumentAccess($user, $document, $category);
+        $this->authorizeDocumentAccess($user, $document);
 
         $document->load([
             'versions.uploader',
-            'folder.parent',
             'company',
+            'authorizedUsers:id,name',
         ]);
 
         $currentVersion = $document->versions->firstWhere('is_current', true)
@@ -35,31 +34,60 @@ class DocumentVersionController extends Controller
 
         $versionHistory = $document->versions->sortByDesc('version_number');
 
+        $companies = $user->hasGroupScope()
+            ? Company::query()
+                ->where('group_id', $user->group_id)
+                ->where('otras', false)
+                ->orderBy('name')
+                ->get()
+            : collect();
+
+        $groupUsers = User::query()
+            ->where('group_id', $user->group_id)
+            ->orderBy('name')
+            ->get(['id', 'name', 'company_id']);
+
+        $responsibleUsers = User::query()
+            ->where('group_id', $user->group_id)
+            ->whereHas('role', fn ($q) => $q->whereIn('slug', ['admin', 'operative']))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         return view('documents.document', [
-            'category'       => $category,
-            'document'       => $document,
-            'currentVersion' => $currentVersion,
-            'versionHistory' => $versionHistory,
+            'document'         => $document,
+            'currentVersion'   => $currentVersion,
+            'versionHistory'   => $versionHistory,
+            'companies'        => $companies,
+            'groupUsers'       => $groupUsers,
+            'users'            => $responsibleUsers,
+            'documentTypes'    => Document::DOCUMENT_TYPES,
         ]);
     }
 
-    public function store(Request $request, DocumentFolder $category, Document $document)
+    public function store(Request $request, Document $document)
     {
-        $this->assertDocumentBelongsToCategory($document, $category);
-
         $user = auth()->user();
-        $this->authorizeDocumentAccess($user, $document, $category);
+        $this->authorizeDocumentAccess($user, $document);
         abort_unless($user->isAdmin() || $user->isOperative(), 403);
+
+        $dateMode = $request->input('date_mode', 'no_dates');
 
         $data = $request->validate([
             'file'        => ['required', 'file', 'max:10240', 'mimes:pdf,jpg,jpeg,png'],
+            'date_mode'   => ['required', 'in:no_dates,no_renewal,renewal'],
             'issued_at'   => ['nullable', 'date'],
-            'valid_until' => ['nullable', 'date', 'after:today'],
+            'valid_until' => $dateMode === 'renewal'
+                ? ['required', 'date', 'after:today']
+                : ['nullable', 'date', 'after:today'],
         ], [
-            'valid_until.after' => 'La fecha de vencimiento debe ser posterior a hoy.',
+            'valid_until.required' => 'La fecha de vencimiento es obligatoria para un documento con emisión y vencimiento.',
+            'valid_until.after'    => 'La fecha de vencimiento debe ser posterior a hoy.',
         ]);
 
-        DB::transaction(function () use ($data, $document, $request) {
+        $issuedAt   = in_array($dateMode, ['no_renewal', 'renewal'], true) ? ($data['issued_at'] ?? null) : null;
+        $validUntil = $dateMode === 'renewal' ? ($data['valid_until'] ?? null) : null;
+
+        DB::transaction(function () use ($data, $document, $request, $issuedAt, $validUntil) {
             $document = Document::query()
                 ->whereKey($document->id)
                 ->lockForUpdate()
@@ -89,8 +117,8 @@ class DocumentVersionController extends Controller
                 'original_name'  => $file->getClientOriginalName(),
                 'mime_type'      => $file->getClientMimeType(),
                 'file_size'      => $file->getSize(),
-                'issued_at'      => $data['issued_at'] ?? null,
-                'valid_until'    => $data['valid_until'] ?? null,
+                'issued_at'      => $issuedAt,
+                'valid_until'    => $validUntil,
                 'uploaded_by'    => auth()->id(),
             ]);
         });
@@ -136,12 +164,10 @@ class DocumentVersionController extends Controller
         );
     }
 
-    public function destroy(DocumentFolder $category, Document $document, DocumentVersion $version)
+    public function destroy(Document $document, DocumentVersion $version)
     {
-        $this->assertDocumentBelongsToCategory($document, $category);
-
         $user = auth()->user();
-        $this->authorizeDocumentAccess($user, $document, $category);
+        $this->authorizeDocumentAccess($user, $document);
         abort_unless($user->isAdmin() || $user->isOperative(), 403);
         abort_unless((int) $version->document_id === (int) $document->id, 404);
 
@@ -178,21 +204,15 @@ class DocumentVersionController extends Controller
         return back()->with('success', 'Versión eliminada correctamente.');
     }
 
-    private function assertDocumentBelongsToCategory(Document $document, DocumentFolder $category): void
-    {
-        if ((int) $document->document_folder_id !== (int) $category->id) {
-            abort(404);
-        }
-    }
-
-    // General folders (company_id=null) are accessible to any user in the same group.
-    private function authorizeDocumentAccess($user, Document $document, DocumentFolder $folder): void
+    // Documentos con empresa asignada requieren acceso a esa empresa;
+    // documentos generales (company_id=null) son accesibles a cualquier usuario del mismo grupo.
+    private function authorizeDocumentAccess($user, Document $document): void
     {
         if ($document->company_id !== null) {
             abort_unless($user->canAccessCompany($document->company), 403);
         } else {
             abort_unless(
-                $user->isGlobalScope() || $user->group_id === $folder->group_id,
+                $user->isGlobalScope() || $user->group_id === $document->group_id,
                 403
             );
         }

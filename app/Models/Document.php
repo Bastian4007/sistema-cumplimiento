@@ -10,6 +10,20 @@ class Document extends Model
 {
     use HasFactory, SoftDeletes;
 
+    public const DOCUMENT_TYPES = [
+        'Poderes',
+        'Escrituras de terrenos',
+        'Acta constitutiva',
+        'Acta de asamblea',
+        'Contratos',
+        'Libros sociales',
+        'Libros de accionistas',
+        'Constancias del IMPI',
+        'Títulos de concesión',
+        'Registros de UMA',
+        'Otros',
+    ];
+
     protected $fillable = [
         'group_id',
         'company_id',
@@ -17,7 +31,7 @@ class Document extends Model
         'name',
         'document_type',
         'reference',
-        'authorized_access_notes',
+        'bodega',
         'responsible_name',
         'is_required',
         'is_active',
@@ -74,6 +88,12 @@ class Document extends Model
         return $this->belongsTo(Group::class);
     }
 
+    public function authorizedUsers()
+    {
+        return $this->belongsToMany(User::class, 'document_authorized_users')
+            ->withTimestamps();
+    }
+
     /*
     |--------------------------------------------------------------------------
     | Helpers
@@ -99,5 +119,22 @@ class Document extends Model
         return $version?->valid_until
             && $version->valid_until->lte(now()->addDays($days))
             && !$version->valid_until->isPast();
+    }
+
+    public function vigenciaStatus(): string
+    {
+        if (! $this->currentVersion?->valid_until) {
+            return 'sin_vencimiento';
+        }
+
+        if ($this->isExpired()) {
+            return 'vencido';
+        }
+
+        if ($this->isNearExpiration()) {
+            return 'por_vencer';
+        }
+
+        return 'vigente';
     }
 }

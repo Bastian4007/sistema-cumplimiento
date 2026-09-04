@@ -87,36 +87,31 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
     Route::get('/documents', [DocumentController::class, 'index'])
         ->name('documents.index');
 
-    Route::get('/documents/folders/{folder}', [DocumentController::class, 'showFolder'])
-        ->name('documents.folders.show');
+    Route::post('/documents', [DocumentController::class, 'store'])
+        ->name('documents.store');
 
-    // Documents directly in a folder (general folders, no categories)
-    Route::post('/documents/folders/{category}/documents', [DocumentController::class, 'store'])
-        ->name('documents.folders.documents.store');
+    // Weekly report (admin + operative) — must be registered before the {document} wildcard below
+    Route::get('/documents/report/weekly', [DocumentReportController::class, 'weeklyReport'])
+        ->name('documents.report.weekly');
 
-    Route::get('/documents/folders/{category}/documents/{document}', [DocumentVersionController::class, 'show'])
-        ->name('documents.folder.document.show');
+    // Trash (admin only) — must be registered before the {document} wildcard below
+    Route::get('/documents/trash', [DocumentTrashController::class, 'index'])
+        ->name('documents.trash.index');
+    Route::post('/documents/trash/{id}/restore', [DocumentTrashController::class, 'restore'])
+        ->name('documents.trash.restore');
+    Route::delete('/documents/trash/{id}', [DocumentTrashController::class, 'forceDestroy'])
+        ->name('documents.trash.force-destroy');
 
-    Route::post('/documents/folders/{category}/documents/{document}/versions', [DocumentVersionController::class, 'store'])
-        ->name('documents.folder.document.versions.store');
+    Route::get('/documents/{document}', [DocumentVersionController::class, 'show'])
+        ->name('documents.show');
 
-    Route::delete('/documents/folders/{category}/documents/{document}/versions/{version}', [DocumentVersionController::class, 'destroy'])
-        ->name('document-versions.folder.destroy');
+    Route::patch('/documents/{document}', [DocumentController::class, 'update'])
+        ->name('documents.update');
 
-    // Legacy category routes (kept for backward compatibility)
-    Route::get('/documents/categories/{category}', [DocumentController::class, 'showCategory'])
-        ->name('documents.categories.show');
+    Route::post('/documents/{document}/versions', [DocumentVersionController::class, 'store'])
+        ->name('documents.versions.store');
 
-    Route::post('/documents/categories/{category}/documents', [DocumentController::class, 'store'])
-        ->name('documents.categories.documents.store');
-
-    Route::get('/documents/categories/{category}/documents/{document}', [DocumentVersionController::class, 'show'])
-        ->name('documents.document.show');
-
-    Route::post('/documents/categories/{category}/documents/{document}/versions', [DocumentVersionController::class, 'store'])
-        ->name('documents.document.versions.store');
-
-    Route::delete('/documents/categories/{category}/documents/{document}/versions/{version}', [DocumentVersionController::class, 'destroy'])
+    Route::delete('/documents/{document}/versions/{version}', [DocumentVersionController::class, 'destroy'])
         ->name('document-versions.destroy');
 
     Route::get('/document-versions/{version}/preview', [DocumentVersionController::class, 'preview'])
@@ -126,21 +121,10 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
         ->name('document-versions.download');
 
     // Delete document → move to trash
-    Route::delete('/documents/folders/{folder}/documents/{document}', [DocumentController::class, 'destroy'])
-        ->name('documents.folders.documents.destroy');
-
-    // Weekly report (admin + operative)
-    Route::get('/documents/report/weekly', [DocumentReportController::class, 'weeklyReport'])
-        ->name('documents.report.weekly');
-
-
-    // Trash (admin only)
-    Route::get('/documents/trash', [DocumentTrashController::class, 'index'])
-        ->name('documents.trash.index');
-    Route::post('/documents/trash/{id}/restore', [DocumentTrashController::class, 'restore'])
-        ->name('documents.trash.restore');
-    Route::delete('/documents/trash/{id}', [DocumentTrashController::class, 'forceDestroy'])
-        ->name('documents.trash.force-destroy');
+    // NOTE: cannot use DELETE /documents/{document} — that URI+verb is already
+    // taken by TaskDocumentController@destroy (unrelated feature, see below).
+    Route::delete('/documents/{document}/trash', [DocumentController::class, 'destroy'])
+        ->name('documents.trash.move');
 
     /*
     |--------------------------------------------------------------------------

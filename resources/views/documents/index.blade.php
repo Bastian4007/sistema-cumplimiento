@@ -11,6 +11,12 @@
         <h1 class="text-2xl font-semibold text-[#1A428A]">Documentos</h1>
         <div class="flex items-center gap-3">
             @if($user->isAdmin() || $user->isOperative())
+                <button type="button"
+                        x-data
+                        @click="$dispatch('open-modal', 'create-document')"
+                        class="px-4 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                    + Nuevo documento
+                </button>
                 <a href="{{ route('documents.report.weekly') }}"
                    class="flex items-center gap-2 px-5 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none"
@@ -54,12 +60,42 @@
             </div>
         @endif
 
+        <div class="min-w-[200px]">
+            <label class="block text-xs text-gray-500 mb-1">Tipo de documento</label>
+            <select name="document_type" class="w-full rounded-md border-gray-300 text-sm">
+                <option value="">Todos</option>
+                @foreach($documentTypes as $type)
+                    <option value="{{ $type }}" @selected($selectedType === $type)>{{ $type }}</option>
+                @endforeach
+            </select>
+        </div>
+
+        <div class="min-w-[180px]">
+            <label class="block text-xs text-gray-500 mb-1">Vigencia</label>
+            <select name="vigencia" class="w-full rounded-md border-gray-300 text-sm">
+                <option value="">Todas</option>
+                <option value="vigente" @selected($selectedVigencia === 'vigente')>Vigente</option>
+                <option value="por_vencer" @selected($selectedVigencia === 'por_vencer')>Por vencer</option>
+                <option value="vencido" @selected($selectedVigencia === 'vencido')>Vencido</option>
+                <option value="sin_vencimiento" @selected($selectedVigencia === 'sin_vencimiento')>Sin vencimiento</option>
+            </select>
+        </div>
+
+        <div class="min-w-[160px]">
+            <label class="block text-xs text-gray-500 mb-1">Requerido</label>
+            <select name="is_required" class="w-full rounded-md border-gray-300 text-sm">
+                <option value="">Todos</option>
+                <option value="1" @selected(request('is_required') === '1')>Sí</option>
+                <option value="0" @selected(request('is_required') === '0')>No</option>
+            </select>
+        </div>
+
         <div class="flex-1 min-w-[200px] max-w-sm">
             <label class="block text-xs text-gray-500 mb-1">Buscar</label>
             <input type="text"
                    name="q"
                    value="{{ request('q') }}"
-                   placeholder="Carpeta, categoría o documento..."
+                   placeholder="Nombre o referencia..."
                    class="w-full rounded-md border-gray-300 text-sm">
         </div>
 
@@ -74,181 +110,317 @@
         </a>
     </form>
 
-    @php
-        $hasSearch = request()->filled('q');
-        $totalResults = $folders->count() + $matchingCategories->count() + $matchingDocuments->count();
-    @endphp
-
-    {{-- RESULTADOS DE BÚSQUEDA --}}
-    @if($hasSearch)
-        <p class="mt-5 text-sm text-gray-500">
-            {{ $totalResults }} {{ $totalResults === 1 ? 'resultado' : 'resultados' }} para
-            <span class="font-semibold text-gray-700">"{{ request('q') }}"</span>
-        </p>
+    {{-- Alerts --}}
+    @if(session('success'))
+        <div class="mt-4 rounded-lg border border-green-200 bg-green-50 p-3 text-green-800 text-sm">
+            {{ session('success') }}
+        </div>
     @endif
 
-    @if($hasSearch && $totalResults === 0)
-        <div class="mt-4 rounded-xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center">
-            <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none"
-                     viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                    <path stroke-linecap="round" stroke-linejoin="round"
-                          d="M21 21l-4.35-4.35M17 11A6 6 0 111 11a6 6 0 0116 0z"/>
-                </svg>
-            </div>
-            <p class="text-sm text-gray-500">No se encontraron resultados para esta búsqueda.</p>
+    {{-- TABLA DE DOCUMENTOS --}}
+    <div class="mt-6 bg-white border rounded-lg shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+
+                <thead class="bg-gray-50 border-b border-gray-200">
+                    <tr class="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        <th class="text-left px-4 py-3">Nombre del Documento</th>
+                        @if($user->hasGroupScope())
+                            <th class="text-left px-4 py-3">Empresa</th>
+                        @endif
+                        <th class="text-left px-4 py-3">Referencia / Oficio</th>
+                        <th class="text-left px-4 py-3">Fecha</th>
+                        <th class="text-left px-4 py-3">Vencimiento</th>
+                        <th class="text-left px-4 py-3">Tipo</th>
+                        <th class="text-left px-4 py-3">Responsable</th>
+                        <th class="text-left px-4 py-3">Archivo</th>
+                        <th class="px-4 py-3"></th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    @forelse($documents as $document)
+                        @php
+                            $version = $document->currentVersion;
+                            $isExpired = $document->isExpired();
+                            $isNearExpiration = !$isExpired && $document->isNearExpiration();
+                        @endphp
+
+                        <tr class="border-t border-gray-100 text-sm text-gray-700 hover:bg-gray-50 cursor-pointer"
+                            ondblclick="window.location.href='{{ route('documents.show', $document) }}'">
+
+                            {{-- Nombre --}}
+                            <td class="px-4 py-3">
+                                <div class="font-medium text-gray-900">{{ $document->name }}</div>
+                                @if($document->is_required)
+                                    <span class="inline-flex items-center mt-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                                        Requerido
+                                    </span>
+                                @endif
+                            </td>
+
+                            {{-- Empresa --}}
+                            @if($user->hasGroupScope())
+                                <td class="px-4 py-3">
+                                    {{ $document->company?->name ?? '—' }}
+                                </td>
+                            @endif
+
+                            {{-- Referencia / Oficio --}}
+                            <td class="px-4 py-3">
+                                {{ $document->reference ?? '—' }}
+                            </td>
+
+                            {{-- Fecha (issued_at de la versión actual) --}}
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                {{ $version?->issued_at?->format('d/m/Y') ?? '—' }}
+                            </td>
+
+                            {{-- Vencimiento --}}
+                            <td class="px-4 py-3 whitespace-nowrap">
+                                @if($version?->valid_until)
+                                    <span class="font-medium
+                                        @if($isExpired) text-red-600
+                                        @elseif($isNearExpiration) text-yellow-600
+                                        @else text-gray-700
+                                        @endif">
+                                        {{ $version->valid_until->format('d/m/Y') }}
+                                    </span>
+                                    @if($isExpired)
+                                        <div class="text-xs text-red-500">Vencido</div>
+                                    @elseif($isNearExpiration)
+                                        <div class="text-xs text-yellow-600">Por vencer</div>
+                                    @endif
+                                @else
+                                    <span class="text-gray-400">N/A</span>
+                                @endif
+                            </td>
+
+                            {{-- Tipo de Documento --}}
+                            <td class="px-4 py-3">
+                                {{ $document->document_type ?? '—' }}
+                            </td>
+
+                            {{-- Responsable --}}
+                            <td class="px-4 py-3">
+                                {{ $document->responsible_name ?? '—' }}
+                            </td>
+
+                            {{-- Archivo --}}
+                            <td class="px-4 py-3">
+                                @if($version && $version->file_path)
+                                    <span class="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+                                        ✓ Disponible
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">
+                                        Sin archivo
+                                    </span>
+                                @endif
+                            </td>
+
+                            {{-- Acción --}}
+                            <td class="px-4 py-3 text-right" ondblclick="event.stopPropagation()">
+                                <div class="flex items-center justify-end gap-4">
+                                    <a href="{{ route('documents.show', $document) }}"
+                                       class="font-semibold text-blue-600 hover:underline whitespace-nowrap">
+                                        Gestionar →
+                                    </a>
+                                    @if($user->isAdmin())
+                                        <form method="POST"
+                                              action="{{ route('documents.trash.move', $document) }}">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit"
+                                                    class="font-semibold text-red-500 hover:text-red-700"
+                                                    onclick="return confirm('¿Mover «{{ addslashes($document->name) }}» a la papelera? Podrás restaurarlo en los próximos 2 meses.')">
+                                                Eliminar
+                                            </button>
+                                        </form>
+                                    @endif
+                                </div>
+                            </td>
+
+                        </tr>
+                    @empty
+                        <tr class="border-t">
+                            <td colspan="{{ $user->hasGroupScope() ? 9 : 8 }}"
+                                class="px-6 py-6 text-center text-gray-500">
+                                No se encontraron documentos con los filtros seleccionados.
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+
+            </table>
         </div>
-    @else
 
-        {{-- SECCIÓN: CARPETAS --}}
-        @if($folders->isNotEmpty())
-            @if($hasSearch)
-                <h2 class="mt-6 mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
-                    Carpetas ({{ $folders->count() }})
-                </h2>
-            @endif
-
-            <div class="{{ $hasSearch ? 'mt-1' : 'mt-6' }} grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                @foreach($folders as $folder)
-                    <a href="{{ route('documents.folders.show', $folder) }}"
-                       class="group flex flex-col rounded-xl border border-gray-200 bg-white p-5 shadow-sm
-                              transition hover:border-[#1A428A] hover:shadow-md">
-
-                        <div class="flex items-start gap-3">
-                            <div class="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center
-                                        rounded-lg bg-blue-50 group-hover:bg-blue-100 transition">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-[#1A428A]"
-                                     fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                          d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
-                                </svg>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="font-semibold text-gray-800 leading-snug group-hover:text-[#1A428A] transition">
-                                    {{ $folder->name }}
-                                </p>
-                                        {{-- carpetas generales: sin badge de empresa --}}
-                            </div>
-                        </div>
-
-                        <div class="mt-4 flex items-center justify-between">
-                            <span class="inline-flex items-center gap-1 rounded-full bg-gray-100
-                                         px-2.5 py-0.5 text-xs font-medium text-gray-600">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none"
-                                     viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                    <path stroke-linecap="round" stroke-linejoin="round"
-                                          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-                                </svg>
-                                {{ $folder->categories_count ?? 0 }}
-                                {{ \Illuminate\Support\Str::plural('categoría', $folder->categories_count ?? 0) }}
-                            </span>
-                            <svg xmlns="http://www.w3.org/2000/svg"
-                                 class="h-4 w-4 text-gray-400 group-hover:text-[#1A428A] transition"
-                                 fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-                            </svg>
-                        </div>
-                    </a>
-                @endforeach
-            </div>
-
-            @if(! $hasSearch)
-                <p class="mt-4 text-xs text-gray-400">
-                    {{ $folders->count() }} {{ \Illuminate\Support\Str::plural('carpeta', $folders->count()) }} encontradas
-                </p>
-            @endif
-        @elseif(! $hasSearch)
-            <div class="mt-8 rounded-xl border border-dashed border-gray-300 bg-white px-6 py-12 text-center">
-                <div class="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-400" fill="none"
-                         viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                        <path stroke-linecap="round" stroke-linejoin="round"
-                              d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
-                    </svg>
-                </div>
-                <p class="text-sm text-gray-500">No hay carpetas disponibles.</p>
+        @if($documents->hasPages())
+            <div class="px-4 py-3 border-t bg-gray-50">
+                {{ $documents->links() }}
             </div>
         @endif
+    </div>
 
-        {{-- SECCIÓN: CATEGORÍAS --}}
-        @if($hasSearch && $matchingCategories->isNotEmpty())
-            <h2 class="mt-8 mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
-                Categorías ({{ $matchingCategories->count() }})
-            </h2>
-            <div class="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-                @foreach($matchingCategories as $category)
-                    <a href="{{ route('documents.categories.show', $category) }}"
-                       class="group flex items-center gap-3 px-5 py-3.5 hover:bg-blue-50 transition">
-                        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-50 group-hover:bg-amber-100 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-amber-600"
-                                 fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                      d="M7 7h.01M7 3h5l2 2h5a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h2z"/>
-                            </svg>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm font-medium text-gray-800 group-hover:text-[#1A428A] transition truncate">
-                                {{ $category->name }}
-                            </p>
-                            @if($category->parent)
-                                <p class="text-xs text-gray-400 truncate">{{ $category->parent->name }}</p>
+    {{-- MODAL: Crear documento --}}
+    @if($user->isAdmin() || $user->isOperative())
+        <x-modal name="create-document" :show="$errors->createDocument->isNotEmpty()" focusable maxWidth="lg">
+            <form method="POST"
+                  action="{{ route('documents.store') }}"
+                  x-data
+                  x-init="$nextTick(() => {
+                      initPersonPicker($refs.responsibleUser, { multiple: false });
+                      initPersonPicker($refs.authorizedUsers);
+                  })"
+                  class="p-6">
+                @csrf
+
+                <h2 class="text-lg font-semibold text-[#1A428A] mb-4">Nuevo documento</h2>
+
+                <div class="space-y-4">
+
+                    {{-- Empresa --}}
+                    @if($user->hasGroupScope() && $companies->isNotEmpty())
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">
+                                Empresa <span class="text-red-500">*</span>
+                            </label>
+                            <select name="company_id" required
+                                    class="w-full rounded-md border-gray-300 text-sm focus:border-blue-600 focus:ring-blue-600">
+                                <option value="">— Seleccionar empresa —</option>
+                                @foreach($companies as $company)
+                                    <option value="{{ $company->id }}"
+                                        @selected(old('company_id', $selectedCompanyId) == $company->id)>
+                                        {{ $company->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            @if($errors->createDocument->has('company_id'))
+                                <p class="text-sm text-red-600 mt-1">{{ $errors->createDocument->first('company_id') }}</p>
                             @endif
                         </div>
-                        <svg xmlns="http://www.w3.org/2000/svg"
-                             class="h-4 w-4 shrink-0 text-gray-300 group-hover:text-[#1A428A] transition"
-                             fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-                        </svg>
-                    </a>
-                @endforeach
-            </div>
-        @endif
+                    @endif
 
-        {{-- SECCIÓN: DOCUMENTOS --}}
-        @if($hasSearch && $matchingDocuments->isNotEmpty())
-            <h2 class="mt-8 mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
-                Documentos ({{ $matchingDocuments->count() }})
-            </h2>
-            <div class="divide-y divide-gray-100 rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-                @foreach($matchingDocuments as $document)
-                    @php $category = $document->folder; @endphp
-                    <a href="{{ route('documents.document.show', [$category, $document]) }}"
-                       class="group flex items-center gap-3 px-5 py-3.5 hover:bg-blue-50 transition">
-                        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-green-50 group-hover:bg-green-100 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-green-600"
-                                 fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
-                                <path stroke-linecap="round" stroke-linejoin="round"
-                                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                            </svg>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm font-medium text-gray-800 group-hover:text-[#1A428A] transition truncate">
-                                {{ $document->name }}
-                            </p>
-                            <p class="text-xs text-gray-400 truncate">
-                                @if($category?->parent){{ $category->parent->name }} &rsaquo; @endif
-                                {{ $category?->name }}
-                            </p>
-                        </div>
-                        @if($document->currentVersion)
-                            <span class="shrink-0 inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                                v{{ $document->currentVersion->version_number }}
-                            </span>
-                        @else
-                            <span class="shrink-0 inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
-                                Sin archivo
-                            </span>
+                    {{-- Nombre --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Nombre <span class="text-red-500">*</span>
+                        </label>
+                        <input type="text"
+                               name="name"
+                               value="{{ old('name') }}"
+                               required
+                               class="w-full rounded-md border-gray-300 text-sm focus:border-blue-600 focus:ring-blue-600">
+                        @if($errors->createDocument->has('name'))
+                            <p class="text-sm text-red-600 mt-1">{{ $errors->createDocument->first('name') }}</p>
                         @endif
-                        <svg xmlns="http://www.w3.org/2000/svg"
-                             class="h-4 w-4 shrink-0 text-gray-300 group-hover:text-[#1A428A] transition"
-                             fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
-                        </svg>
-                    </a>
-                @endforeach
-            </div>
-        @endif
+                    </div>
 
+                    {{-- Referencia / Oficio --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Referencia / Oficio
+                        </label>
+                        <input type="text"
+                               name="reference"
+                               value="{{ old('reference') }}"
+                               class="w-full rounded-md border-gray-300 text-sm focus:border-blue-600 focus:ring-blue-600">
+                    </div>
+
+                    {{-- Bodega --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Bodega
+                        </label>
+                        <input type="text"
+                               name="bodega"
+                               value="{{ old('bodega') }}"
+                               placeholder="Ubicación física del documento"
+                               class="w-full rounded-md border-gray-300 text-sm focus:border-blue-600 focus:ring-blue-600">
+                        @if($errors->createDocument->has('bodega'))
+                            <p class="text-sm text-red-600 mt-1">{{ $errors->createDocument->first('bodega') }}</p>
+                        @endif
+                    </div>
+
+                    {{-- Tipo de documento --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Tipo de documento <span class="text-red-500">*</span>
+                        </label>
+                        <select name="document_type" required
+                                class="w-full rounded-md border-gray-300 text-sm focus:border-blue-600 focus:ring-blue-600">
+                            <option value="">— Seleccionar —</option>
+                            @foreach($documentTypes as $type)
+                                <option value="{{ $type }}" @selected(old('document_type') === $type)>{{ $type }}</option>
+                            @endforeach
+                        </select>
+                        @if($errors->createDocument->has('document_type'))
+                            <p class="text-sm text-red-600 mt-1">{{ $errors->createDocument->first('document_type') }}</p>
+                        @endif
+                    </div>
+
+                    {{-- Responsable --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Responsable
+                        </label>
+                        <select name="responsible_name" x-ref="responsibleUser">
+                            <option value="">— Seleccionar usuario —</option>
+                            @foreach($users as $u)
+                                <option value="{{ $u->name }}"
+                                        @selected(old('responsible_name') === $u->name)>
+                                    {{ $u->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    {{-- Accesos Autorizados --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">
+                            Accesos Autorizados
+                        </label>
+                        <p class="text-xs text-gray-500 mb-2">
+                            Busca y agrega las personas que tienen acceso autorizado a este documento.
+                        </p>
+                        <select name="authorized_user_ids[]" multiple x-ref="authorizedUsers">
+                            @foreach($groupUsers as $u)
+                                <option value="{{ $u->id }}"
+                                    @selected(in_array($u->id, old('authorized_user_ids', [])))>
+                                    {{ $u->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    {{-- ¿Requerido? --}}
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox"
+                               name="is_required"
+                               id="is_required_modal"
+                               value="1"
+                               {{ old('is_required') ? 'checked' : '' }}
+                               class="rounded border-gray-300 text-[#1A428A] focus:ring-[#1A428A]">
+                        <label for="is_required_modal" class="text-sm text-gray-700">
+                            Documento requerido
+                        </label>
+                    </div>
+
+                </div>
+
+                <div class="mt-6 flex justify-end gap-3">
+                    <button type="button"
+                            x-on:click="$dispatch('close')"
+                            class="px-4 py-2 rounded-md border border-gray-300 bg-white text-sm text-gray-700 font-semibold hover:bg-gray-50">
+                        Cancelar
+                    </button>
+                    <button type="submit"
+                            class="px-4 py-2 rounded-md bg-[#1A428A] text-white text-sm font-semibold hover:bg-[#15356d]">
+                        Guardar
+                    </button>
+                </div>
+            </form>
+        </x-modal>
     @endif
 
 </x-layouts.vigia>
