@@ -528,7 +528,7 @@ class RegulationVersionController extends Controller
         // PhpWord y arriesgar diferencias entre "Ver" y "Descargar". Solo se reconvierte para
         // versiones subidas manualmente (sin body_html).
         if ($ext === 'docx') {
-            $bodyHtml = $version->body_html ?: $this->docxToHtml(Storage::disk('private')->path($version->file_path));
+            $bodyHtml = $version->body_html ?: $this->docxToHtml(Storage::disk('private')->path($version->file_path))['html'];
             $name     = $version->original_name ?? basename($version->file_path);
 
             // Auto-detect any regulation code from the same company in the document text
