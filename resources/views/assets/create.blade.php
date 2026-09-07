@@ -103,6 +103,9 @@
                     @error('name')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror
+                    <p class="mt-1 text-xs text-gray-400">
+                        El tipo de activo se antepone automáticamente al mostrarlo — no lo escribas aquí (ej. "EC ...").
+                    </p>
                 </div>
 
                 {{-- Código --}}

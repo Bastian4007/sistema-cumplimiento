@@ -547,6 +547,8 @@ class AssetController extends Controller
             ->orderBy('name')
             ->get();
 
+        $user = $request->user();
+
         $groupId = $asset->company?->group_id;
         $responsibles = User::query()
             ->when($user->isGlobalScope(), fn ($q) => $q, function ($q) use ($user, $asset, $groupId) {
@@ -559,7 +561,6 @@ class AssetController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
 
-        $user = $request->user();
         $companies = Company::query()
             ->when($user->hasGroupScope(), fn ($q) => $q->where('group_id', $user->group_id))
             ->when(! $user->hasGroupScope() && ! $user->isGlobalScope(), fn ($q) => $q->where('id', $user->company_id))

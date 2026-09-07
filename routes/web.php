@@ -17,6 +17,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserInvitationController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\DocumentVersionController;
+use App\Http\Controllers\InvestmentRequestController;
 use App\Http\Controllers\RegulationController;
 use App\Http\Controllers\RegulationVersionController;
 use App\Http\Controllers\RegulationApprovalController;
@@ -125,6 +126,26 @@ Route::middleware(['auth', 'license.active', 'module.access'])->group(function (
     // taken by TaskDocumentController@destroy (unrelated feature, see below).
     Route::delete('/documents/{document}/trash', [DocumentController::class, 'destroy'])
         ->name('documents.trash.move');
+
+    /*
+    |--------------------------------------------------------------------------
+    | Investment Requests (Solicitud de Inversiones)
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/investment-requests', [InvestmentRequestController::class, 'index'])
+        ->name('investment-requests.index');
+
+    Route::post('/investment-requests', [InvestmentRequestController::class, 'store'])
+        ->name('investment-requests.store');
+
+    Route::get('/investment-requests/{investmentRequest}', [InvestmentRequestController::class, 'show'])
+        ->name('investment-requests.show');
+
+    Route::get('/investment-requests/{investmentRequest}/preview', [InvestmentRequestController::class, 'preview'])
+        ->name('investment-requests.preview');
+
+    Route::get('/investment-requests/{investmentRequest}/download', [InvestmentRequestController::class, 'download'])
+        ->name('investment-requests.download');
 
     /*
     |--------------------------------------------------------------------------

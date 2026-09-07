@@ -1,5 +1,5 @@
 {{-- resources/views/assets/edit.blade.php --}}
-<x-layouts.vigia :title="'Editar: ' . $asset->name">
+<x-layouts.vigia :title="'Editar: ' . $asset->display_name">
     <x-slot name="breadcrumb">
         <a href="{{ route('assets.index', array_filter(['company_id' => request('company_id', old('company_id', $asset->company_id))])) }}"
            class="text-gray-600 hover:underline">
@@ -7,7 +7,7 @@
         </a>
         <span class="text-gray-400">›</span>
         <a href="{{ route('assets.show', $asset) }}" class="text-gray-600 hover:underline">
-            {{ $asset->name }}
+            {{ $asset->display_name }}
         </a>
         <span class="text-gray-400">›</span>
         <span class="text-gray-700 font-medium">Editar</span>
@@ -99,6 +99,9 @@
                         class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600 text-sm"
                         required
                     >
+                    <p class="mt-1 text-xs text-gray-400">
+                        El tipo de activo se antepone automáticamente al mostrarlo — no lo escribas aquí (ej. "EC ...").
+                    </p>
                     @error('name')
                         <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
                     @enderror

@@ -80,12 +80,11 @@ class EC_Seeder extends Seeder
                     continue;
                 }
 
-                // Normalize: strip ANY leading "EC " repetitions already present (el CSV a veces
-                // ya trae el prefijo duplicado, p. ej. "EC EC VILLAS ESMERALDA" — con solo una
-                // repetición en el patrón, quitar una sola vez dejaba "EC" pegado y se volvía a
-                // duplicar al anteponerlo), y lo agrega una sola vez.
+                // El prefijo "EC" ya no se guarda en el nombre — Asset::getDisplayNameAttribute()
+                // lo antepone al mostrar, usando el tipo de activo. Aquí solo se limpia cualquier
+                // "EC " que el CSV ya traiga pegado (p. ej. "EC EC VILLAS ESMERALDA").
                 $station = preg_replace('/^(?:EC\s+)+/i', '', $station);
-                $stationName = 'EC ' . strtoupper($station);
+                $stationName = strtoupper($station);
 
                 $startDate = $this->parseInicioVigencia($data['inicio_vigencia'] ?? null, $defaultStartDate);
 

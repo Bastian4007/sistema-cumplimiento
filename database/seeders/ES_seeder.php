@@ -75,10 +75,10 @@ class ES_Seeder extends Seeder
                 }
 
                 $name = strtoupper($name);
-                // Normalize: strip ANY leading "ES " repetitions already present (mismo caso que
-                // EC_seeder.php — el CSV a veces ya trae el prefijo duplicado) y lo agrega una sola vez.
+                // El prefijo "ES" ya no se guarda en el nombre — Asset::getDisplayNameAttribute()
+                // lo antepone al mostrar, usando el tipo de activo. Aquí solo se limpia cualquier
+                // "ES " que el CSV ya traiga pegado (mismo caso que EC_seeder.php).
                 $name = preg_replace('/^(?:ES\s+)+/i', '', $name);
-                $name = 'ES ' . $name;
 
                 $startDate = $this->parseInicioVigencia($data['inicio_vigencia'] ?? null, $defaultStartDate);
 

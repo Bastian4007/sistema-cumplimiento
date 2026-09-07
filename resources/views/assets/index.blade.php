@@ -194,7 +194,7 @@
                     @forelse($assets as $asset)
                         <tr class="border-t">
                             <td class="px-6 py-3">
-                                <div class="font-semibold text-gray-800">{{ $asset->name }}</div>
+                                <div class="font-semibold text-gray-800">{{ $asset->display_name }}</div>
                                 <div class="text-xs text-gray-500">
                                     {{ $asset->status === 'active' ? 'OPERACIÓN' : 'SIN OPERACIÓN' }}
                                 </div>

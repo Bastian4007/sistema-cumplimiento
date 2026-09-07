@@ -216,6 +216,8 @@
                             @if($user?->isAdmin() || $user?->isOperative() || $user?->isReadOnly())
                                 <a href="{{ route('documents.index') }}" @click="mobileMenuOpen = false"
                                    class="block rounded-md px-3 py-2 {{ request()->routeIs('documents.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Documentos generales</a>
+                                <a href="{{ route('investment-requests.index') }}" @click="mobileMenuOpen = false"
+                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('investment-requests.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Solicitud de Inversiones</a>
                                 <a href="{{ route('processes.index') }}" @click="mobileMenuOpen = false"
                                    class="block rounded-md px-3 py-2 {{ request()->routeIs('processes.index', 'processes.show', 'processes.create') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Procesos</a>
                             @endif
@@ -333,6 +335,8 @@
                             @if($user?->isAdmin() || $user?->isOperative() || $user?->isReadOnly())
                                 <a href="{{ route('documents.index') }}"
                                    class="block rounded-md px-3 py-2 {{ request()->routeIs('documents.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Documentos generales</a>
+                                <a href="{{ route('investment-requests.index') }}"
+                                   class="block rounded-md px-3 py-2 {{ request()->routeIs('investment-requests.*') ? 'bg-gray-100 font-semibold text-[#1A428A]' : 'text-gray-700 hover:bg-gray-50' }}">Solicitud de Inversiones</a>
                             @endif
 
                             @php $inCumplimiento = request()->routeIs('assets.*') || !empty($navContext['asset']); @endphp

@@ -25,6 +25,7 @@ class EnsureModuleAccess
             'requirements.*',
             'tasks.*',
             'documents.*',
+            'investment-requests.*',
             'dashboard',
         ],
     ];

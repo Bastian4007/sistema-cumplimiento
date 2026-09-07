@@ -1,5 +1,5 @@
 {{-- resources/views/assets/show.blade.php --}}
-<x-layouts.vigia :title="$asset->name" :nav-context="$navContext">
+<x-layouts.vigia :title="$asset->display_name" :nav-context="$navContext">
 
     <x-slot name="breadcrumb">
         <a href="{{ route('assets.index', array_filter(['company_id' => request('company_id', $asset->company_id)])) }}"
@@ -10,7 +10,7 @@
         <span class="text-gray-400">›</span>
 
         <span class="text-gray-700 font-medium">
-            {{ $asset->name }}
+            {{ $asset->display_name }}
         </span>
     </x-slot>
 
@@ -36,7 +36,7 @@
             <div>
                 <div class="flex items-center gap-3 flex-wrap">
                     <h1 class="text-3xl font-bold text-[#1A428A]">
-                        {{ $asset->name }}
+                        {{ $asset->display_name }}
                     </h1>
 
                     <span class="text-xs px-3 py-1 rounded border

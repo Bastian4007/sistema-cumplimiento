@@ -78,6 +78,15 @@ class Asset extends Model
         'Zacatecas',
     ];
 
+    public function getDisplayNameAttribute(): string
+    {
+        // Usa la relación `type` (no `assetType`) porque es la que ya viene
+        // precargada en el listado de activos — evita una consulta N+1 por fila.
+        $typeName = $this->type?->name;
+
+        return trim(($typeName ? $typeName . ' ' : '') . $this->name);
+    }
+
     public function getFullAddressAttribute(): ?string
     {
         $parts = array_filter([
