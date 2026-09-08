@@ -23,6 +23,25 @@ return [
         'Pruebas de Integridad Mecánica PH' => 'Pruebas de integridad mecánica',
         'SASISOPA - Implementación' => 'SASISOPA Implementación',
 
+        // El catálogo de producción todavía no lleva el año de la norma en el nombre del
+        // requerimiento (confirmado contra producción: "NOM-005-ASEA- Dictamen de Construcción",
+        // sin "2016"), mientras que el catálogo local sí lo tiene. Los archivos y el CSV de
+        // vigencias siempre traen el año, así que se mapean aquí al nombre sin año. En local,
+        // donde el catálogo ya tiene el año, estos alias no se usan (el nombre completo matchea
+        // directo) y solo generan un warning de "alias mal configurado" al importar, que es
+        // inofensivo.
+        'NOM-004-ASEA-2017 Informe de Prueba Periódica del SRV' => 'NOM-004-ASEA- Informe de Prueba Periódica del SRV',
+        'NOM-004-ASEA-2017 Informe Inicial del SRV' => 'NOM-004-ASEA- Informe Inicial del SRV',
+        'NOM-004-ASEA-2017 Proyecto Ejecutivo SRV' => 'NOM-004-ASEA- Proyecto Ejecutivo SRV',
+        'NOM-005-ASEA-2016 Dictamen de Construcción' => 'NOM-005-ASEA- Dictamen de Construcción',
+        'NOM-005-ASEA-2016 Dictamen de Diseño' => 'NOM-005-ASEA- Dictamen de Diseño',
+        'NOM-005-ASEA-2016 Dictamen de operación y mantenimiento' => 'NOM-005-ASEA- Dictamen de operación y mantenimiento',
+        'NOM-005-ASEA-2016 Dossier de obra' => 'NOM-005-ASEA- Dossier de obra',
+        'NOM-005-ASEA-2016 Proyecto Ejecutivo' => 'NOM-005-ASEA- Proyecto Ejecutivo',
+        'NOM-016-CRE-2016 Dictamen de Calidad de Petroliferos' => 'NOM-016-- Dictamen de Calidad de Petroliferos',
+        'NOM-016-CRE-2016 Muestreo de laboratorio de Calidad de Petroliferos' => 'NOM-016-- Muestreo de laboratorio de Calidad de Petroliferos',
+        'NOM-185-SCFI-2011 Modelo prototipo software de dispensarios' => 'NOM-185-SCFI- Modelo prototipo software de dispensarios',
+
         // Confirmado con negocio: mismo requerimiento con nombre abreviado en la carpeta
         // entregada por la estación ES Linares 3.
         'Controles volumetricos' => 'ANEXO 21-22 Certificado de Control Volúmetrico',
