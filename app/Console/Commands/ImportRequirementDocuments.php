@@ -10,6 +10,7 @@ use App\Models\RequirementTemplate;
 use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Http\File as HttpFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
@@ -22,11 +23,13 @@ class ImportRequirementDocuments extends Command
         {--asset= : ID del activo destino (si se omite, se detecta a partir del nombre de la carpeta)}
         {--dry-run : Muestra lo que se haría sin escribir en base de datos ni copiar archivos}';
 
-    protected $description = 'Carga masiva de documentos de un activo hacia sus requerimientos, marcando la versión más reciente por año/semestre como vigente y el resto como histórico.';
+    protected $description = 'Carga masiva de documentos de un activo hacia sus requerimientos, marcando la versión más reciente por año/semestre como vigente y el resto como histórico. Si la carpeta trae un .csv con columnas Documento/Fecha de Emisión/Fecha de Vigencia, también actualiza esas fechas en el requerimiento.';
 
     private const SEMESTER_PATTERN = '/\s+(\d)(?:er|do|to)?\.?\s*sem\.?\s*((?:19|20)\d{2})\s*$/iu';
 
     private const YEAR_PATTERN = '/\s+((?:19|20)\d{2})\s*$/u';
+
+    private const PAREN_SUFFIX_PATTERN = '/\s*\([^)]*\)\s*$/u';
 
     public function handle(): int
     {
@@ -56,7 +59,7 @@ class ImportRequirementDocuments extends Command
         $catalog = $this->buildCatalog($asset->asset_type_id);
         $catalog = $this->applyAliases($catalog, $asset->assetType?->name);
 
-        [$groups, $unmatched] = $this->scanFolder($folder, $catalog);
+        [$groups, $unmatched] = $this->scanFolder($folder, $catalog, $asset);
 
         if (empty($groups)) {
             $this->warn('No se encontró ningún archivo que coincida con el catálogo de requerimientos de este activo.');
@@ -65,15 +68,23 @@ class ImportRequirementDocuments extends Command
         $imported = 0;
         $skippedExisting = 0;
         $missingAssetRequirement = [];
+        $datesApplied = 0;
+        $datesMissingAssetRequirement = [];
+        $unmatchedDates = [];
 
         DB::transaction(function () use (
             $groups,
             $asset,
             $uploader,
             $dryRun,
+            $folder,
+            $catalog,
             &$imported,
             &$skippedExisting,
             &$missingAssetRequirement,
+            &$datesApplied,
+            &$datesMissingAssetRequirement,
+            &$unmatchedDates,
         ) {
             foreach ($groups as $group) {
                 $this->importGroup(
@@ -86,9 +97,28 @@ class ImportRequirementDocuments extends Command
                     $missingAssetRequirement,
                 );
             }
+
+            $this->applyDatesFromCsv(
+                $folder,
+                $catalog,
+                $asset,
+                $dryRun,
+                $datesApplied,
+                $datesMissingAssetRequirement,
+                $unmatchedDates,
+            );
         });
 
-        $this->printSummary($imported, $skippedExisting, $missingAssetRequirement, $unmatched, $dryRun);
+        $this->printSummary(
+            $imported,
+            $skippedExisting,
+            $missingAssetRequirement,
+            $unmatched,
+            $dryRun,
+            $datesApplied,
+            $datesMissingAssetRequirement,
+            $unmatchedDates,
+        );
 
         return self::SUCCESS;
     }
@@ -201,17 +231,18 @@ class ImportRequirementDocuments extends Command
     }
 
     /** @return array{0: array<int, array{template: RequirementTemplate, files: array}>, 1: array<int, string>} */
-    private function scanFolder(string $folder, array $catalog): array
+    private function scanFolder(string $folder, array $catalog, Asset $asset): array
     {
         $groups = [];
         $unmatched = [];
 
         $files = collect(File::allFiles($folder))
-            ->reject(fn ($f) => str_starts_with($f->getFilename(), '.'));
+            ->reject(fn ($f) => str_starts_with($f->getFilename(), '.'))
+            ->reject(fn ($f) => Str::lower($f->getExtension()) === 'csv');
 
         foreach ($files as $file) {
             $baseName = pathinfo($file->getFilename(), PATHINFO_FILENAME);
-            $match = $this->matchFile($baseName, $catalog);
+            $match = $this->matchFile($baseName, $catalog, $asset);
 
             if (! $match) {
                 $unmatched[] = $file->getRelativePathname();
@@ -248,8 +279,11 @@ class ImportRequirementDocuments extends Command
         return [$groups, $unmatched];
     }
 
-    private function matchFile(string $baseName, array $catalog): ?array
+    private function matchFile(string $baseName, array $catalog, Asset $asset): ?array
     {
+        $baseName = trim(preg_replace(self::PAREN_SUFFIX_PATTERN, '', $baseName));
+        $baseName = $this->stripAssetSuffix($baseName, $asset);
+
         $normalizedFull = $this->normalize($baseName);
         if (isset($catalog[$normalizedFull])) {
             return ['template' => $catalog[$normalizedFull], 'year' => null, 'semester' => null];
@@ -272,6 +306,30 @@ class ImportRequirementDocuments extends Command
         }
 
         return null;
+    }
+
+    /**
+     * Quita un sufijo final "- <nombre del activo>" (opcionalmente precedido por el nombre del
+     * tipo de activo, p. ej. "- ES Linares 3") que el proveedor a veces agrega al nombre del
+     * archivo pero que el catálogo de requerimientos ni el CSV de vigencias traen.
+     */
+    private function stripAssetSuffix(string $baseName, Asset $asset): string
+    {
+        $pos = strrpos($baseName, ' - ');
+        if ($pos === false) {
+            return $baseName;
+        }
+
+        $suffix = $this->normalize(substr($baseName, $pos + 3));
+
+        $candidates = [$this->normalize($asset->name)];
+        if ($typeName = $asset->assetType?->name) {
+            $candidates[] = $this->normalize($typeName . ' ' . $asset->name);
+        }
+
+        return in_array($suffix, $candidates, true)
+            ? trim(substr($baseName, 0, $pos))
+            : $baseName;
     }
 
     private function orderFiles(array $files): array
@@ -334,9 +392,144 @@ class ImportRequirementDocuments extends Command
         return $catalog;
     }
 
+    /**
+     * Busca un .csv (Documento, Fecha de Emisión, Fecha de Vigencia) directo en la carpeta de la
+     * estación y aplica esas fechas a issued_at/expires_at del requerimiento correspondiente.
+     * Cuando el mismo documento aparece varias veces con distinto año (una fila por entrega anual),
+     * se queda con la fila del año más reciente — igual criterio que ya usa importGroup() con archivos.
+     */
+    private function applyDatesFromCsv(
+        string $folder,
+        array $catalog,
+        Asset $asset,
+        bool $dryRun,
+        int &$datesApplied,
+        array &$datesMissingAssetRequirement,
+        array &$unmatchedDates,
+    ): void {
+        $csvFiles = collect(File::files($folder))
+            ->filter(fn ($f) => Str::lower($f->getExtension()) === 'csv');
+
+        foreach ($csvFiles as $csvFile) {
+            $rows = $this->readCsv($csvFile->getPathname());
+
+            $byTemplate = [];
+
+            foreach ($rows as $row) {
+                $documento = trim($row['documento'] ?? '');
+                if ($documento === '') {
+                    continue;
+                }
+
+                $match = $this->matchFile($documento, $catalog, $asset);
+
+                if (! $match) {
+                    $unmatchedDates[] = $documento;
+                    continue;
+                }
+
+                $templateId = $match['template']->id;
+                $year = $match['year'] ?? 0;
+
+                if (! isset($byTemplate[$templateId]) || $year >= $byTemplate[$templateId]['year']) {
+                    $byTemplate[$templateId] = [
+                        'template' => $match['template'],
+                        'year' => $year,
+                        'issued_at' => $this->parseCsvDate($row['fecha de emision'] ?? null),
+                        'expires_at' => $this->parseCsvDate($row['fecha de vigencia'] ?? null),
+                    ];
+                }
+            }
+
+            foreach ($byTemplate as $data) {
+                $template = $data['template'];
+
+                $assetRequirement = AssetRequirement::where('asset_id', $asset->id)
+                    ->where('requirement_template_id', $template->id)
+                    ->first();
+
+                if (! $assetRequirement) {
+                    $datesMissingAssetRequirement[] = $template->name;
+                    continue;
+                }
+
+                if ($dryRun) {
+                    $this->line(sprintf(
+                        '  [fecha] %s -> emisión: %s, vigencia: %s',
+                        $template->name,
+                        $data['issued_at']?->format('d-m-Y') ?? '—',
+                        $data['expires_at']?->format('d-m-Y') ?? '—',
+                    ));
+                    $datesApplied++;
+                    continue;
+                }
+
+                $assetRequirement->update([
+                    'issued_at' => $data['issued_at'],
+                    'expires_at' => $data['expires_at'],
+                ]);
+
+                $datesApplied++;
+            }
+        }
+    }
+
+    /** @return array<int, array<string, string|null>> filas con claves normalizadas del encabezado */
+    private function readCsv(string $path): array
+    {
+        $content = preg_replace('/^\xEF\xBB\xBF/', '', file_get_contents($path));
+
+        $firstLine = strtok($content, "\n");
+        $delimiter = substr_count($firstLine, ';') > substr_count($firstLine, ',') ? ';' : ',';
+
+        $lines = array_values(array_filter(
+            preg_split('/\r\n|\r|\n/', $content),
+            fn ($l) => trim($l) !== ''
+        ));
+
+        if (empty($lines)) {
+            return [];
+        }
+
+        $header = array_map(
+            fn ($h) => $this->normalize(trim($h)),
+            str_getcsv(array_shift($lines), $delimiter)
+        );
+
+        $rows = [];
+        foreach ($lines as $line) {
+            $values = str_getcsv($line, $delimiter);
+            $values = array_slice(array_pad($values, count($header), null), 0, count($header));
+            $rows[] = array_combine($header, $values);
+        }
+
+        return $rows;
+    }
+
+    private function parseCsvDate(?string $value): ?Carbon
+    {
+        $value = trim((string) $value);
+
+        if ($value === '' || $this->normalize($value) === 'no especificado') {
+            return null;
+        }
+
+        try {
+            return Carbon::createFromFormat('d-m-Y', $value)->startOfDay();
+        } catch (\Exception) {
+            try {
+                return Carbon::parse($value)->startOfDay();
+            } catch (\Exception) {
+                return null;
+            }
+        }
+    }
+
     private function normalize(string $value): string
     {
-        return Str::lower(trim(preg_replace('/\s+/u', ' ', $value)));
+        // Str::ascii quita acentos (Análisis -> Analisis) — el catálogo y los nombres
+        // entregados no siempre coinciden en acentuación, y no queremos que eso rompa el match.
+        return Str::lower(trim(preg_replace('/\s+/u', ' ', Str::ascii($value))));
     }
 
     private function normalizeForMatching(string $value): string
@@ -405,9 +598,12 @@ class ImportRequirementDocuments extends Command
         array $missingAssetRequirement,
         array $unmatched,
         bool $dryRun,
+        int $datesApplied = 0,
+        array $datesMissingAssetRequirement = [],
+        array $unmatchedDates = [],
     ): void {
         $this->newLine();
-        $this->info(($dryRun ? '[DRY RUN] ' : '') . "Documentos procesados: {$imported}. Ya existentes (sin cambios): {$skippedExisting}.");
+        $this->info(($dryRun ? '[DRY RUN] ' : '') . "Documentos procesados: {$imported}. Ya existentes (sin cambios): {$skippedExisting}. Fechas aplicadas: {$datesApplied}.");
 
         if (! empty($missingAssetRequirement)) {
             $this->warn('Se encontraron archivos para requerimientos del catálogo que este activo no tiene registrados (corre antes el sync de requerimientos):');
@@ -419,6 +615,20 @@ class ImportRequirementDocuments extends Command
         if (! empty($unmatched)) {
             $this->warn('Archivos sin coincidencia exacta en el catálogo de requerimientos (revisar nombre manualmente):');
             foreach ($unmatched as $name) {
+                $this->line("  - {$name}");
+            }
+        }
+
+        if (! empty($datesMissingAssetRequirement)) {
+            $this->warn('El CSV trae fechas para requerimientos del catálogo que este activo no tiene registrados (corre antes el sync de requerimientos):');
+            foreach (array_unique($datesMissingAssetRequirement) as $name) {
+                $this->line("  - {$name}");
+            }
+        }
+
+        if (! empty($unmatchedDates)) {
+            $this->warn('Filas del CSV cuyo "Documento" no coincide con ningún requerimiento del catálogo (revisar nombre o agregar alias en requirement_document_aliases.php):');
+            foreach (array_unique($unmatchedDates) as $name) {
                 $this->line("  - {$name}");
             }
         }
